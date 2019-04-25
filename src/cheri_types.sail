@@ -35,6 +35,10 @@
 type CapLen = range(0, 2 ^ 65)
 type uint64 = range(0, (2 ^ 64) - 1)
 
+type num_flags_t : Int = 1
+type CFlags = bits(num_flags_t)
+let num_flags = sizeof(num_flags_t)
+
 enum CPtrCmpOp = {
   CEQ,
   CNE,

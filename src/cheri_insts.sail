@@ -42,12 +42,21 @@ union clause ast = CGetTag    : (regbits, regbits)
 union clause ast = CGetSealed : (regbits, regbits)
 union clause ast = CGetOffset : (regbits, regbits)
 union clause ast = CGetAddr   : (regbits, regbits)
+union clause ast = CGetFlags  : (regbits, regbits)
 
 function clause execute (CGetPerm(rd, cb)) =
 {
   checkCP2usable();
   let capVal = readCapReg(cb);
   X(rd) = EXTZ(getCapPerms(capVal));
+  true
+}
+
+function clause execute (CGetFlags(rd, cb)) =
+{
+  checkCP2usable();
+  let capVal = readCapReg(cb);
+  X(rd) = EXTZ(getCapFlags(capVal));
   true
 }
 
@@ -242,7 +251,21 @@ function clause execute(CAndPerm(cd, cb, rt)) =
   }
 }
 
-
+union clause ast = CSetFlags : (regbits, regbits, regbits)
+function clause execute(CSetFlags(cd, cb, rt)) = 
+{
+  checkCP2usable();
+  let cb_val = readCapReg(cb);
+  let rt_val = X(rt);
+  if cb_val.tag & cb_val.sealed then
+    raise_c2_exception(CapEx_SealViolation, cb)
+  else
+  {
+    let newCap  = setCapFlags(cb_val, truncate(rt_val, num_flags));
+    writeCapReg(cd, newCap);
+    true
+  }
+}
 
 union clause ast = CToPtr : (regbits, regbits, regbits)
 function clause execute(CToPtr(rd, cb, ct)) =
@@ -1361,6 +1384,7 @@ mapping clause encdec = CGetLen(rd, cb)    <-> 0b1111111 @ 0b00011 @ cb @ 0b000 
 mapping clause encdec = CGetTag(rd, cb)    <-> 0b1111111 @ 0b00100 @ cb @ 0b000 @ rd @ 0b1011011
 mapping clause encdec = CGetSealed(rd, cb) <-> 0b1111111 @ 0b00101 @ cb @ 0b000 @ rd @ 0b1011011
 mapping clause encdec = CGetOffset(rd, cb) <-> 0b1111111 @ 0b00110 @ cb @ 0b000 @ rd @ 0b1011011
+mapping clause encdec = CGetFlags(rd, cb)  <-> 0b1111111 @ 0b00111 @ cb @ 0b000 @ rd @ 0b1011011
 mapping clause encdec = CGetAddr(rd, cb)   <-> 0b1111111 @ 0b01111 @ cb @ 0b000 @ rd @ 0b1011011
 
 mapping clause encdec = CMove(cd, cs)      <-> 0b1111111 @ 0b01010 @ cs @ 0b000 @ cd @ 0b1011011
@@ -1374,6 +1398,7 @@ mapping clause encdec = ClearRegs(GPRegs, q, m3 @ m5) <-> 0b1111111 @ 0b01101 @ 
 mapping clause encdec = ClearRegs(FPRegs, q, m3 @ m5) <-> 0b1111111 @ 0b10000 @ q : bits(2) @ m3 : bits(3) @ 0b000 @ m5 : regbits @ 0b1011011
 
 mapping clause assembly = CGetPerm(rd, cb)   <-> "CGetPerm"   ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(cb)
+mapping clause assembly = CGetFlags(rd, cb)  <-> "CGetFlags"  ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(cb)
 mapping clause assembly = CGetType(rd, cb)   <-> "CGetType"   ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(cb)
 mapping clause assembly = CGetBase(rd, cb)   <-> "CGetBase"   ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(cb)
 mapping clause assembly = CGetLen(rd, cb)    <-> "CGetLen"    ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(cb)
@@ -1398,6 +1423,7 @@ mapping clause assembly = ClearRegs(FPRegs, q, m8) <-> "FPClearq" ^ spc() ^ hex_
 mapping clause encdec = CSeal(cd, cs, ct)      <-> 0b0001011 @ ct @ cs @ 0b000 @ cd @ 0b1011011
 mapping clause encdec = CUnseal(cd, cs, ct)    <-> 0b0001100 @ ct @ cs @ 0b000 @ cd @ 0b1011011
 mapping clause encdec = CAndPerm(cd, cs, rt)   <-> 0b0001101 @ rt @ cs @ 0b000 @ cd @ 0b1011011
+mapping clause encdec = CSetFlags(cd, cs, rt)  <-> 0b0001110 @ rt @ cs @ 0b000 @ cd @ 0b1011011
 mapping clause encdec = CSetOffset(cd, cs, rt) <-> 0b0001111 @ rt @ cs @ 0b000 @ cd @ 0b1011011
 mapping clause encdec = CIncOffset(cd, cs, rt) <-> 0b0010001 @ rt @ cs @ 0b000 @ cd @ 0b1011011
 mapping clause encdec = CSetBounds(cd, cs, rt) <-> 0b0001000 @ rt @ cs @ 0b000 @ cd @ 0b1011011
@@ -1421,6 +1447,7 @@ mapping clause encdec = CSetBoundsImmediate(cd, cb, imm12) <-> imm12 : bits(12) 
 mapping clause assembly = CSeal(cd, cs, ct)      <-> "CSeal"      ^ spc() ^ reg_name(cd) ^ sep() ^ reg_name(cs) ^ sep() ^ reg_name(ct)
 mapping clause assembly = CUnseal(cd, cs, ct)    <-> "CUnseal"    ^ spc() ^ reg_name(cd) ^ sep() ^ reg_name(cs) ^ sep() ^ reg_name(ct)
 mapping clause assembly = CAndPerm(cd, cs, rt)   <-> "CAndPerm"   ^ spc() ^ reg_name(cd) ^ sep() ^ reg_name(cs) ^ sep() ^ reg_name(rt)
+mapping clause assembly = CSetFlags(cd, cs, rt)  <-> "CSetFlags"  ^ spc() ^ reg_name(cd) ^ sep() ^ reg_name(cs) ^ sep() ^ reg_name(rt)
 mapping clause assembly = CSetOffset(cd, cs, rt) <-> "CSetOffset" ^ spc() ^ reg_name(cd) ^ sep() ^ reg_name(cs) ^ sep() ^ reg_name(rt)
 mapping clause assembly = CIncOffset(cd, cs, rt) <-> "CIncOffset" ^ spc() ^ reg_name(cd) ^ sep() ^ reg_name(cs) ^ sep() ^ reg_name(rt)
 mapping clause assembly = CSetBounds(cd, cs, rt) <-> "CSetBounds" ^ spc() ^ reg_name(cd) ^ sep() ^ reg_name(cs) ^ sep() ^ reg_name(rt)

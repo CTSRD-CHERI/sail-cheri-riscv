@@ -54,7 +54,8 @@ struct Capability = {
   permit_load            : bool    ,
   permit_execute         : bool    ,
   global                 : bool    ,
-  reserved               : bits(3) ,
+  reserved               : bits(2) ,
+  flag_cap_mode          : bool    ,
   internal_e             : bool    ,
   E                      : bits(6) ,
   sealed                 : bool    ,
@@ -84,6 +85,7 @@ let null_cap : Capability = struct {
   permit_execute         = false,
   global                 = false,
   reserved               = zeros(),
+  flag_cap_mode          = false,
   internal_e             = true,
   E                      = resetE,
   sealed                 = false,
@@ -109,6 +111,7 @@ let default_cap : Capability = struct {
   permit_execute         = true,
   global                 = true,
   reserved               = zeros(),
+  flag_cap_mode          = false,
   internal_e             = true,
   E                      = resetE,
   sealed                 = false,
@@ -164,7 +167,8 @@ function capBitsToCapability(t, c) : (bool, CapBits) -> Capability = {
     permit_load            = c[114],
     permit_execute         = c[113],
     global                 = c[112],
-    reserved               = c[111..109],
+    reserved               = c[111..110],
+    flag_cap_mode          = c[109],
     internal_e             = internal_exponent,
     E                      = E,
     sealed                 = sealed,
@@ -202,6 +206,7 @@ function capToBits(cap) : Capability -> bits(128) = {
   return (cap.uperms
     @ getCapHardPerms(cap)
     @ cap.reserved
+    @ cap.flag_cap_mode
     @ cap.otype
     @ cap.internal_e
     @ t_hi
@@ -248,6 +253,18 @@ function setCapPerms(cap, perms) : (Capability, bits(31)) -> Capability =
       permit_execute         = perms[1],
       global                 = perms[0]
       }
+
+/*!
+Gets the architecture specific capability flags for given capability.
+ */
+val getCapFlags : Capability -> CFlags
+function getCapFlags(cap) = cap.flag_cap_mode /* NB cast from bool to bits(1) */
+
+/*!
+THIS`(cap, flags)` sets the architecture specific capability flags on `cap` to `flags` and returns the result as new capability.
+ */
+val setCapFlags : (Capability, CFlags) -> Capability
+function setCapFlags(cap, flags) = {cap with flag_cap_mode = flags[0]}
 
 function sealCap(cap, otyp) : (Capability, bits(24)) -> (bool, Capability) =
     (true, {cap with sealed=true, otype=otyp[17..0]})
