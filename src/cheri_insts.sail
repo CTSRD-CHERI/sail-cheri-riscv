@@ -1443,36 +1443,37 @@ mapping clause assembly = CSetBoundsImmediate(cd, cb, imm12) <-> "CSetBoundsImme
 
 /* Loads and stores */
 
-mapping clause encdec = CLoadDDC(rd, rs, false, BYTE)   <-> 0b0000000 @ 0b00000 @ rs @ 0b000 @ rd @ 0b1011011  /* lbddc */
-mapping clause encdec = CLoadDDC(rd, rs, false, HALF)   <-> 0b0000000 @ 0b00001 @ rs @ 0b000 @ rd @ 0b1011011  /* lhddc */
-mapping clause encdec = CLoadDDC(rd, rs, false, WORD)   <-> 0b0000000 @ 0b00010 @ rs @ 0b000 @ rd @ 0b1011011  /* lwddc */
-mapping clause encdec = CLoadDDC(rd, rs, false, DOUBLE) <-> 0b0000000 @ 0b00011 @ rs @ 0b000 @ rd @ 0b1011011  /* ldddc */
-mapping clause encdec = CLoadDDC(rd, rs, true, BYTE)    <-> 0b0000000 @ 0b00100 @ rs @ 0b000 @ rd @ 0b1011011  /* lbuddc */
-mapping clause encdec = CLoadDDC(rd, rs, true, HALF)    <-> 0b0000000 @ 0b00101 @ rs @ 0b000 @ rd @ 0b1011011  /* lhuddc */
-mapping clause encdec = CLoadDDC(rd, rs, true, WORD)    <-> 0b0000000 @ 0b00110 @ rs @ 0b000 @ rd @ 0b1011011  /* lwuddc */
-mapping clause encdec = CLoadDDC(rd, rs, true, DOUBLE)  <-> 0b0000000 @ 0b00111 @ rs @ 0b000 @ rd @ 0b1011011  /* lduddc */
-mapping clause encdec = CStoreDDC(rd, rs, BYTE)         <-> 0b0000000 @ 0b01000 @ rs @ 0b000 @ rd @ 0b1011011  /* sbddc */
-mapping clause encdec = CStoreDDC(rd, rs, HALF)         <-> 0b0000000 @ 0b01001 @ rs @ 0b000 @ rd @ 0b1011011  /* shddc */
-mapping clause encdec = CStoreDDC(rd, rs, WORD)         <-> 0b0000000 @ 0b01010 @ rs @ 0b000 @ rd @ 0b1011011  /* swddc */
-mapping clause encdec = CStoreDDC(rd, rs, DOUBLE)       <-> 0b0000000 @ 0b01011 @ rs @ 0b000 @ rd @ 0b1011011  /* sdddc */
-mapping clause encdec = CStoreCapDDC(rd, rs)            <-> 0b0000000 @ 0b01100 @ rs @ 0b000 @ rd @ 0b1011011  /* sqddc */
-mapping clause encdec = CLoadCapDDC(rd, rs)             <-> 0b0000000 @ 0b01101 @ rs @ 0b000 @ rd @ 0b1011011  /* lqddc */
+mapping clause encdec = CLoadDDC(rd, rs, false, BYTE)   <-> 0b1111101 @ 0b00000 @ rs @ 0b000 @ rd @ 0b1011011  /* lbddc */
+mapping clause encdec = CLoadDDC(rd, rs, false, HALF)   <-> 0b1111101 @ 0b00001 @ rs @ 0b000 @ rd @ 0b1011011  /* lhddc */
+mapping clause encdec = CLoadDDC(rd, rs, false, WORD)   <-> 0b1111101 @ 0b00010 @ rs @ 0b000 @ rd @ 0b1011011  /* lwddc */
+mapping clause encdec = CLoadDDC(rd, rs, false, DOUBLE) <-> 0b1111101 @ 0b00011 @ rs @ 0b000 @ rd @ 0b1011011  /* ldddc */
+mapping clause encdec = CLoadDDC(rd, rs, true, BYTE)    <-> 0b1111101 @ 0b00100 @ rs @ 0b000 @ rd @ 0b1011011  /* lbuddc */
+mapping clause encdec = CLoadDDC(rd, rs, true, HALF)    <-> 0b1111101 @ 0b00101 @ rs @ 0b000 @ rd @ 0b1011011  /* lhuddc */
+mapping clause encdec = CLoadDDC(rd, rs, true, WORD)    <-> 0b1111101 @ 0b00110 @ rs @ 0b000 @ rd @ 0b1011011  /* lwuddc */
+mapping clause encdec = CLoadDDC(rd, rs, true, DOUBLE)  <-> 0b1111101 @ 0b00111 @ rs @ 0b000 @ rd @ 0b1011011  /* lduddc */
+mapping clause encdec = CLoadCapDDC(rd, rs)             <-> 0b1111101 @ 0b10111 @ rs @ 0b000 @ rd @ 0b1011011  /* lqddc */
 
-/* Load / store data via cap, cs */
-mapping clause encdec = CLoadCap(rd, cs, false, BYTE)   <-> 0b0000000 @ 0b10000 @ cs @ 0b000 @ rd @ 0b1011011  /* lbcap */
-mapping clause encdec = CLoadCap(rd, cs, false, HALF)   <-> 0b0000000 @ 0b10001 @ cs @ 0b000 @ rd @ 0b1011011  /* lhcap */
-mapping clause encdec = CLoadCap(rd, cs, false, WORD)   <-> 0b0000000 @ 0b10010 @ cs @ 0b000 @ rd @ 0b1011011  /* lwcap */
-mapping clause encdec = CLoadCap(rd, cs, false, DOUBLE) <-> 0b0000000 @ 0b10011 @ cs @ 0b000 @ rd @ 0b1011011  /* ldcap */
-mapping clause encdec = CLoadCap(rd, cs, true, BYTE)    <-> 0b0000000 @ 0b10100 @ cs @ 0b000 @ rd @ 0b1011011  /* lbucap */
-mapping clause encdec = CLoadCap(rd, cs, true, HALF)    <-> 0b0000000 @ 0b10101 @ cs @ 0b000 @ rd @ 0b1011011  /* lhucap */
-mapping clause encdec = CLoadCap(rd, cs, true, WORD)    <-> 0b0000000 @ 0b10110 @ cs @ 0b000 @ rd @ 0b1011011  /* lwucap */
-mapping clause encdec = CLoadCap(rd, cs, true, DOUBLE)  <-> 0b0000000 @ 0b10111 @ cs @ 0b000 @ rd @ 0b1011011  /* lducap */
-mapping clause encdec = CStoreCap(rd, cs, BYTE)         <-> 0b0000000 @ 0b11000 @ cs @ 0b000 @ rd @ 0b1011011  /* sbcap */
-mapping clause encdec = CStoreCap(rd, cs, HALF)         <-> 0b0000000 @ 0b11001 @ cs @ 0b000 @ rd @ 0b1011011  /* shcap */
-mapping clause encdec = CStoreCap(rd, cs, WORD)         <-> 0b0000000 @ 0b11010 @ cs @ 0b000 @ rd @ 0b1011011  /* swcap */
-mapping clause encdec = CStoreCap(rd, cs, DOUBLE)       <-> 0b0000000 @ 0b11011 @ cs @ 0b000 @ rd @ 0b1011011  /* sdcap */
-mapping clause encdec = CStoreCapCap(rd, cs)            <-> 0b0000000 @ 0b11100 @ cs @ 0b000 @ rd @ 0b1011011  /* sqcap */
-mapping clause encdec = CLoadCapCap(rd, cs)             <-> 0b0000000 @ 0b11101 @ cs @ 0b000 @ rd @ 0b1011011  /* lqcap */
+mapping clause encdec = CLoadCap(rd, cs, false, BYTE)   <-> 0b1111101 @ 0b01000 @ cs @ 0b000 @ rd @ 0b1011011  /* lbcap */
+mapping clause encdec = CLoadCap(rd, cs, false, HALF)   <-> 0b1111101 @ 0b01001 @ cs @ 0b000 @ rd @ 0b1011011  /* lhcap */
+mapping clause encdec = CLoadCap(rd, cs, false, WORD)   <-> 0b1111101 @ 0b01010 @ cs @ 0b000 @ rd @ 0b1011011  /* lwcap */
+mapping clause encdec = CLoadCap(rd, cs, false, DOUBLE) <-> 0b1111101 @ 0b01011 @ cs @ 0b000 @ rd @ 0b1011011  /* ldcap */
+mapping clause encdec = CLoadCap(rd, cs, true, BYTE)    <-> 0b1111101 @ 0b01100 @ cs @ 0b000 @ rd @ 0b1011011  /* lbucap */
+mapping clause encdec = CLoadCap(rd, cs, true, HALF)    <-> 0b1111101 @ 0b01101 @ cs @ 0b000 @ rd @ 0b1011011  /* lhucap */
+mapping clause encdec = CLoadCap(rd, cs, true, WORD)    <-> 0b1111101 @ 0b01110 @ cs @ 0b000 @ rd @ 0b1011011  /* lwucap */
+mapping clause encdec = CLoadCap(rd, cs, true, DOUBLE)  <-> 0b1111101 @ 0b01111 @ cs @ 0b000 @ rd @ 0b1011011  /* lducap */
+mapping clause encdec = CLoadCapCap(rd, cs)             <-> 0b1111101 @ 0b11111 @ cs @ 0b000 @ rd @ 0b1011011  /* lqcap */
+
+mapping clause encdec = CStoreDDC(rs2, rs1, BYTE)       <-> 0b1111100 @ rs2 @ rs1 @ 0b000 @ 0b00000 @ 0b1011011  /* sbddc */
+mapping clause encdec = CStoreDDC(rs2, rs1, HALF)       <-> 0b1111100 @ rs2 @ rs1 @ 0b000 @ 0b00001 @ 0b1011011  /* shddc */
+mapping clause encdec = CStoreDDC(rs2, rs1, WORD)       <-> 0b1111100 @ rs2 @ rs1 @ 0b000 @ 0b00010 @ 0b1011011  /* swddc */
+mapping clause encdec = CStoreDDC(rs2, rs1, DOUBLE)     <-> 0b1111100 @ rs2 @ rs1 @ 0b000 @ 0b00011 @ 0b1011011  /* sdddc */
+mapping clause encdec = CStoreCapDDC(rs2, rs1)          <-> 0b1111100 @ rs2 @ rs1 @ 0b000 @ 0b00100 @ 0b1011011  /* sqddc */
+
+mapping clause encdec = CStoreCap(rs2, cs, BYTE)        <-> 0b1111100 @ rs2 @ cs  @ 0b000 @ 0b01000 @ 0b1011011  /* sbcap */
+mapping clause encdec = CStoreCap(rs2, cs, HALF)        <-> 0b1111100 @ rs2 @ cs  @ 0b000 @ 0b01001 @ 0b1011011  /* shcap */
+mapping clause encdec = CStoreCap(rs2, cs, WORD)        <-> 0b1111100 @ rs2 @ cs  @ 0b000 @ 0b01010 @ 0b1011011  /* swcap */
+mapping clause encdec = CStoreCap(rs2, cs, DOUBLE)      <-> 0b1111100 @ rs2 @ cs  @ 0b000 @ 0b01011 @ 0b1011011  /* sdcap */
+mapping clause encdec = CStoreCapCap(rs2, cs)           <-> 0b1111100 @ rs2 @ cs  @ 0b000 @ 0b01100 @ 0b1011011  /* sqcap */
 
 mapping clause assembly = CLoadDDC(rd, rs, u, w) <-> "l" ^ size_mnemonic(w) ^ maybe_u(u) ^ "DDC" ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs)
 mapping clause assembly = CLoadCap(rd, cs, u, w) <-> "l" ^ size_mnemonic(w) ^ maybe_u(u) ^ "Cap" ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(cs)
