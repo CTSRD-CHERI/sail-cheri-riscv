@@ -1057,6 +1057,38 @@ function clause execute (CStoreCapCap(rs, cs)) =
   handle_store_cap_via_cap(rs, cs, cap_val, vaddr)
 }
 
+/* The following are the CHERI versions of existing RISCV loads / stores used in capability mode */
+union clause ast = CAP_LOAD : (bits(12), regbits, regbits, bool, word_width, bool, bool)
+function clause execute(CAP_LOAD(imm, rs1, rd, is_unsigned, width, aq, rl)) = {
+  let cap_val = readCapReg(rs1);
+  let vaddr : xlenbits = cap_val.address + EXTS(imm);
+  let size = word_width_bytes(width);
+  if not(cap_val.tag) then
+    raise_c2_exception(CapEx_TagViolation, rs1)
+  else if cap_val.sealed then
+    raise_c2_exception(CapEx_SealViolation, rs1)
+  else if not(cap_val.permit_load) then
+    raise_c2_exception(CapEx_PermitLoadViolation, rs1)
+  else if not(inCapBounds(cap_val, vaddr, size)) then
+    raise_c2_exception(CapEx_LengthViolation, rs1)
+  else if check_misaligned(vaddr, width) then {
+    handle_mem_exception(vaddr, E_Load_Addr_Align); false
+  } else match translateAddr(vaddr, Read, Data) {
+    TR_Failure(e) => { handle_mem_exception(vaddr, e); false },
+    TR_Address(addr) =>
+      match (width, sizeof(xlen)) {
+       (BYTE, _)   =>
+          process_load(rd, vaddr, mem_read(addr, 1, aq, rl, false), is_unsigned),
+       (HALF, _)   =>
+          process_load(rd, vaddr, mem_read(addr, 2, aq, rl, false), is_unsigned),
+       (WORD, _)   =>
+          process_load(rd, vaddr, mem_read(addr, 4, aq, rl, false), is_unsigned),
+       (DOUBLE, 64) =>
+          process_load(rd, vaddr, mem_read(addr, 8, aq, rl, false), is_unsigned)
+     }
+  }
+}
+
 /*
 
 union clause ast = CLoadTags : (regbits, regbits)
