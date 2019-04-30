@@ -1089,6 +1089,59 @@ function clause execute(CAP_LOAD(imm, rs1, rd, is_unsigned, width, aq, rl)) = {
   }
 }
 
+union clause ast = CAP_STORE : (bits(12), regbits, regbits, word_width, bool, bool)
+function clause execute (CAP_STORE(imm, rs2, rs1, width, aq, rl)) = {
+  let cap_val = readCapReg(rs1);
+  let vaddr : xlenbits = cap_val.address + EXTS(imm);
+  let size = word_width_bytes(width);
+  if not(cap_val.tag) then
+    raise_c2_exception(CapEx_TagViolation, rs1)
+  else if cap_val.sealed then
+    raise_c2_exception(CapEx_SealViolation, rs1)
+  else if not(cap_val.permit_store) then
+    raise_c2_exception(CapEx_PermitStoreViolation, rs1)
+  else if not(inCapBounds(cap_val, vaddr, size)) then
+    raise_c2_exception(CapEx_LengthViolation, rs1)
+  else if check_misaligned(vaddr, width) then
+    { handle_mem_exception(vaddr, E_SAMO_Addr_Align); false }
+  else match translateAddr(vaddr, Write, Data) {
+    TR_Failure(e)    => { handle_mem_exception(vaddr, e); false },
+    TR_Address(addr) => {
+      let eares : MemoryOpResult(unit) = match width {
+        BYTE   => mem_write_ea(addr, 1, aq, rl, false),
+        HALF   => mem_write_ea(addr, 2, aq, rl, false),
+        WORD   => mem_write_ea(addr, 4, aq, rl, false),
+        DOUBLE => mem_write_ea(addr, 8, aq, rl, false)
+      };
+      match (eares) {
+        MemException(e) => { handle_mem_exception(addr, e); false },
+        MemValue(_) => {
+          let rs2_val = X(rs2);
+          let res : MemoryOpResult(bool) = match (width, sizeof(xlen)) {
+            (BYTE, _)    => mem_write_value(addr, 1, rs2_val[7..0],  aq, rl, false),
+            (HALF, _)    => mem_write_value(addr, 2, rs2_val[15..0], aq, rl, false),
+            (WORD, _)    => mem_write_value(addr, 4, rs2_val[31..0], aq, rl, false),
+            (DOUBLE, 64) => mem_write_value(addr, 8, rs2_val,        aq, rl, false)
+          };
+          match (res) {
+            MemValue(true)  => true,
+            MemValue(false) => internal_error("store got false from mem_write_value"),
+            MemException(e) => { handle_mem_exception(addr, e); false }
+          }
+        }
+      }
+    }
+  }
+}
+
+union clause ast = CAP_AUIPC : (bits(20), regbits)
+function clause execute CAP_AUIPC(imm, rd) = {
+  let off : xlenbits = EXTS(imm @ 0x000);
+  let ret = setCapAddrOrNull(PCC, PC + off);
+  writeCapReg(rd, ret);
+  true
+}
+
 /*
 
 union clause ast = CLoadTags : (regbits, regbits)
