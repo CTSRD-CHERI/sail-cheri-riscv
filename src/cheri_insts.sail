@@ -1595,32 +1595,3 @@ mapping clause assembly = CStoreCapDDC(rd, rs)   <-> "lqDDC" ^ spc() ^ reg_name(
 mapping clause assembly = CLoadCapDDC(rd, rs)    <-> "sqDDC" ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs)
 mapping clause assembly = CStoreCapCap(rd, rs)   <-> "lqCap" ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs)
 mapping clause assembly = CLoadCapCap(rd, rs)    <-> "sqCap" ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs)
-
-/*
-
-function clause decode (0b010010 @ 0b10000 @ rd : regbits @ cb : regbits @ 0b00000001 @ 0b0 @ 0b00) = Some(CLoadLinked(rd, cb, false, B)) /* CLLBU */
-function clause decode (0b010010 @ 0b10000 @ rd : regbits @ cb : regbits @ 0b00000001 @ 0b1 @ 0b00) = Some(CLoadLinked(rd, cb, true,  B)) /* CLLB  */
-function clause decode (0b010010 @ 0b10000 @ rd : regbits @ cb : regbits @ 0b00000001 @ 0b0 @ 0b01) = Some(CLoadLinked(rd, cb, false, H)) /* CLLHU */
-function clause decode (0b010010 @ 0b10000 @ rd : regbits @ cb : regbits @ 0b00000001 @ 0b1 @ 0b01) = Some(CLoadLinked(rd, cb, true,  H)) /* CLLH  */
-function clause decode (0b010010 @ 0b10000 @ rd : regbits @ cb : regbits @ 0b00000001 @ 0b0 @ 0b10) = Some(CLoadLinked(rd, cb, false, W)) /* CLLWU */
-function clause decode (0b010010 @ 0b10000 @ rd : regbits @ cb : regbits @ 0b00000001 @ 0b1 @ 0b10) = Some(CLoadLinked(rd, cb, true,  W)) /* CLLW  */
-function clause decode (0b010010 @ 0b10000 @ rd : regbits @ cb : regbits @ 0b00000001 @ 0b0 @ 0b11) = Some(CLoadLinked(rd, cb, false, D)) /* CLLD  */
-
-function clause decode (0b111010 @ rs : regbits @ cb : regbits@ rt : regbits @ offset : bits(8) @ 0b0 @ 0b00) = Some(CStore(rs, cb, rt, offset, B)) /* CSB */
-function clause decode (0b111010 @ rs : regbits @ cb : regbits@ rt : regbits @ offset : bits(8) @ 0b0 @ 0b01) = Some(CStore(rs, cb, rt, offset, H)) /* CSH */
-function clause decode (0b111010 @ rs : regbits @ cb : regbits@ rt : regbits @ offset : bits(8) @ 0b0 @ 0b10) = Some(CStore(rs, cb, rt, offset, W)) /* CSW */
-function clause decode (0b111010 @ rs : regbits @ cb : regbits@ rt : regbits @ offset : bits(8) @ 0b0 @ 0b11) = Some(CStore(rs, cb, rt, offset, D)) /* CSD */
-
-function clause decode (0b010010 @ 0b10000 @ rs : regbits @ cb : regbits @ rd : regbits @ 0b0000 @ 0b00) = Some(CStoreConditional(rs, cb, rd, B)) /* CSCB */
-function clause decode (0b010010 @ 0b10000 @ rs : regbits @ cb : regbits @ rd : regbits @ 0b0000 @ 0b01) = Some(CStoreConditional(rs, cb, rd, H)) /* CSCH */
-function clause decode (0b010010 @ 0b10000 @ rs : regbits @ cb : regbits @ rd : regbits @ 0b0000 @ 0b10) = Some(CStoreConditional(rs, cb, rd, W)) /* CSCW */
-function clause decode (0b010010 @ 0b10000 @ rs : regbits @ cb : regbits @ rd : regbits @ 0b0000 @ 0b11) = Some(CStoreConditional(rs, cb, rd, D)) /* CSCD */
-
-function clause decode (0b111110 @ cs : regbits @ cb : regbits@ rt : regbits @ offset : bits(11)) = Some(CSC(cs, cb, rt, offset))
-function clause decode (0b010010 @ 0b10000 @ cs : regbits @ cb : regbits@ rd : regbits @ 0b00 @ 0b0111) = Some(CSCC(cs, cb, rd))
-
-function clause decode (0b110110 @ cd : regbits @ cb : regbits @ rt : regbits @ offset : bits(11)) = Some(CLC(cd, cb, rt, offset))
-function clause decode (0b010010 @ 0b10000 @ cd : regbits @ cb : regbits@ 0b0000000 @ 0b1111) = Some(CLLC(cd, cb))
-function clause decode (0b011101 @ cd : regbits @ cb : regbits @ offset : bits(16)) = Some(CLCBI(cd, cb, offset))
-
-*/
