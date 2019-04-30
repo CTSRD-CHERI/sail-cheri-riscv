@@ -2,7 +2,7 @@
 ARCH = RV64
 
 
-SAIL_RISCV_DIR=../sail-riscv
+SAIL_RISCV_DIR=sail-riscv
 SAIL_RISCV_MODEL_DIR=$(SAIL_RISCV_DIR)/model
 SAIL_CHERI_MODEL_DIR=src
 
