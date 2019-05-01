@@ -103,12 +103,42 @@ function ext_handle_control_check_error(err : ext_control_addr_error) -> unit = 
 
 type ext_data_addr_error = (CapEx, bits(6)) // FIXME: use a type name for bits(6)
 
-function ext_data_check_addr(addr : xlenbits, acc : AccessType, rt : ReadType, width : word_width)
-         -> Ext_DataAddr_Check(ext_data_addr_error) =
-  match translateDDC(addr, acc, width) {
-    DDC_Failure(e) => Ext_DataAddr_Error(e, 0b100001),
-    DDC_Address(a) => Ext_DataAddr_OK(a)
-  }
+function ext_data_check_addr(base_reg : regbits, addr : xlenbits, acc : AccessType, rt : ReadType, width : word_width)
+         -> Ext_DataAddr_Check(ext_data_addr_error) = {
+  /* If we are in capabiltiy mode then do address checks on the base register, 
+     otherwise on DDC. Also offset address in latter case. */
+  let (cap_val : Capability, newAddr : xlenbits, cause_regno : bits(6)) =
+    if (PCC.flag_cap_mode) then
+      (readCapReg(base_reg), addr, 0b0 @ base_reg)
+    else
+      let ddc = DDC in
+      (ddc, ddc.address + addr, 0b100001);
+  let have_rqd_load_perm : bool = match acc {
+    Read       => cap_val.permit_load,
+    Write      => true,
+    ReadWrite  => cap_val.permit_load,
+    Execute    => false /* should only be for load/store */
+  };
+  let have_rqd_store_perm : bool = match acc {
+    Read       => true,
+    Write      => cap_val.permit_store,
+    ReadWrite  => cap_val.permit_store,
+    Execute    => false /* should only be for load/store */
+  };
+
+  if not(cap_val.tag) then
+    Ext_DataAddr_Error(CapEx_TagViolation, cause_regno)
+  else if cap_val.sealed then
+    Ext_DataAddr_Error(CapEx_SealViolation, cause_regno)
+  else if not(have_rqd_load_perm) then
+    Ext_DataAddr_Error(CapEx_PermitLoadViolation, cause_regno)
+  else if not(have_rqd_store_perm) then
+    Ext_DataAddr_Error(CapEx_PermitStoreViolation, cause_regno)
+  else if not(inCapBounds(cap_val, newAddr, word_width_bytes(width))) then
+    Ext_DataAddr_Error(CapEx_LengthViolation, cause_regno)
+  else
+    Ext_DataAddr_OK(newAddr)
+}
 
 function ext_handle_data_check_error(err : ext_data_addr_error) -> unit = {
   let (capEx, regnum) = err;
