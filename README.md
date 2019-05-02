@@ -1,6 +1,6 @@
 # CHERI RISCV Sail model
 This repository contains an implementation of the CHERI extensions
-for the RISCV architecture in [sail](http://higtbu.com/rems-project/sail). It is designed to be used with the [sail-riscv](http://github.com/rems-project/sail-riscv)
+for the RISCV architecture in [sail](http://github.com/CTSRD-CHERI/sail). It is designed to be used with the [sail-riscv](http://github.com/rems-project/sail-riscv)
 model, which is included as a submodule. To checkout / build (assuming you have installed sail):
 ```
 git clone --recurse-submodules https://github.com/rems-project/sail-cheri-riscv
