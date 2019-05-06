@@ -148,8 +148,3 @@ function ext_handle_data_check_error(err : ext_data_addr_error) -> unit = {
   let _ = raise_c2_exception6(capEx, regnum);
   ()
 }
-
-
-/* accessors for default architectural addresses, for use from within instructions */
-/* FIXME: these don't really belong in this file. */
-
