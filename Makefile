@@ -239,9 +239,9 @@ latex: $(SAIL_SRCS) Makefile
 	mkdir -p generated_definitions/latex
 	$(SAIL) -latex -latex_prefix sail -o generated_definitions/latex $(SAIL_SRCS)
 
-generated_definitions/isabelle/$(ARCH)/ROOT: handwritten_support/ROOT
+generated_definitions/isabelle/$(ARCH)/ROOT: $(SAIL_RISCV_DIR)/handwritten_support/ROOT
 	mkdir -p generated_definitions/isabelle/$(ARCH)
-	cp handwritten_support/ROOT generated_definitions/isabelle/$(ARCH)/
+	cp $(SAIL_RISCV_DIR)/handwritten_support/ROOT generated_definitions/isabelle/$(ARCH)/
 
 generated_definitions/lem/riscv_duopod.lem: $(PRELUDE_SRCS) $(SAIL_RISCV_MODEL_DIR)/riscv_duopod.sail
 	mkdir -p generated_definitions/lem
