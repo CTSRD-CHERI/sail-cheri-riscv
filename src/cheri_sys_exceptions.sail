@@ -84,6 +84,9 @@ function get_mtvec() -> xlenbits =
 function get_stvec() -> xlenbits =
   getCapOffsetBits(STCC)
 
+function get_utvec() -> xlenbits =
+  getCapOffsetBits(UTCC)
+
 function set_mtvec(value : xlenbits) -> xlenbits = {
   let mtv = legalize_tvec(Mk_Mtvec(getCapOffsetBits(MTCC)), value);
   MTCC = setCapOffsetOrNull(MTCC, mtv.bits());
@@ -94,4 +97,10 @@ function set_stvec(value : xlenbits) -> xlenbits = {
   let stv = legalize_tvec(Mk_Mtvec(getCapOffsetBits(STCC)), value);
   STCC = setCapOffsetOrNull(STCC, stv.bits());
   stv.bits()
+}
+
+function set_utvec(value : xlenbits) -> xlenbits = {
+  let utv = legalize_tvec(Mk_Mtvec(getCapOffsetBits(UTCC)), value);
+  UTCC = setCapOffsetOrNull(UTCC, utv.bits());
+  utv.bits()
 }
