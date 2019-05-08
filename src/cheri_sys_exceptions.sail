@@ -75,3 +75,23 @@ function set_xret_target(p, value) = {
   };
   target
 }
+
+/* other trap-related CSRs */
+
+function get_mtvec() -> xlenbits =
+  getCapOffsetBits(MTCC)
+
+function get_stvec() -> xlenbits =
+  getCapOffsetBits(STCC)
+
+function set_mtvec(value : xlenbits) -> xlenbits = {
+  let mtv = legalize_tvec(Mk_Mtvec(getCapOffsetBits(MTCC)), value);
+  MTCC = setCapOffsetOrNull(MTCC, mtv.bits());
+  mtv.bits()
+}
+
+function set_stvec(value : xlenbits) -> xlenbits = {
+  let stv = legalize_tvec(Mk_Mtvec(getCapOffsetBits(STCC)), value);
+  STCC = setCapOffsetOrNull(STCC, stv.bits());
+  stv.bits()
+}
