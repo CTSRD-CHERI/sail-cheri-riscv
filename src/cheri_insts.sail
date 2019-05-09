@@ -138,9 +138,10 @@ union clause ast = CGetCause : regbits
 function clause execute (CGetCause(rd)) =
 {
   checkCP2usable();
-  if not (pcc_access_system_regs ()) then
-    raise_c2_exception_pcc(CapEx_AccessSystemRegsViolation)
-  else {
+  if not (pcc_access_system_regs ()) then {
+    handle_cheri_pcc_exception(CapEx_AccessSystemRegsViolation);
+    false
+  } else {
     X(rd) = EXTZ(CapCause.bits());
     true
   }
@@ -150,10 +151,10 @@ union clause ast = CSetCause : regbits
 function clause execute (CSetCause(rt)) =
 {
   checkCP2usable();
-  if not (pcc_access_system_regs ()) then
-    raise_c2_exception_pcc(CapEx_AccessSystemRegsViolation)
-  else
-  {
+  if not (pcc_access_system_regs ()) then {
+    handle_cheri_pcc_exception(CapEx_AccessSystemRegsViolation);
+    false
+  } else {
     let rt_val = X(rt);
     CapCause->ExcCode() = rt_val[15..8];
     CapCause->RegNum()  = rt_val[7..0];
@@ -187,7 +188,8 @@ function clause execute (CSpecialRW(cd, cs, idx)) =
   } else if (ro & cs != 0) |
      (cur_privilege <_u priv) |
      (needASR & not(pcc_access_system_regs())) then {
-    raise_c2_exception6(CapEx_AccessSystemRegsViolation, 0b1 @ idx)
+    handle_cheri_cap_exception(CapEx_AccessSystemRegsViolation, 0b1 @ idx);
+    false
   } else {
     let cs_val = readCapReg(cs);
     if (cd != 0) then {
@@ -238,12 +240,13 @@ function clause execute(CAndPerm(cd, cb, rt)) =
   checkCP2usable();
   let cb_val = readCapReg(cb);
   let rt_val = X(rt);
-  if not (cb_val.tag) then
-    raise_c2_exception(CapEx_TagViolation, cb)
-  else if cb_val.sealed then
-    raise_c2_exception(CapEx_SealViolation, cb)
-  else
-  {
+  if not (cb_val.tag) then {
+    handle_cheri_reg_exception(CapEx_TagViolation, cb);
+    false
+  } else if cb_val.sealed then {
+    handle_cheri_reg_exception(CapEx_SealViolation, cb);
+    false
+  } else {
     let perms   = getCapPerms(cb_val);
     let newCap  = setCapPerms(cb_val, (perms & rt_val[30..0]));
     writeCapReg(cd, newCap);
@@ -257,10 +260,10 @@ function clause execute(CSetFlags(cd, cb, rt)) =
   checkCP2usable();
   let cb_val = readCapReg(cb);
   let rt_val = X(rt);
-  if cb_val.tag & cb_val.sealed then
-    raise_c2_exception(CapEx_SealViolation, cb)
-  else
-  {
+  if cb_val.tag & cb_val.sealed then {
+    handle_cheri_reg_exception(CapEx_SealViolation, cb);
+    false
+  } else {
     let newCap  = setCapFlags(cb_val, truncate(rt_val, num_flags));
     writeCapReg(cd, newCap);
     true
@@ -273,18 +276,19 @@ function clause execute(CToPtr(rd, cb, ct)) =
   checkCP2usable();
   let ct_val = readCapRegDDC(ct);
   let cb_val = readCapReg(cb);
-  if not (ct_val.tag) then
-    raise_c2_exception(CapEx_TagViolation, ct)
-  else if cb_val.tag & cb_val.sealed then
-    raise_c2_exception(CapEx_SealViolation, cb)
-  else
-  {
+  if not (ct_val.tag) then {
+    handle_cheri_reg_exception(CapEx_TagViolation, ct);
+    false
+  } else if cb_val.tag & cb_val.sealed then {
+    handle_cheri_reg_exception(CapEx_SealViolation, cb);
+    false
+  } else {
     let ctBase = getCapBase(ct_val);
     /* Note: returning zero for untagged values breaks magic constants such as SIG_IGN */
     X(rd) = if not (cb_val.tag) then
-        zeros()
-      else
-        to_bits(64, getCapCursor(cb_val) - ctBase);
+              zeros()
+            else
+              to_bits(64, getCapCursor(cb_val) - ctBase);
     true
   }
 }
@@ -305,10 +309,10 @@ function clause execute (CIncOffset(cd, cb, rt)) =
   checkCP2usable();
   let cb_val = readCapReg(cb);
   let rt_val = X(rt);
-  if cb_val.tag & cb_val.sealed then
-    raise_c2_exception(CapEx_SealViolation, cb)
-  else
-  {
+  if cb_val.tag & cb_val.sealed then {
+    handle_cheri_reg_exception(CapEx_SealViolation, cb);
+    false
+  } else {
     let (success, newCap) = incCapOffset(cb_val, rt_val);
     if success then
         writeCapReg(cd, newCap)
@@ -324,10 +328,10 @@ function clause execute (CIncOffsetImmediate(cd, cb, imm)) =
   checkCP2usable();
   let cb_val = readCapReg(cb);
   let imm64 : bits(64) = EXTS(imm);
-  if cb_val.tag & cb_val.sealed then
-    raise_c2_exception(CapEx_SealViolation, cb)
-  else
-  {
+  if cb_val.tag & cb_val.sealed then {
+    handle_cheri_reg_exception(CapEx_SealViolation, cb);
+    false
+  } else {
     let (success, newCap) = incCapOffset(cb_val, imm64);
     if success then
         writeCapReg(cd, newCap)
@@ -343,10 +347,10 @@ function clause execute (CSetOffset(cd, cb, rt)) =
   checkCP2usable();
   let cb_val = readCapReg(cb);
   let rt_val = X(rt);
-  if cb_val.tag & cb_val.sealed then
-    raise_c2_exception(CapEx_SealViolation, cb)
-  else
-  {
+  if cb_val.tag & cb_val.sealed then {
+    handle_cheri_reg_exception(CapEx_SealViolation, cb);
+    false
+  } else {
     let (success, newCap) = setCapOffset(cb_val, rt_val);
     if success then
         writeCapReg(cd, newCap)
@@ -366,16 +370,19 @@ function clause execute (CSetBounds(cd, cb, rt)) =
   let base   = getCapBase(cb_val);
   let top    = getCapTop(cb_val);
   let newTop = cursor + rt_val;
-  if not (cb_val.tag) then
-    raise_c2_exception(CapEx_TagViolation, cb)
-  else if cb_val.sealed then
-    raise_c2_exception(CapEx_SealViolation, cb)
-  else if cursor < base then
-    raise_c2_exception(CapEx_LengthViolation, cb)
-  else if newTop > top then
-    raise_c2_exception(CapEx_LengthViolation, cb)
-  else
-  {
+  if not (cb_val.tag) then {
+    handle_cheri_reg_exception(CapEx_TagViolation, cb);
+    false
+  } else if cb_val.sealed then {
+    handle_cheri_reg_exception(CapEx_SealViolation, cb);
+    false
+  } else if cursor < base then {
+    handle_cheri_reg_exception(CapEx_LengthViolation, cb);
+    false
+  } else if newTop > top then {
+    handle_cheri_reg_exception(CapEx_LengthViolation, cb);
+    false
+  } else {
     let (_, newCap) = setCapBounds(cb_val, to_bits(64, cursor), to_bits(65, newTop));
     writeCapReg(cd, newCap); /* ignore exact */
     true
@@ -392,16 +399,19 @@ function clause execute (CSetBoundsImmediate(cd, cb, imm)) =
   let base   = getCapBase(cb_val);
   let top    = getCapTop(cb_val);
   let newTop = cursor + immU;
-  if not (cb_val.tag) then
-    raise_c2_exception(CapEx_TagViolation, cb)
-  else if cb_val.sealed then
-    raise_c2_exception(CapEx_SealViolation, cb)
-  else if cursor < base then
-    raise_c2_exception(CapEx_LengthViolation, cb)
-  else if newTop > top then
-    raise_c2_exception(CapEx_LengthViolation, cb)
-  else
-  {
+  if not (cb_val.tag) then {
+    handle_cheri_reg_exception(CapEx_TagViolation, cb);
+    false
+  } else if cb_val.sealed then {
+    handle_cheri_reg_exception(CapEx_SealViolation, cb);
+    false
+  } else if cursor < base then {
+    handle_cheri_reg_exception(CapEx_LengthViolation, cb);
+    false
+  } else if newTop > top then {
+    handle_cheri_reg_exception(CapEx_LengthViolation, cb);
+    false
+  } else {
     let (_, newCap) = setCapBounds(cb_val, to_bits(64, cursor), to_bits(65, newTop));
     writeCapReg(cd, newCap); /* ignore exact */
     true
@@ -418,22 +428,26 @@ function clause execute (CSetBoundsExact(cd, cb, rt)) =
   let base   = getCapBase(cb_val);
   let top    = getCapTop(cb_val);
   let newTop = cursor + rt_val;
-  if not (cb_val.tag) then
-    raise_c2_exception(CapEx_TagViolation, cb)
-  else if cb_val.sealed then
-    raise_c2_exception(CapEx_SealViolation, cb)
-  else if cursor < base then
-    raise_c2_exception(CapEx_LengthViolation, cb)
-  else if newTop > top then
-    raise_c2_exception(CapEx_LengthViolation, cb)
-  else
-  {
+  if not (cb_val.tag) then {
+    handle_cheri_reg_exception(CapEx_TagViolation, cb);
+    false
+  } else if cb_val.sealed then {
+    handle_cheri_reg_exception(CapEx_SealViolation, cb);
+    false
+  } else if cursor < base then {
+    handle_cheri_reg_exception(CapEx_LengthViolation, cb);
+    false
+  } else if newTop > top then {
+    handle_cheri_reg_exception(CapEx_LengthViolation, cb);
+    false
+  } else {
     let (exact, newCap) = setCapBounds(cb_val, to_bits(64, cursor), to_bits(65, newTop));
-    if not (exact) then
-        raise_c2_exception(CapEx_InexactBounds, cb)
-    else {
-        writeCapReg(cd, newCap);
-        true
+    if not (exact) then {
+      handle_cheri_reg_exception(CapEx_InexactBounds, cb);
+      false
+    } else {
+      writeCapReg(cd, newCap);
+      true
     }
   }
 }
@@ -480,12 +494,13 @@ function clause execute (CFromPtr(cd, cb, rt)) =
   if rt_val == 0x0000000000000000 then {
     writeCapReg(cd, null_cap);
     true
-  } else if not (cb_val.tag) then
-    raise_c2_exception(CapEx_TagViolation, cb)
-  else if cb_val.sealed then
-    raise_c2_exception(CapEx_SealViolation, cb)
-  else
-  {
+  } else if not (cb_val.tag) then {
+    handle_cheri_reg_exception(CapEx_TagViolation, cb);
+    false
+  } else if cb_val.sealed then {
+    handle_cheri_reg_exception(CapEx_SealViolation, cb);
+    false
+  } else {
     let (success, newCap) = setCapOffset(cb_val, rt_val);
     if success then
         writeCapReg(cd, newCap)
@@ -508,20 +523,25 @@ function clause execute (CBuildCap(cd, cb, ct)) =
   let cb_perms = getCapPerms(cb_val);
   let ct_perms = getCapPerms(ct_val);
   let ct_offset = getCapOffset(ct_val);
-  if not (cb_val.tag) then
-    raise_c2_exception(CapEx_TagViolation, cb)
-  else if cb_val.sealed then
-    raise_c2_exception(CapEx_SealViolation, cb)
-  else if ct_base < cb_base then
-    raise_c2_exception(CapEx_LengthViolation, cb)
-  else if ct_top > cb_top then
-    raise_c2_exception(CapEx_LengthViolation, cb)
-   else if ct_base > ct_top then /* check for length < 0 - possible because ct might be untagged */
-    raise_c2_exception(CapEx_LengthViolation, ct)
-   else if (ct_perms & cb_perms) != ct_perms then
-    raise_c2_exception(CapEx_UserDefViolation, cb)
-  else
-  {
+  if not (cb_val.tag) then {
+    handle_cheri_reg_exception(CapEx_TagViolation, cb);
+    false
+  } else if cb_val.sealed then {
+    handle_cheri_reg_exception(CapEx_SealViolation, cb);
+    false
+  } else if ct_base < cb_base then {
+    handle_cheri_reg_exception(CapEx_LengthViolation, cb);
+    false
+  } else if ct_top > cb_top then {
+    handle_cheri_reg_exception(CapEx_LengthViolation, cb);
+    false
+  } else if ct_base > ct_top then { /* check for length < 0 - possible because ct might be untagged */
+    handle_cheri_reg_exception(CapEx_LengthViolation, ct);
+    false
+  } else if (ct_perms & cb_perms) != ct_perms then {
+    handle_cheri_reg_exception(CapEx_UserDefViolation, cb);
+    false
+  } else {
     let (exact, cd1) = setCapBounds(cb_val, to_bits(64, ct_base), to_bits(65, ct_top));
     let (representable, cd2) = setCapOffset(cd1, to_bits(64, ct_offset));
     let cd3 = setCapPerms(cd2, ct_perms);
@@ -543,25 +563,26 @@ function clause execute (CCopyType(cd, cb, ct)) =
   let cb_base = getCapBase(cb_val);
   let cb_top  = getCapTop(cb_val);
   let ct_otype = unsigned(ct_val.otype);
-  if not (cb_val.tag) then
-    raise_c2_exception(CapEx_TagViolation, cb)
-  else if cb_val.sealed then
-    raise_c2_exception(CapEx_SealViolation, cb)
-  else if ct_val.sealed then
-  {
-    if ct_otype < cb_base then
-      raise_c2_exception(CapEx_LengthViolation, cb)
-    else if ct_otype >= cb_top then
-      raise_c2_exception(CapEx_LengthViolation, cb)
-    else
-    {
+  if not (cb_val.tag) then {
+    handle_cheri_reg_exception(CapEx_TagViolation, cb);
+    false
+  } else if cb_val.sealed then {
+    handle_cheri_reg_exception(CapEx_SealViolation, cb);
+    false
+  } else if ct_val.sealed then {
+    if ct_otype < cb_base then {
+      handle_cheri_reg_exception(CapEx_LengthViolation, cb);
+      false
+    } else if ct_otype >= cb_top then {
+      handle_cheri_reg_exception(CapEx_LengthViolation, cb);
+      false
+    } else {
       let (success, cap) = setCapOffset(cb_val, to_bits(64, ct_otype - cb_base));
       assert(success, "CopyType: offset is in bounds so should be representable");
       writeCapReg(cd, cap);
       true
     }
-  }
-  else {
+  } else {
     writeCapReg(cd, int_to_cap(0xffffffffffffffff));
     true
   }
@@ -574,11 +595,13 @@ function clause execute (CCheckPerm(cs, rt)) =
   let cs_val = readCapReg(cs);
   let cs_perms : bits(64) = EXTZ(getCapPerms(cs_val));
   let rt_perms = X(rt);
-  if not (cs_val.tag) then
-    raise_c2_exception(CapEx_TagViolation, cs)
-  else if (cs_perms & rt_perms) != rt_perms then
-    raise_c2_exception(CapEx_UserDefViolation, cs)
-  else
+  if not (cs_val.tag) then {
+    handle_cheri_reg_exception(CapEx_TagViolation, cs);
+    false
+  } else if (cs_perms & rt_perms) != rt_perms then {
+    handle_cheri_reg_exception(CapEx_UserDefViolation, cs);
+    false
+  } else
     true
 }
 
@@ -588,17 +611,22 @@ function clause execute (CCheckType(cs, cb)) =
   checkCP2usable();
   let cs_val = readCapReg(cs);
   let cb_val = readCapReg(cb);
-  if not (cs_val.tag) then
-    raise_c2_exception(CapEx_TagViolation, cs)
-  else if not (cb_val.tag) then
-    raise_c2_exception(CapEx_TagViolation, cb)
-  else if not (cs_val.sealed) then
-    raise_c2_exception(CapEx_SealViolation, cs)
-  else if not (cb_val.sealed) then
-    raise_c2_exception(CapEx_SealViolation, cb)
-  else if cs_val.otype != cb_val.otype then
-    raise_c2_exception(CapEx_TypeViolation, cs)
-  else
+  if not (cs_val.tag) then {
+    handle_cheri_reg_exception(CapEx_TagViolation, cs);
+    false
+  } else if not (cb_val.tag) then {
+    handle_cheri_reg_exception(CapEx_TagViolation, cb);
+    false
+  } else if not (cs_val.sealed) then {
+    handle_cheri_reg_exception(CapEx_SealViolation, cs);
+    false
+  } else if not (cb_val.sealed) then {
+    handle_cheri_reg_exception(CapEx_SealViolation, cb);
+    false
+  } else if cs_val.otype != cb_val.otype then {
+    handle_cheri_reg_exception(CapEx_TypeViolation, cs);
+    false
+  } else
     true
 }
 
@@ -607,9 +635,10 @@ function clause execute (CCheckTag (cs)) =
 {
   checkCP2usable();
   let cs_val = readCapReg(cs);
-  if not(cs_val.tag) then
-    raise_c2_exception(CapEx_TagViolation, cs)
-  else
+  if not(cs_val.tag) then {
+    handle_cheri_reg_exception(CapEx_TagViolation, cs);
+    false
+  } else
     true
 }
 
@@ -626,15 +655,15 @@ function clause execute (CTestSubset(rd, cb, ct)) =
   let cb_base  = getCapBase(cb_val);
   let cb_perms = getCapPerms(cb_val);
   let result = if cb_val.tag != ct_val.tag then
-                0b0
-           else if ct_base < cb_base then
-                0b0
-           else if ct_top > cb_top then
-                0b0
-           else if (ct_perms & cb_perms) != ct_perms then
-                0b0
-           else
-                0b1;
+                  0b0
+               else if ct_base < cb_base then
+                  0b0
+               else if ct_top > cb_top then
+                  0b0
+               else if (ct_perms & cb_perms) != ct_perms then
+                  0b0
+               else
+                  0b1;
   X(rd) = EXTZ(result);
   true
 }
@@ -648,30 +677,38 @@ function clause execute (CSeal(cd, cs, ct)) =
   let ct_cursor = getCapCursor(ct_val);
   let ct_top    = getCapTop(ct_val);
   let ct_base   = getCapBase(ct_val);
-  if not (cs_val.tag) then
-    raise_c2_exception(CapEx_TagViolation, cs)
-  else if not (ct_val.tag) then
-    raise_c2_exception(CapEx_TagViolation, ct)
-  else if cs_val.sealed then
-    raise_c2_exception(CapEx_SealViolation, cs)
-  else if ct_val.sealed then
-    raise_c2_exception(CapEx_SealViolation, ct)
-  else if not (ct_val.permit_seal) then
-    raise_c2_exception(CapEx_PermitSealViolation, ct)
-  else if ct_cursor < ct_base then
-    raise_c2_exception(CapEx_LengthViolation, ct)
-  else if ct_cursor >= ct_top then
-    raise_c2_exception(CapEx_LengthViolation, ct)
-  else if ct_cursor > max_otype then
-    raise_c2_exception(CapEx_LengthViolation, ct)
-  else
-  {
+  if not (cs_val.tag) then {
+    handle_cheri_reg_exception(CapEx_TagViolation, cs);
+    false
+  } else if not (ct_val.tag) then {
+    handle_cheri_reg_exception(CapEx_TagViolation, ct);
+    false
+  } else if cs_val.sealed then {
+    handle_cheri_reg_exception(CapEx_SealViolation, cs);
+    false
+  } else if ct_val.sealed then {
+    handle_cheri_reg_exception(CapEx_SealViolation, ct);
+    false
+  } else if not (ct_val.permit_seal) then {
+    handle_cheri_reg_exception(CapEx_PermitSealViolation, ct);
+    false
+  } else if ct_cursor < ct_base then {
+    handle_cheri_reg_exception(CapEx_LengthViolation, ct);
+    false
+  } else if ct_cursor >= ct_top then {
+    handle_cheri_reg_exception(CapEx_LengthViolation, ct);
+    false
+  } else if ct_cursor > max_otype then {
+    handle_cheri_reg_exception(CapEx_LengthViolation, ct);
+    false
+  } else {
     let (success, newCap) = sealCap(cs_val, to_bits(24, ct_cursor));
-    if not (success) then
-        raise_c2_exception(CapEx_InexactBounds, cs)
-    else {
-        writeCapReg(cd, newCap);
-        true
+    if not (success) then {
+      handle_cheri_reg_exception(CapEx_InexactBounds, cs);
+      false
+    } else {
+      writeCapReg(cd, newCap);
+      true
     }
   }
 }
@@ -685,29 +722,36 @@ function clause execute (CCSeal(cd, cs, ct)) =
   let ct_cursor = getCapCursor(ct_val);
   let ct_top    = getCapTop(ct_val);
   let ct_base   = getCapBase(ct_val);
-  if not (cs_val.tag) then
-    raise_c2_exception(CapEx_TagViolation, cs)
-  else if not (ct_val.tag) | (getCapCursor(ct_val) == MAX_U64) then {
+  if not (cs_val.tag) then {
+    handle_cheri_reg_exception(CapEx_TagViolation, cs);
+    false
+  } else if not (ct_val.tag) | (getCapCursor(ct_val) == MAX_U64) then {
     writeCapReg(cd, cs_val);
     true
-  } else if cs_val.sealed then
-    raise_c2_exception(CapEx_SealViolation, cs)
-  else if ct_val.sealed then
-    raise_c2_exception(CapEx_SealViolation, ct)
-  else if not (ct_val.permit_seal) then
-    raise_c2_exception(CapEx_PermitSealViolation, ct)
-  else if ct_cursor < ct_base then
-    raise_c2_exception(CapEx_LengthViolation, ct)
-  else if ct_cursor >= ct_top then
-    raise_c2_exception(CapEx_LengthViolation, ct)
-  else if ct_cursor > max_otype then
-    raise_c2_exception(CapEx_LengthViolation, ct)
-  else
-  {
+  } else if cs_val.sealed then {
+    handle_cheri_reg_exception(CapEx_SealViolation, cs);
+    false
+  } else if ct_val.sealed then {
+    handle_cheri_reg_exception(CapEx_SealViolation, ct);
+    false
+  } else if not (ct_val.permit_seal) then {
+    handle_cheri_reg_exception(CapEx_PermitSealViolation, ct);
+    false
+  } else if ct_cursor < ct_base then {
+    handle_cheri_reg_exception(CapEx_LengthViolation, ct);
+    false
+  } else if ct_cursor >= ct_top then {
+    handle_cheri_reg_exception(CapEx_LengthViolation, ct);
+    false
+  } else if ct_cursor > max_otype then {
+    handle_cheri_reg_exception(CapEx_LengthViolation, ct);
+    false
+  } else {
     let (success, newCap) = sealCap(cs_val, to_bits(24, ct_cursor));
-    if not (success) then
-      raise_c2_exception(CapEx_InexactBounds, cs)
-    else {
+    if not (success) then {
+      handle_cheri_reg_exception(CapEx_InexactBounds, cs);
+      false
+    } else {
       writeCapReg(cd, newCap);
       true
     }
@@ -721,23 +765,31 @@ function clause execute (CUnseal(cd, cs, ct)) =
   let cs_val = readCapReg(cs);
   let ct_val = readCapReg(ct);
   let ct_cursor = getCapCursor(ct_val);
-  if not (cs_val.tag) then
-    raise_c2_exception(CapEx_TagViolation, cs)
-  else if not (ct_val.tag) then
-    raise_c2_exception(CapEx_TagViolation, ct)
-  else if not (cs_val.sealed) then
-    raise_c2_exception(CapEx_SealViolation, cs)
-  else if ct_val.sealed then
-    raise_c2_exception(CapEx_SealViolation, ct)
-  else if ct_cursor != unsigned(cs_val.otype) then
-    raise_c2_exception(CapEx_TypeViolation, ct)
-  else if not (ct_val.permit_unseal) then
-    raise_c2_exception(CapEx_PermitUnsealViolation, ct)
-  else if ct_cursor <  getCapBase(ct_val) then
-    raise_c2_exception(CapEx_LengthViolation, ct)
-  else if ct_cursor >= getCapTop(ct_val) then
-    raise_c2_exception(CapEx_LengthViolation, ct)
-  else {
+  if not (cs_val.tag) then {
+    handle_cheri_reg_exception(CapEx_TagViolation, cs);
+    false
+  } else if not (ct_val.tag) then {
+    handle_cheri_reg_exception(CapEx_TagViolation, ct);
+    false
+  } else if not (cs_val.sealed) then {
+    handle_cheri_reg_exception(CapEx_SealViolation, cs);
+    false
+  } else if ct_val.sealed then {
+    handle_cheri_reg_exception(CapEx_SealViolation, ct);
+    false
+  } else if ct_cursor != unsigned(cs_val.otype) then {
+    handle_cheri_reg_exception(CapEx_TypeViolation, ct);
+    false
+  } else if not (ct_val.permit_unseal) then {
+    handle_cheri_reg_exception(CapEx_PermitUnsealViolation, ct);
+    false
+  } else if ct_cursor <  getCapBase(ct_val) then {
+    handle_cheri_reg_exception(CapEx_LengthViolation, ct);
+    false
+  } else if ct_cursor >= getCapTop(ct_val) then {
+    handle_cheri_reg_exception(CapEx_LengthViolation, ct);
+    false
+  } else {
     writeCapReg(cd, {unsealCap(cs_val) with
       global=(cs_val.global & ct_val.global)
     });
@@ -753,26 +805,37 @@ function clause execute (CCall(cs, cb, 0b00000)) = /* selector=0 */
   let cs_val = readCapReg(cs);
   let cb_val = readCapReg(cb);
   let cs_cursor = getCapCursor(cs_val);
-  if not (cs_val.tag) then
-    raise_c2_exception(CapEx_TagViolation, cs)
-  else if not (cb_val.tag) then
-    raise_c2_exception(CapEx_TagViolation, cb)
-  else if not (cs_val.sealed) then
-    raise_c2_exception(CapEx_SealViolation, cs)
-  else if not (cb_val.sealed) then
-    raise_c2_exception(CapEx_SealViolation, cb)
-  else if cs_val.otype != cb_val.otype then
-    raise_c2_exception(CapEx_TypeViolation, cs)
-  else if not (cs_val.permit_execute) then
-    raise_c2_exception(CapEx_PermitExecuteViolation, cs)
-  else if cb_val.permit_execute then
-    raise_c2_exception(CapEx_PermitExecuteViolation, cb)
-  else if cs_cursor < getCapBase(cs_val) then
-    raise_c2_exception(CapEx_LengthViolation, cs)
-  else if cs_cursor >= getCapTop(cs_val) then
-    raise_c2_exception(CapEx_LengthViolation, cs)
-  else
-    raise_c2_exception(CapEx_CallTrap, cs);
+  if not (cs_val.tag) then {
+    handle_cheri_reg_exception(CapEx_TagViolation, cs);
+    false
+  } else if not (cb_val.tag) then {
+    handle_cheri_reg_exception(CapEx_TagViolation, cb);
+    false
+  } else if not (cs_val.sealed) then {
+    handle_cheri_reg_exception(CapEx_SealViolation, cs);
+    false
+  } else if not (cb_val.sealed) then {
+    handle_cheri_reg_exception(CapEx_SealViolation, cb);
+    false
+  } else if cs_val.otype != cb_val.otype then {
+    handle_cheri_reg_exception(CapEx_TypeViolation, cs);
+    false
+  } else if not (cs_val.permit_execute) then {
+    handle_cheri_reg_exception(CapEx_PermitExecuteViolation, cs);
+    false
+  } else if cb_val.permit_execute then {
+    handle_cheri_reg_exception(CapEx_PermitExecuteViolation, cb);
+    false
+  } else if cs_cursor < getCapBase(cs_val) then {
+    handle_cheri_reg_exception(CapEx_LengthViolation, cs);
+    false
+  } else if cs_cursor >= getCapTop(cs_val) then {
+    handle_cheri_reg_exception(CapEx_LengthViolation, cs);
+    false
+  } else {
+    handle_cheri_reg_exception(CapEx_CallTrap, cs);
+    false
+  }
 }
 
 function clause execute (CCall(cs, cb, 0b00001)) = /* selector=1 */
@@ -784,29 +847,40 @@ function clause execute (CCall(cs, cb, 0b00001)) = /* selector=1 */
   let newPC = [cs_val.address with 0 = bitzero]; /* clear bit zero as for RISCV JALR */
   let newPC_int = unsigned(newPC);
   let (cs_base, cs_top) = getCapBounds(cs_val);
-  if not (cs_val.tag) then
-    raise_c2_exception(CapEx_TagViolation, cs)
-  else if not (cb_val.tag) then
-    raise_c2_exception(CapEx_TagViolation, cb)
-  else if not (cs_val.sealed) then
-    raise_c2_exception(CapEx_SealViolation, cs)
-  else if not (cb_val.sealed) then
-    raise_c2_exception(CapEx_SealViolation, cb)
-  else if cs_val.otype != cb_val.otype then
-    raise_c2_exception(CapEx_TypeViolation, cs)
-  else if not (cs_val.permit_ccall) then
-    raise_c2_exception(CapEx_PermitCCallViolation, cs)
-  else if not (cb_val.permit_ccall) then
-    raise_c2_exception(CapEx_PermitCCallViolation, cb)
-  else if not (cs_val.permit_execute) then
-    raise_c2_exception(CapEx_PermitExecuteViolation, cs)
-  else if cb_val.permit_execute then
-    raise_c2_exception(CapEx_PermitExecuteViolation, cb)
-  else if newPC_int < cs_base then
-    raise_c2_exception(CapEx_LengthViolation, cs)
-  else if (newPC_int + min_instruction_bytes ()) > cs_top then
-    raise_c2_exception(CapEx_LengthViolation, cs)
-  else if newPC[1] & ~(haveRVC()) then {
+  if not (cs_val.tag) then {
+    handle_cheri_reg_exception(CapEx_TagViolation, cs);
+    false
+  } else if not (cb_val.tag) then {
+    handle_cheri_reg_exception(CapEx_TagViolation, cb);
+    false
+  } else if not (cs_val.sealed) then {
+    handle_cheri_reg_exception(CapEx_SealViolation, cs);
+    false
+  } else if not (cb_val.sealed) then {
+    handle_cheri_reg_exception(CapEx_SealViolation, cb);
+    false
+  } else if cs_val.otype != cb_val.otype then {
+    handle_cheri_reg_exception(CapEx_TypeViolation, cs);
+    false
+  } else if not (cs_val.permit_ccall) then {
+    handle_cheri_reg_exception(CapEx_PermitCCallViolation, cs);
+    false
+  } else if not (cb_val.permit_ccall) then {
+    handle_cheri_reg_exception(CapEx_PermitCCallViolation, cb);
+    false
+  } else if not (cs_val.permit_execute) then {
+    handle_cheri_reg_exception(CapEx_PermitExecuteViolation, cs);
+    false
+  } else if cb_val.permit_execute then {
+    handle_cheri_reg_exception(CapEx_PermitExecuteViolation, cb);
+    false
+  } else if newPC_int < cs_base then {
+    handle_cheri_reg_exception(CapEx_LengthViolation, cs);
+    false
+  } else if (newPC_int + min_instruction_bytes ()) > cs_top then {
+    handle_cheri_reg_exception(CapEx_LengthViolation, cs);
+    false
+  } else if newPC[1] & ~(haveRVC()) then {
     handle_mem_exception(newPC,  E_Fetch_Addr_Align);
     false
   } else {
@@ -820,7 +894,8 @@ function clause execute (CCall(cs, cb, 0b00001)) = /* selector=1 */
 function clause execute (CCall(_, _, 0b11111)) = /* CReturn */
 {
   checkCP2usable();
-  raise_c2_exception(CapEx_ReturnTrap, 0b11111) /* XXX what should correct reg number be? */
+  handle_cheri_reg_exception(CapEx_ReturnTrap, 0b11111); /* XXX what should correct reg number be? */
+  false
 }
 
 union clause ast = CJALR : (regbits, regbits)
@@ -831,17 +906,22 @@ function clause execute(CJALR(cd, cb)) =
   let newPC = [cb_val.address with 0 = bitzero]; /* clear bit zero as for RISCV JALR */
   let newPC_int = unsigned(newPC);
   let (cb_base, cb_top)  = getCapBounds(cb_val);
-  if not (cb_val.tag) then
-    raise_c2_exception(CapEx_TagViolation, cb)
-  else if (cb_val.sealed) then
-    raise_c2_exception(CapEx_SealViolation, cb)
-  else if not (cb_val.permit_execute) then
-    raise_c2_exception(CapEx_PermitExecuteViolation, cb)
-  else if newPC_int < cb_base then
-    raise_c2_exception(CapEx_LengthViolation, cb)
-  else if (newPC_int + min_instruction_bytes ()) > cb_top then
-    raise_c2_exception(CapEx_LengthViolation, cb)
-  else if newPC[1] & ~(haveRVC()) then {
+  if not (cb_val.tag) then {
+    handle_cheri_reg_exception(CapEx_TagViolation, cb);
+    false
+  } else if (cb_val.sealed) then {
+    handle_cheri_reg_exception(CapEx_SealViolation, cb);
+    false
+  } else if not (cb_val.permit_execute) then {
+    handle_cheri_reg_exception(CapEx_PermitExecuteViolation, cb);
+    false
+  } else if newPC_int < cb_base then {
+    handle_cheri_reg_exception(CapEx_LengthViolation, cb);
+    false
+  } else if (newPC_int + min_instruction_bytes ()) > cb_top then {
+    handle_cheri_reg_exception(CapEx_LengthViolation, cb);
+    false
+  } else if newPC[1] & ~(haveRVC()) then {
     handle_mem_exception(newPC,  E_Fetch_Addr_Align);
     false
   } else {
@@ -862,15 +942,20 @@ function handle_load_data_via_cap(rd, cs, cap_val, vaddrBits, is_unsigned, width
   let aq : bool = false;
   let rl : bool = false;
   if not(cap_val.tag) then {
-    raise_c2_exception6(CapEx_TagViolation, cs);
+    handle_cheri_cap_exception(CapEx_TagViolation, cs);
+    false
   } else if cap_val.sealed then {
-    raise_c2_exception6(CapEx_SealViolation, cs);
+    handle_cheri_cap_exception(CapEx_SealViolation, cs);
+    false
   } else if not (cap_val.permit_load) then {
-    raise_c2_exception6(CapEx_PermitLoadViolation, cs);
+    handle_cheri_cap_exception(CapEx_PermitLoadViolation, cs);
+    false
   } else if (vaddr + size) > top then {
-    raise_c2_exception6(CapEx_LengthViolation, cs);
+    handle_cheri_cap_exception(CapEx_LengthViolation, cs);
+    false
   } else if vaddr < base then {
-    raise_c2_exception6(CapEx_LengthViolation, cs);
+    handle_cheri_cap_exception(CapEx_LengthViolation, cs);
+    false
   } else if check_misaligned(vaddrBits, width) then {
     handle_mem_exception(vaddrBits, E_Load_Addr_Align);
     false
@@ -905,15 +990,20 @@ function handle_load_cap_via_cap(rd, cs, cap_val, vaddrBits) = {
   let aq : bool = false;
   let rl : bool = false;
   if not(cap_val.tag) then {
-    raise_c2_exception6(CapEx_TagViolation, cs);
+    handle_cheri_cap_exception(CapEx_TagViolation, cs);
+    false
   } else if cap_val.sealed then {
-    raise_c2_exception6(CapEx_SealViolation, cs);
+    handle_cheri_cap_exception(CapEx_SealViolation, cs);
+    false
   } else if not (cap_val.permit_load) then {
-    raise_c2_exception6(CapEx_PermitLoadViolation, cs);
+    handle_cheri_cap_exception(CapEx_PermitLoadViolation, cs);
+    false
   } else if (vaddr + cap_size) > top then {
-    raise_c2_exception6(CapEx_LengthViolation, cs);
+    handle_cheri_cap_exception(CapEx_LengthViolation, cs);
+    false
   } else if vaddr < base then {
-    raise_c2_exception6(CapEx_LengthViolation, cs);
+    handle_cheri_cap_exception(CapEx_LengthViolation, cs);
+    false
   } else if not(is_aligned_addr(vaddrBits, cap_size)) then {
     handle_mem_exception(vaddrBits, E_Load_Addr_Align);
     false
@@ -955,15 +1045,20 @@ function handle_store_data_via_cap(rs, cs, cap_val, vaddrBits, width) = {
   let aq : bool = false;
   let rl : bool = false;
   if not(cap_val.tag) then {
-    raise_c2_exception(CapEx_TagViolation, cs);
+    handle_cheri_reg_exception(CapEx_TagViolation, cs);
+    false
   } else if cap_val.sealed then {
-    raise_c2_exception(CapEx_SealViolation, cs);
+    handle_cheri_reg_exception(CapEx_SealViolation, cs);
+    false
   } else if not (cap_val.permit_store) then {
-    raise_c2_exception(CapEx_PermitStoreViolation, cs);
+    handle_cheri_reg_exception(CapEx_PermitStoreViolation, cs);
+    false
   } else if (vaddr + size) > top then {
-    raise_c2_exception(CapEx_LengthViolation, cs);
+    handle_cheri_reg_exception(CapEx_LengthViolation, cs);
+    false
   } else if vaddr < base then {
-    raise_c2_exception(CapEx_LengthViolation, cs);
+    handle_cheri_reg_exception(CapEx_LengthViolation, cs);
+    false
   } else if check_misaligned(vaddrBits, width) then {
     handle_mem_exception(vaddrBits, E_SAMO_Addr_Align);
     false
@@ -1017,15 +1112,20 @@ function handle_store_cap_via_cap(rs, cs, cap_val, vaddrBits) = {
   let aq : bool = false;
   let rl : bool = false;
   if not(cap_val.tag) then {
-    raise_c2_exception(CapEx_TagViolation, cs);
+    handle_cheri_reg_exception(CapEx_TagViolation, cs);
+    false
   } else if cap_val.sealed then {
-    raise_c2_exception(CapEx_SealViolation, cs);
+    handle_cheri_reg_exception(CapEx_SealViolation, cs);
+    false
   } else if not (cap_val.permit_store) then {
-    raise_c2_exception(CapEx_PermitStoreViolation, cs);
+    handle_cheri_reg_exception(CapEx_PermitStoreViolation, cs);
+    false
   } else if (vaddr + cap_size) > top then {
-    raise_c2_exception(CapEx_LengthViolation, cs);
+    handle_cheri_reg_exception(CapEx_LengthViolation, cs);
+    false
   } else if vaddr < base then {
-    raise_c2_exception(CapEx_LengthViolation, cs);
+    handle_cheri_reg_exception(CapEx_LengthViolation, cs);
+    false
   } else if not(is_aligned_addr(vaddrBits, cap_size)) then {
     handle_mem_exception(vaddrBits, E_SAMO_Addr_Align);
     false

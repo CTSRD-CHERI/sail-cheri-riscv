@@ -1,7 +1,7 @@
 /* Error handlers for address check errors */
 
-val raise_c2_exception6 : (CapEx, bits(6)) -> bool effect {escape, rreg, wreg}
-function raise_c2_exception6(capEx, regnum) =
+val handle_cheri_cap_exception : (CapEx, bits(6)) -> unit effect {escape, rreg, wreg}
+function handle_cheri_cap_exception(capEx, regnum) =
   {
     print("CHERI " ^ string_of_capex(capEx) ^ " Reg=" ^ BitStr(regnum));
     let cause : cheri_cause = struct {
@@ -13,23 +13,22 @@ function raise_c2_exception6(capEx, regnum) =
       excinfo = (None() : option(xlenbits)),
       ext     = Some(cause)
     };
-    set_next_pc(exception_handler(cur_privilege, CTL_TRAP(t), PC));
-    false
+    set_next_pc(exception_handler(cur_privilege, CTL_TRAP(t), PC))
   }
 
 /*!
 causes the processor to raise a capability exception by writing the given capability exception cause and register number to the xccsr register then signalling an exception. */
-val raise_c2_exception : (CapEx, bits(5)) -> bool effect {escape, rreg, wreg}
-function raise_c2_exception(capEx, regnum) =
+val handle_cheri_reg_exception : (CapEx, regbits) -> unit effect {escape, rreg, wreg}
+function handle_cheri_reg_exception(capEx, regnum) =
   let reg6 = 0b0 @ regnum in
-  raise_c2_exception6(capEx, reg6)
+  handle_cheri_cap_exception(capEx, reg6)
 
 /*!
 is as [raise_c2_exception] except that CapCause.RegNum  is written with the special value 0x10 indicating PCC register.
  */
-val raise_c2_exception_pcc : (CapEx) -> bool effect {escape, rreg, wreg}
-function raise_c2_exception_pcc(capEx) =
-  raise_c2_exception6(capEx, 0b100000)
+val handle_cheri_pcc_exception : (CapEx) -> unit effect {escape, rreg, wreg}
+function handle_cheri_pcc_exception(capEx) =
+  handle_cheri_cap_exception(capEx, 0b100000)
 
 val pcc_access_system_regs : unit -> bool effect {rreg}
 function pcc_access_system_regs () = PCC.access_system_regs
@@ -60,12 +59,8 @@ function ext_fetch_check_pc(start_pc, pc) = {
   }
 }
 
-function ext_handle_fetch_check_error(e : ext_fetch_addr_error) -> unit = {
-  /* FIXME: check if we can avoid the ignored boolean return */
-  /* FIXME: rename to be more risc-v friendly? */
-  let _ = raise_c2_exception_pcc(e);
-  ()
-}
+function ext_handle_fetch_check_error(e : ext_fetch_addr_error) -> unit =
+  handle_cheri_pcc_exception(e)
 
 /* CHERI control address checks */
 
@@ -93,10 +88,7 @@ function ext_control_check_pc(pc : xlenbits) -> Ext_ControlAddr_Check(ext_contro
 
 function ext_handle_control_check_error(err : ext_control_addr_error) -> unit = {
   let (capEx, regnum) = err;
-  /* FIXME: check if we can avoid the ignored boolean return */
-  /* FIXME: rename to be more risc-v friendly? */
-  let _ = raise_c2_exception6(capEx, regnum);
-  ()
+  handle_cheri_cap_exception(capEx, regnum)
 }
 
 /* CHERI data address checks */
@@ -143,8 +135,5 @@ function ext_data_get_addr(base_reg : regbits, offset : xlenbits, acc : AccessTy
 
 function ext_handle_data_check_error(err : ext_data_addr_error) -> unit = {
   let (capEx, regnum) = err;
-  /* FIXME: check if we can avoid the ignored boolean return */
-  /* FIXME: rename to be more risc-v friendly? */
-  let _ = raise_c2_exception6(capEx, regnum);
-  ()
+  handle_cheri_cap_exception(capEx, regnum)
 }
