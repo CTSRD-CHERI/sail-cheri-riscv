@@ -854,10 +854,10 @@ function clause execute(CJALR(cd, cb)) =
   };
 }
 
-val handle_load_data_via_cap : (regbits, bits(6), Capability, uint64, bool, word_width) -> bool effect {escape, rmem, rreg, wmv, wmvt, wreg}
-function handle_load_data_via_cap(rd, cs, cap_val, vaddr, is_unsigned, width) = {
+val handle_load_data_via_cap : (regbits, bits(6), Capability, xlenbits, bool, word_width) -> bool effect {escape, rmem, rreg, wmv, wmvt, wreg}
+function handle_load_data_via_cap(rd, cs, cap_val, vaddrBits, is_unsigned, width) = {
   let (base, top) = getCapBounds(cap_val);
-  let vaddrBits = to_bits(sizeof(xlen), vaddr);
+  let vaddr = unsigned(vaddrBits);
   let size = word_width_bytes(width);
   let aq : bool = false;
   let rl : bool = false;
@@ -885,7 +885,7 @@ function clause execute (CLoadDDC(rd, rs, is_unsigned, width)) =
 {
   checkCP2usable();
   let ddc_val = DDC;
-  let vaddr = (getCapBase(ddc_val) + unsigned(X(rs))) % pow2(sizeof(xlen));
+  let vaddr = ddc_val.address + X(rs);
   handle_load_data_via_cap(rd, 0b100001, ddc_val, vaddr, is_unsigned, width)
 }
 
@@ -894,14 +894,14 @@ function clause execute (CLoadCap(rd, cs, is_unsigned, width)) =
 {
   checkCP2usable();
   let cap_val = readCapReg(cs);
-  let vaddr = getCapCursor(cap_val);
+  let vaddr = cap_val.address;
   handle_load_data_via_cap(rd, 0b0 @ cs, cap_val, vaddr, is_unsigned, width)
 }
 
-val handle_load_cap_via_cap : (regbits, bits(6), Capability, uint64) -> bool effect {escape, rmem, rmemt, rreg, wmv, wmvt, wreg}
-function handle_load_cap_via_cap(rd, cs, cap_val, vaddr) = {
+val handle_load_cap_via_cap : (regbits, bits(6), Capability, xlenbits) -> bool effect {escape, rmem, rmemt, rreg, wmv, wmvt, wreg}
+function handle_load_cap_via_cap(rd, cs, cap_val, vaddrBits) = {
   let (base, top) = getCapBounds(cap_val);
-  let vaddrBits = to_bits(sizeof(xlen), vaddr);
+  let vaddr = unsigned(vaddrBits);
   let aq : bool = false;
   let rl : bool = false;
   if not(cap_val.tag) then {
@@ -934,7 +934,7 @@ function clause execute (CLoadCapDDC(rd, rs)) =
 {
   checkCP2usable();
   let ddc_val = DDC;
-  let vaddr = (getCapBase(ddc_val) + unsigned(X(rs))) % pow2(sizeof(xlen));
+  let vaddr = ddc_val.address + X(rs);
   handle_load_cap_via_cap(rd, 0b100001, ddc_val, vaddr)
 }
 
@@ -943,14 +943,14 @@ function clause execute (CLoadCapCap(rd, cs)) =
 {
   checkCP2usable();
   let cap_val = readCapReg(cs);
-  let vaddr = getCapCursor(cap_val);
+  let vaddr = cap_val.address;
   handle_load_cap_via_cap(rd, 0b0 @ cs, cap_val, vaddr)
 }
 
-val handle_store_data_via_cap : (regbits, regbits, Capability, uint64, word_width) -> bool effect {eamem, escape, rmem, rreg, wmv, wmvt, wreg}
-function handle_store_data_via_cap(rs, cs, cap_val, vaddr, width) = {
+val handle_store_data_via_cap : (regbits, regbits, Capability, xlenbits, word_width) -> bool effect {eamem, escape, rmem, rreg, wmv, wmvt, wreg}
+function handle_store_data_via_cap(rs, cs, cap_val, vaddrBits, width) = {
   let (base, top) = getCapBounds(cap_val);
-  let vaddrBits = to_bits(sizeof(xlen), vaddr);
+  let vaddr = unsigned(vaddrBits);
   let size = word_width_bytes(width);
   let aq : bool = false;
   let rl : bool = false;
@@ -997,7 +997,7 @@ function clause execute (CStoreDDC(rd, rs, width)) =
 {
   checkCP2usable();
   let ddc_val = DDC;
-  let vaddr = (getCapBase(ddc_val) + unsigned(X(rs))) % pow2(sizeof(xlen));
+  let vaddr = ddc_val.address + X(rs);
   handle_store_data_via_cap(rd, 0b00000, ddc_val, vaddr, width)
 }
 
@@ -1006,14 +1006,14 @@ function clause execute (CStoreCap(rs, cs, width)) =
 {
   checkCP2usable();
   let cap_val = readCapReg(cs);
-  let vaddr = getCapCursor(cap_val);
+  let vaddr = cap_val.address;
   handle_store_data_via_cap(rs, cs, cap_val, vaddr, width)
 }
 
-val handle_store_cap_via_cap : (regbits, regbits, Capability, uint64) -> bool effect {eamem, escape, rmem, rreg, wmv, wreg, wmvt}
-function handle_store_cap_via_cap(rs, cs, cap_val, vaddr) = {
+val handle_store_cap_via_cap : (regbits, regbits, Capability, xlenbits) -> bool effect {eamem, escape, rmem, rreg, wmv, wreg, wmvt}
+function handle_store_cap_via_cap(rs, cs, cap_val, vaddrBits) = {
   let (base, top) = getCapBounds(cap_val);
-  let vaddrBits = to_bits(sizeof(xlen), vaddr);
+  let vaddr = unsigned(vaddrBits);
   let aq : bool = false;
   let rl : bool = false;
   if not(cap_val.tag) then {
@@ -1054,7 +1054,7 @@ function clause execute (CStoreCapDDC(rd, rs)) =
 {
   checkCP2usable();
   let ddc_val = DDC;
-  let vaddr = (getCapBase(ddc_val) + unsigned(X(rs))) % pow2(sizeof(xlen));
+  let vaddr = ddc_val.address + X(rs);
   handle_store_cap_via_cap(rd, 0b00000, ddc_val, vaddr)
 }
 
@@ -1063,7 +1063,7 @@ function clause execute (CStoreCapCap(rs, cs)) =
 {
   checkCP2usable();
   let cap_val = readCapReg(cs);
-  let vaddr = getCapCursor(cap_val);
+  let vaddr = cap_val.address;
   handle_store_cap_via_cap(rs, cs, cap_val, vaddr)
 }
 
