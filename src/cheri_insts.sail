@@ -896,7 +896,7 @@ function clause execute(CJALR(cd, cb)) =
   };
 }
 
-val handle_load_data_via_cap : (regbits, bits(6), Capability, xlenbits, bool, word_width) -> bool effect {escape, rmem, rreg, wmv, wmvt, wreg}
+val handle_load_data_via_cap : (regbits, capreg_idx, Capability, xlenbits, bool, word_width) -> bool effect {escape, rmem, rreg, wmv, wmvt, wreg}
 function handle_load_data_via_cap(rd, cs, cap_val, vaddrBits, is_unsigned, width) = {
   let (base, top) = getCapBounds(cap_val);
   let vaddr = unsigned(vaddrBits);
@@ -943,7 +943,7 @@ function clause execute (CLoadCap(rd, cs, is_unsigned, width)) =
   handle_load_data_via_cap(rd, 0b0 @ cs, cap_val, vaddr, is_unsigned, width)
 }
 
-val handle_load_cap_via_cap : (regbits, bits(6), Capability, xlenbits) -> bool effect {escape, rmem, rmemt, rreg, wmv, wmvt, wreg}
+val handle_load_cap_via_cap : (regbits, capreg_idx, Capability, xlenbits) -> bool effect {escape, rmem, rmemt, rreg, wmv, wmvt, wreg}
 function handle_load_cap_via_cap(rd, cs, cap_val, vaddrBits) = {
   let (base, top) = getCapBounds(cap_val);
   let vaddr = unsigned(vaddrBits);

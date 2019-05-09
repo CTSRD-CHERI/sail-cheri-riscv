@@ -1,6 +1,6 @@
 /* Error handlers for address check errors */
 
-val handle_cheri_cap_exception : (CapEx, bits(6)) -> unit effect {escape, rreg, wreg}
+val handle_cheri_cap_exception : (CapEx, capreg_idx) -> unit effect {escape, rreg, wreg}
 function handle_cheri_cap_exception(capEx, regnum) =
   {
     print("CHERI " ^ string_of_capex(capEx) ^ " Reg=" ^ BitStr(regnum));
@@ -64,7 +64,7 @@ function ext_handle_fetch_check_error(e : ext_fetch_addr_error) -> unit =
 
 /* CHERI control address checks */
 
-type ext_control_addr_error = (CapEx, bits(6)) // FIXME: use a type name for bits(6)
+type ext_control_addr_error = (CapEx, capreg_idx)
 
 /* the control address is derived from a non-PC register, e.g. in JALR */
 function ext_control_check_addr(pc : xlenbits) -> Ext_ControlAddr_Check(ext_control_addr_error) = {
@@ -75,14 +75,14 @@ function ext_control_check_addr(pc : xlenbits) -> Ext_ControlAddr_Check(ext_cont
    */
   let target : xlenbits = (pcc_base + pc)[63 .. 1] @ 0b0;
   if   not(inCapBounds(PCC, target, min_instruction_bytes ()))
-  then Ext_ControlAddr_Error(CapEx_LengthViolation, 0b100000)  // FIXME: use a name for this cap_idx
+  then Ext_ControlAddr_Error(CapEx_LengthViolation, PCC_IDX)
   else Ext_ControlAddr_OK(target)
 }
 
 /* the control address is derived from the PC register, e.g. in JAL */
 function ext_control_check_pc(pc : xlenbits) -> Ext_ControlAddr_Check(ext_control_addr_error) = {
   if   not(inCapBounds(PCC, pc, min_instruction_bytes ()))
-  then Ext_ControlAddr_Error(CapEx_LengthViolation, 0b100000)  // FIXME: use a name for this cap_idx
+  then Ext_ControlAddr_Error(CapEx_LengthViolation, PCC_IDX)
   else Ext_ControlAddr_OK(pc)
 }
 
@@ -93,13 +93,13 @@ function ext_handle_control_check_error(err : ext_control_addr_error) -> unit = 
 
 /* CHERI data address checks */
 
-type ext_data_addr_error = (CapEx, bits(6)) // FIXME: use a type name for bits(6)
+type ext_data_addr_error = (CapEx, capreg_idx)
 
 function ext_data_get_addr(base_reg : regbits, offset : xlenbits, acc : AccessType, rt : ReadType, width : word_width)
          -> Ext_DataAddr_Check(ext_data_addr_error) = {
   /* If we are in capabiltiy mode then do address checks on the base register, 
      otherwise on DDC. Also add additional DDC offset in latter case. */
-  let (cap_val : Capability, newAddr : xlenbits, cause_regno : bits(6)) =
+  let (cap_val : Capability, newAddr : xlenbits, cause_regno : capreg_idx) =
     if (PCC.flag_cap_mode) then
       let base_cap = readCapReg(base_reg) in
       (base_cap, base_cap.address + offset, 0b0 @ base_reg)

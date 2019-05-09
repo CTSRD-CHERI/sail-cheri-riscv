@@ -51,8 +51,8 @@ enum CPtrCmpOp = {
 }
 
 enum ClearRegSet = {
-GPRegs,
-FPRegs
+  GPRegs,
+  FPRegs
 }
 
 let MAX_U64=MAX(64)
@@ -140,7 +140,10 @@ function string_of_capex (ex) : CapEx -> string =
     CapEx_PermitSetCIDViolation         => "PermitSetCIDViolation"
   }
 
+type capreg_idx = bits(6)
+let PCC_IDX : capreg_idx = 0b100000
+
 struct cheri_cause = {
-  cap_idx : bits(6),
+  cap_idx : capreg_idx,
   capEx   : CapEx
 }
