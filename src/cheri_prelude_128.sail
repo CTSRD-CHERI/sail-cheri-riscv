@@ -497,7 +497,3 @@ function capToString (cap) = {
   concat_str(BitStr(to_bits(64, getCapBase(cap))),
   concat_str(" length:", len_str)))))))))))))
 }
-
-
-val checkCP2usable : unit -> unit
-function checkCP2usable () = ()

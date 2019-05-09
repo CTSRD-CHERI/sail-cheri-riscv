@@ -37,3 +37,9 @@ function min_instruction_bytes () -> uint64 = {
   then 4  /* RVC is hardwired to be disabled */
   else 2  /* RVC is active or it could become active */
 }
+
+/* Checking whether the Xcheri extension is enabled */
+
+function haveXcheri () -> bool =
+  /* This is a necessary but not sufficient condition, but should do for now. */
+  misa.X() == true

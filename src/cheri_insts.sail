@@ -46,7 +46,6 @@ union clause ast = CGetFlags  : (regbits, regbits)
 
 function clause execute (CGetPerm(rd, cb)) =
 {
-  checkCP2usable();
   let capVal = readCapReg(cb);
   X(rd) = EXTZ(getCapPerms(capVal));
   true
@@ -54,7 +53,6 @@ function clause execute (CGetPerm(rd, cb)) =
 
 function clause execute (CGetFlags(rd, cb)) =
 {
-  checkCP2usable();
   let capVal = readCapReg(cb);
   X(rd) = EXTZ(getCapFlags(capVal));
   true
@@ -62,7 +60,6 @@ function clause execute (CGetFlags(rd, cb)) =
 
 function clause execute (CGetType(rd, cb)) =
 {
-  checkCP2usable();
   let capVal = readCapReg(cb);
   X(rd) = if   capVal.sealed
           then EXTZ(capVal.otype)
@@ -72,7 +69,6 @@ function clause execute (CGetType(rd, cb)) =
 
 function clause execute (CGetBase(rd, cb)) =
 {
-  checkCP2usable();
   let capVal = readCapReg(cb);
   X(rd) = to_bits(64, getCapBase(capVal));
   true
@@ -80,7 +76,6 @@ function clause execute (CGetBase(rd, cb)) =
 
 function clause execute (CGetOffset(rd, cb)) =
 {
-  checkCP2usable();
   let capVal = readCapReg(cb);
   X(rd) = to_bits(64, getCapOffset(capVal));
   true
@@ -88,7 +83,6 @@ function clause execute (CGetOffset(rd, cb)) =
 
 function clause execute (CGetLen(rd, cb)) =
 {
-  checkCP2usable();
   let capVal = readCapReg(cb);
   let len65  = getCapLength(capVal);
   X(rd) = to_bits(64, if len65 > MAX_U64 then MAX_U64 else len65);
@@ -97,7 +91,6 @@ function clause execute (CGetLen(rd, cb)) =
 
 function clause execute (CGetTag(rd, cb)) =
 {
-  checkCP2usable();
   let capVal = readCapReg(cb);
   X(rd) = EXTZ(capVal.tag);
   true
@@ -105,7 +98,6 @@ function clause execute (CGetTag(rd, cb)) =
 
 function clause execute (CGetSealed(rd, cb)) =
 {
-  checkCP2usable();
   let capVal = readCapReg(cb);
   X(rd) = EXTZ(capVal.sealed);
   true
@@ -113,7 +105,6 @@ function clause execute (CGetSealed(rd, cb)) =
 
 function clause execute (CGetAddr(rd, cb)) =
 {
-  checkCP2usable();
   let capVal = readCapReg(cb);
   X(rd) = to_bits(64, getCapCursor(capVal));
   true
@@ -137,7 +128,6 @@ function clause execute (CGetPCCSetOffset(cd, rs)) =
 union clause ast = CGetCause : regbits
 function clause execute (CGetCause(rd)) =
 {
-  checkCP2usable();
   if not (pcc_access_system_regs ()) then {
     handle_cheri_pcc_exception(CapEx_AccessSystemRegsViolation);
     false
@@ -150,7 +140,6 @@ function clause execute (CGetCause(rd)) =
 union clause ast = CSetCause : regbits
 function clause execute (CSetCause(rt)) =
 {
-  checkCP2usable();
   if not (pcc_access_system_regs ()) then {
     handle_cheri_pcc_exception(CapEx_AccessSystemRegsViolation);
     false
@@ -167,7 +156,6 @@ function clause execute (CSetCause(rt)) =
 union clause ast = CSpecialRW : (regbits, regbits, regbits)
 function clause execute (CSpecialRW(cd, cs, idx)) =
 {
-  checkCP2usable();
   let (specialExists, ro, priv, needASR) : (bool, bool, Privilege, bool) = match idx {
     0  => (true, true,  User, false),
     1  => (true, false, User, false),
@@ -237,7 +225,6 @@ function clause execute (CSpecialRW(cd, cs, idx)) =
 union clause ast = CAndPerm : (regbits, regbits, regbits)
 function clause execute(CAndPerm(cd, cb, rt)) =
 {
-  checkCP2usable();
   let cb_val = readCapReg(cb);
   let rt_val = X(rt);
   if not (cb_val.tag) then {
@@ -255,9 +242,8 @@ function clause execute(CAndPerm(cd, cb, rt)) =
 }
 
 union clause ast = CSetFlags : (regbits, regbits, regbits)
-function clause execute(CSetFlags(cd, cb, rt)) = 
+function clause execute(CSetFlags(cd, cb, rt)) =
 {
-  checkCP2usable();
   let cb_val = readCapReg(cb);
   let rt_val = X(rt);
   if cb_val.tag & cb_val.sealed then {
@@ -273,7 +259,6 @@ function clause execute(CSetFlags(cd, cb, rt)) =
 union clause ast = CToPtr : (regbits, regbits, regbits)
 function clause execute(CToPtr(rd, cb, ct)) =
 {
-  checkCP2usable();
   let ct_val = readCapRegDDC(ct);
   let cb_val = readCapReg(cb);
   if not (ct_val.tag) then {
@@ -296,7 +281,6 @@ function clause execute(CToPtr(rd, cb, ct)) =
 union clause ast = CSub : (regbits, regbits, regbits)
 function clause execute(CSub(rd, cb, ct)) =
 {
-  checkCP2usable();
   let ct_val = readCapReg(ct);
   let cb_val = readCapReg(cb);
   X(rd) = to_bits(64, getCapCursor(cb_val) - getCapCursor(ct_val));
@@ -306,7 +290,6 @@ function clause execute(CSub(rd, cb, ct)) =
 union clause ast = CIncOffset : (regbits, regbits, regbits)
 function clause execute (CIncOffset(cd, cb, rt)) =
 {
-  checkCP2usable();
   let cb_val = readCapReg(cb);
   let rt_val = X(rt);
   if cb_val.tag & cb_val.sealed then {
@@ -325,7 +308,6 @@ function clause execute (CIncOffset(cd, cb, rt)) =
 union clause ast = CIncOffsetImmediate : (regbits, regbits, bits(12))
 function clause execute (CIncOffsetImmediate(cd, cb, imm)) =
 {
-  checkCP2usable();
   let cb_val = readCapReg(cb);
   let imm64 : bits(64) = EXTS(imm);
   if cb_val.tag & cb_val.sealed then {
@@ -344,7 +326,6 @@ function clause execute (CIncOffsetImmediate(cd, cb, imm)) =
 union clause ast = CSetOffset : (regbits, regbits, regbits)
 function clause execute (CSetOffset(cd, cb, rt)) =
 {
-  checkCP2usable();
   let cb_val = readCapReg(cb);
   let rt_val = X(rt);
   if cb_val.tag & cb_val.sealed then {
@@ -363,7 +344,6 @@ function clause execute (CSetOffset(cd, cb, rt)) =
 union clause ast = CSetBounds : (regbits, regbits, regbits)
 function clause execute (CSetBounds(cd, cb, rt)) =
 {
-  checkCP2usable();
   let cb_val = readCapReg(cb);
   let rt_val = unsigned(X(rt));
   let cursor = getCapCursor(cb_val);
@@ -392,7 +372,6 @@ function clause execute (CSetBounds(cd, cb, rt)) =
 union clause ast = CSetBoundsImmediate : (regbits, regbits, bits(12))
 function clause execute (CSetBoundsImmediate(cd, cb, imm)) =
 {
-  checkCP2usable();
   let cb_val = readCapReg(cb);
   let immU   = unsigned(imm);
   let cursor = getCapCursor(cb_val);
@@ -421,7 +400,6 @@ function clause execute (CSetBoundsImmediate(cd, cb, imm)) =
 union clause ast = CSetBoundsExact : (regbits, regbits, regbits)
 function clause execute (CSetBoundsExact(cd, cb, rt)) =
 {
-  checkCP2usable();
   let cb_val = readCapReg(cb);
   let rt_val = unsigned(X(rt));
   let cursor = getCapCursor(cb_val);
@@ -455,7 +433,6 @@ function clause execute (CSetBoundsExact(cd, cb, rt)) =
 union clause ast = CClearTag : (regbits, regbits)
 function clause execute (CClearTag(cd, cb)) =
 {
-  checkCP2usable();
   let cb_val = readCapReg(cb);
   writeCapReg(cd, {cb_val with tag=false});
   true
@@ -464,7 +441,6 @@ function clause execute (CClearTag(cd, cb)) =
 union clause ast = CMove : (regbits, regbits)
 function clause execute (CMove(cd, cb)) =
 {
-  checkCP2usable();
   writeCapReg(cd) = readCapReg(cb);
   true
 }
@@ -488,7 +464,6 @@ function clause execute (ClearRegs(regset, q, m)) =
 union clause ast = CFromPtr : (regbits, regbits, regbits)
 function clause execute (CFromPtr(cd, cb, rt)) =
 {
-  checkCP2usable();
   let cb_val = readCapRegDDC(cb);
   let rt_val = X(rt);
   if rt_val == 0x0000000000000000 then {
@@ -513,7 +488,6 @@ function clause execute (CFromPtr(cd, cb, rt)) =
 union clause ast = CBuildCap : (regbits, regbits, regbits)
 function clause execute (CBuildCap(cd, cb, ct)) =
 {
-  checkCP2usable();
   let cb_val = readCapRegDDC(cb);
   let ct_val = readCapReg(ct);
   let cb_base = getCapBase(cb_val);
@@ -557,7 +531,6 @@ function clause execute (CBuildCap(cd, cb, ct)) =
 union clause ast = CCopyType : (regbits, regbits, regbits)
 function clause execute (CCopyType(cd, cb, ct)) =
 {
-  checkCP2usable();
   let cb_val = readCapReg(cb);
   let ct_val = readCapReg(ct);
   let cb_base = getCapBase(cb_val);
@@ -591,7 +564,6 @@ function clause execute (CCopyType(cd, cb, ct)) =
 union clause ast = CCheckPerm : (regbits, regbits)
 function clause execute (CCheckPerm(cs, rt)) =
 {
-  checkCP2usable();
   let cs_val = readCapReg(cs);
   let cs_perms : bits(64) = EXTZ(getCapPerms(cs_val));
   let rt_perms = X(rt);
@@ -608,7 +580,6 @@ function clause execute (CCheckPerm(cs, rt)) =
 union clause ast = CCheckType : (regbits, regbits)
 function clause execute (CCheckType(cs, cb)) =
 {
-  checkCP2usable();
   let cs_val = readCapReg(cs);
   let cb_val = readCapReg(cb);
   if not (cs_val.tag) then {
@@ -633,7 +604,6 @@ function clause execute (CCheckType(cs, cb)) =
 union clause ast = CCheckTag : (regbits)
 function clause execute (CCheckTag (cs)) =
 {
-  checkCP2usable();
   let cs_val = readCapReg(cs);
   if not(cs_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cs);
@@ -645,7 +615,6 @@ function clause execute (CCheckTag (cs)) =
 union clause ast = CTestSubset : (regbits, regbits, regbits)
 function clause execute (CTestSubset(rd, cb, ct)) =
 {
-  checkCP2usable();
   let cb_val = readCapRegDDC(cb);
   let ct_val = readCapReg(ct);
   let ct_top   = getCapTop(ct_val);
@@ -671,7 +640,6 @@ function clause execute (CTestSubset(rd, cb, ct)) =
 union clause ast = CSeal : (regbits, regbits, regbits)
 function clause execute (CSeal(cd, cs, ct)) =
 {
-  checkCP2usable();
   let cs_val = readCapReg(cs);
   let ct_val = readCapReg(ct);
   let ct_cursor = getCapCursor(ct_val);
@@ -716,7 +684,6 @@ function clause execute (CSeal(cd, cs, ct)) =
 union clause ast = CCSeal : (regbits, regbits, regbits)
 function clause execute (CCSeal(cd, cs, ct)) =
 {
-  checkCP2usable();
   let cs_val = readCapReg(cs);
   let ct_val = readCapReg(ct);
   let ct_cursor = getCapCursor(ct_val);
@@ -761,7 +728,6 @@ function clause execute (CCSeal(cd, cs, ct)) =
 union clause ast = CUnseal : (regbits, regbits, regbits)
 function clause execute (CUnseal(cd, cs, ct)) =
 {
-  checkCP2usable();
   let cs_val = readCapReg(cs);
   let ct_val = readCapReg(ct);
   let ct_cursor = getCapCursor(ct_val);
@@ -801,7 +767,6 @@ union clause ast = CCall : (regbits, regbits, regbits)
 function clause execute (CCall(cs, cb, 0b00000)) = /* selector=0 */
 {
   /* Partial implementation of CCall with checks in hardware, but raising a trap to perform trusted stack manipulation */
-  checkCP2usable();
   let cs_val = readCapReg(cs);
   let cb_val = readCapReg(cb);
   let cs_cursor = getCapCursor(cs_val);
@@ -841,7 +806,6 @@ function clause execute (CCall(cs, cb, 0b00000)) = /* selector=0 */
 function clause execute (CCall(cs, cb, 0b00001)) = /* selector=1 */
 {
   /* Jump-like implementation of CCall that unseals arguments */
-  checkCP2usable();
   let cs_val = readCapReg(cs);
   let cb_val = readCapReg(cb);
   let newPC = [cs_val.address with 0 = bitzero]; /* clear bit zero as for RISCV JALR */
@@ -893,7 +857,6 @@ function clause execute (CCall(cs, cb, 0b00001)) = /* selector=1 */
 
 function clause execute (CCall(_, _, 0b11111)) = /* CReturn */
 {
-  checkCP2usable();
   handle_cheri_reg_exception(CapEx_ReturnTrap, 0b11111); /* XXX what should correct reg number be? */
   false
 }
@@ -901,7 +864,6 @@ function clause execute (CCall(_, _, 0b11111)) = /* CReturn */
 union clause ast = CJALR : (regbits, regbits)
 function clause execute(CJALR(cd, cb)) =
 {
-  checkCP2usable();
   let cb_val = readCapReg(cb);
   let newPC = [cb_val.address with 0 = bitzero]; /* clear bit zero as for RISCV JALR */
   let newPC_int = unsigned(newPC);
@@ -968,7 +930,6 @@ function handle_load_data_via_cap(rd, cs, cap_val, vaddrBits, is_unsigned, width
 union clause ast = CLoadDDC : (regbits, regbits, bool, word_width)
 function clause execute (CLoadDDC(rd, rs, is_unsigned, width)) =
 {
-  checkCP2usable();
   let ddc_val = DDC;
   let vaddr = ddc_val.address + X(rs);
   handle_load_data_via_cap(rd, 0b100001, ddc_val, vaddr, is_unsigned, width)
@@ -977,7 +938,6 @@ function clause execute (CLoadDDC(rd, rs, is_unsigned, width)) =
 union clause ast = CLoadCap : (regbits, regbits, bool, word_width)
 function clause execute (CLoadCap(rd, cs, is_unsigned, width)) =
 {
-  checkCP2usable();
   let cap_val = readCapReg(cs);
   let vaddr = cap_val.address;
   handle_load_data_via_cap(rd, 0b0 @ cs, cap_val, vaddr, is_unsigned, width)
@@ -1022,7 +982,6 @@ function handle_load_cap_via_cap(rd, cs, cap_val, vaddrBits) = {
 union clause ast = CLoadCapDDC : (regbits, regbits)
 function clause execute (CLoadCapDDC(rd, rs)) =
 {
-  checkCP2usable();
   let ddc_val = DDC;
   let vaddr = ddc_val.address + X(rs);
   handle_load_cap_via_cap(rd, 0b100001, ddc_val, vaddr)
@@ -1031,7 +990,6 @@ function clause execute (CLoadCapDDC(rd, rs)) =
 union clause ast = CLoadCapCap : (regbits, regbits)
 function clause execute (CLoadCapCap(rd, cs)) =
 {
-  checkCP2usable();
   let cap_val = readCapReg(cs);
   let vaddr = cap_val.address;
   handle_load_cap_via_cap(rd, 0b0 @ cs, cap_val, vaddr)
@@ -1090,7 +1048,6 @@ function handle_store_data_via_cap(rs, cs, cap_val, vaddrBits, width) = {
 union clause ast = CStoreDDC : (regbits, regbits, word_width)
 function clause execute (CStoreDDC(rd, rs, width)) =
 {
-  checkCP2usable();
   let ddc_val = DDC;
   let vaddr = ddc_val.address + X(rs);
   handle_store_data_via_cap(rd, 0b00000, ddc_val, vaddr, width)
@@ -1099,7 +1056,6 @@ function clause execute (CStoreDDC(rd, rs, width)) =
 union clause ast = CStoreCap : (regbits, regbits, word_width)
 function clause execute (CStoreCap(rs, cs, width)) =
 {
-  checkCP2usable();
   let cap_val = readCapReg(cs);
   let vaddr = cap_val.address;
   handle_store_data_via_cap(rs, cs, cap_val, vaddr, width)
@@ -1152,7 +1108,6 @@ function handle_store_cap_via_cap(rs, cs, cap_val, vaddrBits) = {
 union clause ast = CStoreCapDDC : (regbits, regbits)
 function clause execute (CStoreCapDDC(rd, rs)) =
 {
-  checkCP2usable();
   let ddc_val = DDC;
   let vaddr = ddc_val.address + X(rs);
   handle_store_cap_via_cap(rd, 0b00000, ddc_val, vaddr)
@@ -1161,7 +1116,6 @@ function clause execute (CStoreCapDDC(rd, rs)) =
 union clause ast = CStoreCapCap : (regbits, regbits)
 function clause execute (CStoreCapCap(rs, cs)) =
 {
-  checkCP2usable();
   let cap_val = readCapReg(cs);
   let vaddr = cap_val.address;
   handle_store_cap_via_cap(rs, cs, cap_val, vaddr)
@@ -1495,25 +1449,25 @@ three-arg ones.
 
 /* Two arg */
 
-mapping clause encdec = CGetPerm(rd, cb)   <-> 0b1111111 @ 0b00000 @ cb @ 0b000 @ rd @ 0b1011011
-mapping clause encdec = CGetType(rd, cb)   <-> 0b1111111 @ 0b00001 @ cb @ 0b000 @ rd @ 0b1011011
-mapping clause encdec = CGetBase(rd, cb)   <-> 0b1111111 @ 0b00010 @ cb @ 0b000 @ rd @ 0b1011011
-mapping clause encdec = CGetLen(rd, cb)    <-> 0b1111111 @ 0b00011 @ cb @ 0b000 @ rd @ 0b1011011
-mapping clause encdec = CGetTag(rd, cb)    <-> 0b1111111 @ 0b00100 @ cb @ 0b000 @ rd @ 0b1011011
-mapping clause encdec = CGetSealed(rd, cb) <-> 0b1111111 @ 0b00101 @ cb @ 0b000 @ rd @ 0b1011011
-mapping clause encdec = CGetOffset(rd, cb) <-> 0b1111111 @ 0b00110 @ cb @ 0b000 @ rd @ 0b1011011
-mapping clause encdec = CGetFlags(rd, cb)  <-> 0b1111111 @ 0b00111 @ cb @ 0b000 @ rd @ 0b1011011
-mapping clause encdec = CGetAddr(rd, cb)   <-> 0b1111111 @ 0b01111 @ cb @ 0b000 @ rd @ 0b1011011
+mapping clause encdec = CGetPerm(rd, cb)   if (haveXcheri()) <-> 0b1111111 @ 0b00000 @ cb @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CGetType(rd, cb)   if (haveXcheri()) <-> 0b1111111 @ 0b00001 @ cb @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CGetBase(rd, cb)   if (haveXcheri()) <-> 0b1111111 @ 0b00010 @ cb @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CGetLen(rd, cb)    if (haveXcheri()) <-> 0b1111111 @ 0b00011 @ cb @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CGetTag(rd, cb)    if (haveXcheri()) <-> 0b1111111 @ 0b00100 @ cb @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CGetSealed(rd, cb) if (haveXcheri()) <-> 0b1111111 @ 0b00101 @ cb @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CGetOffset(rd, cb) if (haveXcheri()) <-> 0b1111111 @ 0b00110 @ cb @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CGetFlags(rd, cb)  if (haveXcheri()) <-> 0b1111111 @ 0b00111 @ cb @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CGetAddr(rd, cb)   if (haveXcheri()) <-> 0b1111111 @ 0b01111 @ cb @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 
-mapping clause encdec = CMove(cd, cs)      <-> 0b1111111 @ 0b01010 @ cs @ 0b000 @ cd @ 0b1011011
-mapping clause encdec = CClearTag(cd, cs)  <-> 0b1111111 @ 0b01011 @ cs @ 0b000 @ cd @ 0b1011011
-mapping clause encdec = CJALR(cd, cb)      <-> 0b1111111 @ 0b01100 @ cb @ 0b000 @ cd @ 0b1011011
+mapping clause encdec = CMove(cd, cs)      if (haveXcheri()) <-> 0b1111111 @ 0b01010 @ cs @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CClearTag(cd, cs)  if (haveXcheri()) <-> 0b1111111 @ 0b01011 @ cs @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CJALR(cd, cb)      if (haveXcheri()) <-> 0b1111111 @ 0b01100 @ cb @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
 
-mapping clause encdec = CCheckPerm(cs, rt) <-> 0b1111111 @ 0b01000 @ rt @ 0b000 @ cs @ 0b1011011
-mapping clause encdec = CCheckType(cs, cb) <-> 0b1111111 @ 0b01001 @ cb @ 0b000 @ cs @ 0b1011011
+mapping clause encdec = CCheckPerm(cs, rt) if (haveXcheri()) <-> 0b1111111 @ 0b01000 @ rt @ 0b000 @ cs @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CCheckType(cs, cb) if (haveXcheri()) <-> 0b1111111 @ 0b01001 @ cb @ 0b000 @ cs @ 0b1011011 if (haveXcheri())
 
-mapping clause encdec = ClearRegs(GPRegs, q, m3 @ m5) <-> 0b1111111 @ 0b01101 @ q : bits(2) @ m3 : bits(3) @ 0b000 @ m5 : regbits @ 0b1011011
-mapping clause encdec = ClearRegs(FPRegs, q, m3 @ m5) <-> 0b1111111 @ 0b10000 @ q : bits(2) @ m3 : bits(3) @ 0b000 @ m5 : regbits @ 0b1011011
+mapping clause encdec = ClearRegs(GPRegs, q, m3 @ m5) if (haveXcheri()) <-> 0b1111111 @ 0b01101 @ q : bits(2) @ m3 : bits(3) @ 0b000 @ m5 : regbits @ 0b1011011 if (haveXcheri())
+mapping clause encdec = ClearRegs(FPRegs, q, m3 @ m5) if (haveXcheri()) <-> 0b1111111 @ 0b10000 @ q : bits(2) @ m3 : bits(3) @ 0b000 @ m5 : regbits @ 0b1011011 if (haveXcheri())
 
 mapping clause assembly = CGetPerm(rd, cb)   <-> "CGetPerm"   ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(cb)
 mapping clause assembly = CGetFlags(rd, cb)  <-> "CGetFlags"  ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(cb)
@@ -1538,30 +1492,30 @@ mapping clause assembly = ClearRegs(FPRegs, q, m8) <-> "FPClearq" ^ spc() ^ hex_
 
 /* Three arg */
 
-mapping clause encdec = CSeal(cd, cs, ct)      <-> 0b0001011 @ ct @ cs @ 0b000 @ cd @ 0b1011011
-mapping clause encdec = CUnseal(cd, cs, ct)    <-> 0b0001100 @ ct @ cs @ 0b000 @ cd @ 0b1011011
-mapping clause encdec = CAndPerm(cd, cs, rt)   <-> 0b0001101 @ rt @ cs @ 0b000 @ cd @ 0b1011011
-mapping clause encdec = CSetFlags(cd, cs, rt)  <-> 0b0001110 @ rt @ cs @ 0b000 @ cd @ 0b1011011
-mapping clause encdec = CSetOffset(cd, cs, rt) <-> 0b0001111 @ rt @ cs @ 0b000 @ cd @ 0b1011011
-mapping clause encdec = CIncOffset(cd, cs, rt) <-> 0b0010001 @ rt @ cs @ 0b000 @ cd @ 0b1011011
-mapping clause encdec = CSetBounds(cd, cs, rt) <-> 0b0001000 @ rt @ cs @ 0b000 @ cd @ 0b1011011
-mapping clause encdec = CSetBoundsExact(cd, cs, rt) <-> 0b0001001 @ rt @ cs @ 0b000 @ cd @ 0b1011011
-mapping clause encdec = CBuildCap(cd, cb, ct) <-> 0b0011101 @ ct @ cb @ 0b000 @ cd @ 0b1011011
-mapping clause encdec = CCopyType(cd, cb, ct) <-> 0b0011110 @ ct @ cb @ 0b000 @ cd @ 0b1011011
-mapping clause encdec = CCSeal(cd, cs, ct)    <-> 0b0011111 @ ct @ cs @ 0b000 @ cd @ 0b1011011
+mapping clause encdec = CSeal(cd, cs, ct)       if (haveXcheri()) <-> 0b0001011 @ ct @ cs @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CUnseal(cd, cs, ct)     if (haveXcheri()) <-> 0b0001100 @ ct @ cs @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CAndPerm(cd, cs, rt)    if (haveXcheri()) <-> 0b0001101 @ rt @ cs @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CSetFlags(cd, cs, rt)   if (haveXcheri()) <-> 0b0001110 @ rt @ cs @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CSetOffset(cd, cs, rt)  if (haveXcheri()) <-> 0b0001111 @ rt @ cs @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CIncOffset(cd, cs, rt)  if (haveXcheri()) <-> 0b0010001 @ rt @ cs @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CSetBounds(cd, cs, rt)  if (haveXcheri()) <-> 0b0001000 @ rt @ cs @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CSetBoundsExact(cd, cs, rt) if (haveXcheri()) <-> 0b0001001 @ rt @ cs @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CBuildCap(cd, cb, ct)   if (haveXcheri()) <-> 0b0011101 @ ct @ cb @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CCopyType(cd, cb, ct)   if (haveXcheri()) <-> 0b0011110 @ ct @ cb @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CCSeal(cd, cs, ct)      if (haveXcheri()) <-> 0b0011111 @ ct @ cs @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
 
-mapping clause encdec = CToPtr(rd, cb, cs)    <-> 0b0010010 @ cs @ cb @ 0b000 @ rd @ 0b1011011
-mapping clause encdec = CFromPtr(cd, cb, rs)  <-> 0b0010011 @ rs @ cb @ 0b000 @ cd @ 0b1011011
-mapping clause encdec = CSub(rd, cb, ct)      <-> 0b0010100 @ ct @ cb @ 0b000 @ rd @ 0b1011011
-mapping clause encdec = CCall(cs, cb, 0b00000) <-> 0b1111110 @ 0b00000 @ cb @ 0b000 @ cs @ 0b1011011 /* CCall */
-mapping clause encdec = CCall(cs, cb, 0b00001) <-> 0b1111110 @ 0b00001 @ cb @ 0b000 @ cs @ 0b1011011 /* CCallFast */
-mapping clause encdec = CCall(cs, cb, 0b11111) <-> 0b1111110 @ 0b11111 @ cb @ 0b000 @ cs @ 0b1011011 /* CReturn */
+mapping clause encdec = CToPtr(rd, cb, cs)      if (haveXcheri()) <-> 0b0010010 @ cs @ cb @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CFromPtr(cd, cb, rs)    if (haveXcheri()) <-> 0b0010011 @ rs @ cb @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CSub(rd, cb, ct)        if (haveXcheri()) <-> 0b0010100 @ ct @ cb @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CCall(cs, cb, 0b00000)  if (haveXcheri()) <-> 0b1111110 @ 0b00000 @ cb @ 0b000 @ cs @ 0b1011011 /* CCall */ if (haveXcheri())
+mapping clause encdec = CCall(cs, cb, 0b00001)  if (haveXcheri()) <-> 0b1111110 @ 0b00001 @ cb @ 0b000 @ cs @ 0b1011011 /* CCallFast */ if (haveXcheri())
+mapping clause encdec = CCall(cs, cb, 0b11111)  if (haveXcheri()) <-> 0b1111110 @ 0b11111 @ cb @ 0b000 @ cs @ 0b1011011 /* CReturn */ if (haveXcheri())
 
-mapping clause encdec = CTestSubset(rd, cb, ct) <-> 0b0100000 @ ct @ cb @ 0b000 @ rd @ 0b1011011
-mapping clause encdec = CSpecialRW(cd, cs, idx) <-> 0b0000001 @ idx @ cs @ 0b000 @ cd @ 0b1011011
+mapping clause encdec = CTestSubset(rd, cb, ct) if (haveXcheri()) <-> 0b0100000 @ ct @ cb @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CSpecialRW(cd, cs, idx) if (haveXcheri()) <-> 0b0000001 @ idx @ cs @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
 
-mapping clause encdec = CIncOffsetImmediate(cd, cb, imm12) <-> imm12 : bits(12) @ cb @ 0b001 @ cd @ 0b1011011
-mapping clause encdec = CSetBoundsImmediate(cd, cb, imm12) <-> imm12 : bits(12) @ cb @ 0b010 @ cd @ 0b1011011
+mapping clause encdec = CIncOffsetImmediate(cd, cb, imm12) if (haveXcheri()) <-> imm12 : bits(12) @ cb @ 0b001 @ cd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CSetBoundsImmediate(cd, cb, imm12) if (haveXcheri()) <-> imm12 : bits(12) @ cb @ 0b010 @ cd @ 0b1011011 if (haveXcheri())
 
 mapping clause assembly = CSeal(cd, cs, ct)      <-> "CSeal"      ^ spc() ^ reg_name(cd) ^ sep() ^ reg_name(cs) ^ sep() ^ reg_name(ct)
 mapping clause assembly = CUnseal(cd, cs, ct)    <-> "CUnseal"    ^ spc() ^ reg_name(cd) ^ sep() ^ reg_name(cs) ^ sep() ^ reg_name(ct)
@@ -1590,37 +1544,37 @@ mapping clause assembly = CSetBoundsImmediate(cd, cb, imm12) <-> "CSetBoundsImme
 
 /* Loads and stores */
 
-mapping clause encdec = CLoadDDC(rd, rs, false, BYTE)   <-> 0b1111101 @ 0b00000 @ rs @ 0b000 @ rd @ 0b1011011  /* lbddc */
-mapping clause encdec = CLoadDDC(rd, rs, false, HALF)   <-> 0b1111101 @ 0b00001 @ rs @ 0b000 @ rd @ 0b1011011  /* lhddc */
-mapping clause encdec = CLoadDDC(rd, rs, false, WORD)   <-> 0b1111101 @ 0b00010 @ rs @ 0b000 @ rd @ 0b1011011  /* lwddc */
-mapping clause encdec = CLoadDDC(rd, rs, false, DOUBLE) <-> 0b1111101 @ 0b00011 @ rs @ 0b000 @ rd @ 0b1011011  /* ldddc */
-mapping clause encdec = CLoadDDC(rd, rs, true, BYTE)    <-> 0b1111101 @ 0b00100 @ rs @ 0b000 @ rd @ 0b1011011  /* lbuddc */
-mapping clause encdec = CLoadDDC(rd, rs, true, HALF)    <-> 0b1111101 @ 0b00101 @ rs @ 0b000 @ rd @ 0b1011011  /* lhuddc */
-mapping clause encdec = CLoadDDC(rd, rs, true, WORD)    <-> 0b1111101 @ 0b00110 @ rs @ 0b000 @ rd @ 0b1011011  /* lwuddc */
-mapping clause encdec = CLoadDDC(rd, rs, true, DOUBLE)  <-> 0b1111101 @ 0b00111 @ rs @ 0b000 @ rd @ 0b1011011  /* lduddc */
-mapping clause encdec = CLoadCapDDC(rd, rs)             <-> 0b1111101 @ 0b10111 @ rs @ 0b000 @ rd @ 0b1011011  /* lqddc */
+mapping clause encdec = CLoadDDC(rd, rs, false, BYTE)   if (haveXcheri()) <-> 0b1111101 @ 0b00000 @ rs @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lbddc */
+mapping clause encdec = CLoadDDC(rd, rs, false, HALF)   if (haveXcheri()) <-> 0b1111101 @ 0b00001 @ rs @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lhddc */
+mapping clause encdec = CLoadDDC(rd, rs, false, WORD)   if (haveXcheri()) <-> 0b1111101 @ 0b00010 @ rs @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lwddc */
+mapping clause encdec = CLoadDDC(rd, rs, false, DOUBLE) if (haveXcheri()) <-> 0b1111101 @ 0b00011 @ rs @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* ldddc */
+mapping clause encdec = CLoadDDC(rd, rs, true, BYTE)    if (haveXcheri()) <-> 0b1111101 @ 0b00100 @ rs @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lbuddc */
+mapping clause encdec = CLoadDDC(rd, rs, true, HALF)    if (haveXcheri()) <-> 0b1111101 @ 0b00101 @ rs @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lhuddc */
+mapping clause encdec = CLoadDDC(rd, rs, true, WORD)    if (haveXcheri()) <-> 0b1111101 @ 0b00110 @ rs @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lwuddc */
+mapping clause encdec = CLoadDDC(rd, rs, true, DOUBLE)  if (haveXcheri()) <-> 0b1111101 @ 0b00111 @ rs @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lduddc */
+mapping clause encdec = CLoadCapDDC(rd, rs)             if (haveXcheri()) <-> 0b1111101 @ 0b10111 @ rs @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lqddc */
 
-mapping clause encdec = CLoadCap(rd, cs, false, BYTE)   <-> 0b1111101 @ 0b01000 @ cs @ 0b000 @ rd @ 0b1011011  /* lbcap */
-mapping clause encdec = CLoadCap(rd, cs, false, HALF)   <-> 0b1111101 @ 0b01001 @ cs @ 0b000 @ rd @ 0b1011011  /* lhcap */
-mapping clause encdec = CLoadCap(rd, cs, false, WORD)   <-> 0b1111101 @ 0b01010 @ cs @ 0b000 @ rd @ 0b1011011  /* lwcap */
-mapping clause encdec = CLoadCap(rd, cs, false, DOUBLE) <-> 0b1111101 @ 0b01011 @ cs @ 0b000 @ rd @ 0b1011011  /* ldcap */
-mapping clause encdec = CLoadCap(rd, cs, true, BYTE)    <-> 0b1111101 @ 0b01100 @ cs @ 0b000 @ rd @ 0b1011011  /* lbucap */
-mapping clause encdec = CLoadCap(rd, cs, true, HALF)    <-> 0b1111101 @ 0b01101 @ cs @ 0b000 @ rd @ 0b1011011  /* lhucap */
-mapping clause encdec = CLoadCap(rd, cs, true, WORD)    <-> 0b1111101 @ 0b01110 @ cs @ 0b000 @ rd @ 0b1011011  /* lwucap */
-mapping clause encdec = CLoadCap(rd, cs, true, DOUBLE)  <-> 0b1111101 @ 0b01111 @ cs @ 0b000 @ rd @ 0b1011011  /* lducap */
-mapping clause encdec = CLoadCapCap(rd, cs)             <-> 0b1111101 @ 0b11111 @ cs @ 0b000 @ rd @ 0b1011011  /* lqcap */
+mapping clause encdec = CLoadCap(rd, cs, false, BYTE)   if (haveXcheri()) <-> 0b1111101 @ 0b01000 @ cs @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lbcap */
+mapping clause encdec = CLoadCap(rd, cs, false, HALF)   if (haveXcheri()) <-> 0b1111101 @ 0b01001 @ cs @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lhcap */
+mapping clause encdec = CLoadCap(rd, cs, false, WORD)   if (haveXcheri()) <-> 0b1111101 @ 0b01010 @ cs @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lwcap */
+mapping clause encdec = CLoadCap(rd, cs, false, DOUBLE) if (haveXcheri()) <-> 0b1111101 @ 0b01011 @ cs @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* ldcap */
+mapping clause encdec = CLoadCap(rd, cs, true, BYTE)    if (haveXcheri()) <-> 0b1111101 @ 0b01100 @ cs @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lbucap */
+mapping clause encdec = CLoadCap(rd, cs, true, HALF)    if (haveXcheri()) <-> 0b1111101 @ 0b01101 @ cs @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lhucap */
+mapping clause encdec = CLoadCap(rd, cs, true, WORD)    if (haveXcheri()) <-> 0b1111101 @ 0b01110 @ cs @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lwucap */
+mapping clause encdec = CLoadCap(rd, cs, true, DOUBLE)  if (haveXcheri()) <-> 0b1111101 @ 0b01111 @ cs @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lducap */
+mapping clause encdec = CLoadCapCap(rd, cs)             if (haveXcheri()) <-> 0b1111101 @ 0b11111 @ cs @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lqcap */
 
-mapping clause encdec = CStoreDDC(rs2, rs1, BYTE)       <-> 0b1111100 @ rs2 @ rs1 @ 0b000 @ 0b00000 @ 0b1011011  /* sbddc */
-mapping clause encdec = CStoreDDC(rs2, rs1, HALF)       <-> 0b1111100 @ rs2 @ rs1 @ 0b000 @ 0b00001 @ 0b1011011  /* shddc */
-mapping clause encdec = CStoreDDC(rs2, rs1, WORD)       <-> 0b1111100 @ rs2 @ rs1 @ 0b000 @ 0b00010 @ 0b1011011  /* swddc */
-mapping clause encdec = CStoreDDC(rs2, rs1, DOUBLE)     <-> 0b1111100 @ rs2 @ rs1 @ 0b000 @ 0b00011 @ 0b1011011  /* sdddc */
-mapping clause encdec = CStoreCapDDC(rs2, rs1)          <-> 0b1111100 @ rs2 @ rs1 @ 0b000 @ 0b00100 @ 0b1011011  /* sqddc */
+mapping clause encdec = CStoreDDC(rs2, rs1, BYTE)       if (haveXcheri()) <-> 0b1111100 @ rs2 @ rs1 @ 0b000 @ 0b00000 @ 0b1011011 if (haveXcheri()) /* sbddc */
+mapping clause encdec = CStoreDDC(rs2, rs1, HALF)       if (haveXcheri()) <-> 0b1111100 @ rs2 @ rs1 @ 0b000 @ 0b00001 @ 0b1011011 if (haveXcheri()) /* shddc */
+mapping clause encdec = CStoreDDC(rs2, rs1, WORD)       if (haveXcheri()) <-> 0b1111100 @ rs2 @ rs1 @ 0b000 @ 0b00010 @ 0b1011011 if (haveXcheri()) /* swddc */
+mapping clause encdec = CStoreDDC(rs2, rs1, DOUBLE)     if (haveXcheri()) <-> 0b1111100 @ rs2 @ rs1 @ 0b000 @ 0b00011 @ 0b1011011 if (haveXcheri()) /* sdddc */
+mapping clause encdec = CStoreCapDDC(rs2, rs1)          if (haveXcheri()) <-> 0b1111100 @ rs2 @ rs1 @ 0b000 @ 0b00100 @ 0b1011011 if (haveXcheri()) /* sqddc */
 
-mapping clause encdec = CStoreCap(rs2, cs, BYTE)        <-> 0b1111100 @ rs2 @ cs  @ 0b000 @ 0b01000 @ 0b1011011  /* sbcap */
-mapping clause encdec = CStoreCap(rs2, cs, HALF)        <-> 0b1111100 @ rs2 @ cs  @ 0b000 @ 0b01001 @ 0b1011011  /* shcap */
-mapping clause encdec = CStoreCap(rs2, cs, WORD)        <-> 0b1111100 @ rs2 @ cs  @ 0b000 @ 0b01010 @ 0b1011011  /* swcap */
-mapping clause encdec = CStoreCap(rs2, cs, DOUBLE)      <-> 0b1111100 @ rs2 @ cs  @ 0b000 @ 0b01011 @ 0b1011011  /* sdcap */
-mapping clause encdec = CStoreCapCap(rs2, cs)           <-> 0b1111100 @ rs2 @ cs  @ 0b000 @ 0b01100 @ 0b1011011  /* sqcap */
+mapping clause encdec = CStoreCap(rs2, cs, BYTE)        if (haveXcheri()) <-> 0b1111100 @ rs2 @ cs  @ 0b000 @ 0b01000 @ 0b1011011 if (haveXcheri()) /* sbcap */
+mapping clause encdec = CStoreCap(rs2, cs, HALF)        if (haveXcheri()) <-> 0b1111100 @ rs2 @ cs  @ 0b000 @ 0b01001 @ 0b1011011 if (haveXcheri()) /* shcap */
+mapping clause encdec = CStoreCap(rs2, cs, WORD)        if (haveXcheri()) <-> 0b1111100 @ rs2 @ cs  @ 0b000 @ 0b01010 @ 0b1011011 if (haveXcheri()) /* swcap */
+mapping clause encdec = CStoreCap(rs2, cs, DOUBLE)      if (haveXcheri()) <-> 0b1111100 @ rs2 @ cs  @ 0b000 @ 0b01011 @ 0b1011011 if (haveXcheri()) /* sdcap */
+mapping clause encdec = CStoreCapCap(rs2, cs)           if (haveXcheri()) <-> 0b1111100 @ rs2 @ cs  @ 0b000 @ 0b01100 @ 0b1011011 if (haveXcheri()) /* sqcap */
 
 mapping clause assembly = CLoadDDC(rd, rs, u, w) <-> "l" ^ size_mnemonic(w) ^ maybe_u(u) ^ "DDC" ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs)
 mapping clause assembly = CLoadCap(rd, cs, u, w) <-> "l" ^ size_mnemonic(w) ^ maybe_u(u) ^ "Cap" ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(cs)
