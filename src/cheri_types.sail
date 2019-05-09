@@ -55,7 +55,7 @@ enum ClearRegSet = {
   FPRegs
 }
 
-let MAX_U64=MAX(64)
+let MAX_U64 = MAX(64)
 
 enum CapEx = {
   CapEx_None,
@@ -84,7 +84,7 @@ enum CapEx = {
   CapEx_PermitSetCIDViolation
 }
 
-function CapExCode(ex) : CapEx -> bits(5)=
+function CapExCode(ex) : CapEx -> bits(5) =
   match ex {
     CapEx_None                          => 0b00000,
     CapEx_LengthViolation               => 0b00001,

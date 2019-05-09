@@ -97,7 +97,7 @@ type ext_data_addr_error = (CapEx, capreg_idx)
 
 function ext_data_get_addr(base_reg : regbits, offset : xlenbits, acc : AccessType, rt : ReadType, width : word_width)
          -> Ext_DataAddr_Check(ext_data_addr_error) = {
-  /* If we are in capabiltiy mode then do address checks on the base register, 
+  /* If we are in capabiltiy mode then do address checks on the base register,
      otherwise on DDC. Also add additional DDC offset in latter case. */
   let (cap_val : Capability, newAddr : xlenbits, cause_regno : capreg_idx) =
     if (PCC.flag_cap_mode) then
