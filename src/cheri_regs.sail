@@ -135,5 +135,7 @@ function ext_init_regs () = {
   x28 = default_cap;
   x29 = default_cap;
   x30 = default_cap;
-  x31 = default_cap
+  x31 = default_cap;
+
+  misa->X() = true;
 }
