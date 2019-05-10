@@ -95,17 +95,26 @@ function ext_handle_control_check_error(err : ext_control_addr_error) -> unit = 
 
 type ext_data_addr_error = (CapEx, capreg_idx)
 
+
+/*!
+For given base register and offset returns, depending on current capability mode flag, a
+bounding capability, effective address, and capreg_idx (for use in cap cause).
+ */
+val get_cheri_cap_addr : (regbits, xlenbits) -> (Capability, xlenbits, capreg_idx) effect {rreg, escape}
+function get_cheri_cap_addr (base_reg : regbits, offset : xlenbits) = {
+  if (PCC.flag_cap_mode) then
+    let base_cap = readCapReg(base_reg) in
+    (base_cap, base_cap.address + offset, 0b0 @ base_reg)
+  else
+    let ddc = DDC in
+    (ddc, ddc.address + X(base_reg) + offset, DDC_IDX);
+}
+
 function ext_data_get_addr(base_reg : regbits, offset : xlenbits, acc : AccessType, rt : ReadType, width : word_width)
          -> Ext_DataAddr_Check(ext_data_addr_error) = {
-  /* If we are in capabiltiy mode then do address checks on the base register,
-     otherwise on DDC. Also add additional DDC offset in latter case. */
-  let (cap_val : Capability, newAddr : xlenbits, cause_regno : capreg_idx) =
-    if (PCC.flag_cap_mode) then
-      let base_cap = readCapReg(base_reg) in
-      (base_cap, base_cap.address + offset, 0b0 @ base_reg)
-    else
-      let ddc = DDC in
-      (ddc, ddc.address + X(base_reg) + offset, 0b100001);
+
+  let (cap_val, newAddr, cause_regno) = get_cheri_cap_addr(base_reg, offset);
+
   let have_rqd_load_perm : bool = match acc {
     Read       => cap_val.permit_load,
     Write      => true,

@@ -932,7 +932,7 @@ function clause execute (CLoadDDC(rd, rs, is_unsigned, width)) =
 {
   let ddc_val = DDC;
   let vaddr = ddc_val.address + X(rs);
-  handle_load_data_via_cap(rd, 0b100001, ddc_val, vaddr, is_unsigned, width)
+  handle_load_data_via_cap(rd, DDC_IDX, ddc_val, vaddr, is_unsigned, width)
 }
 
 union clause ast = CLoadCap : (regbits, regbits, bool, word_width)
@@ -984,7 +984,7 @@ function clause execute (CLoadCapDDC(rd, rs)) =
 {
   let ddc_val = DDC;
   let vaddr = ddc_val.address + X(rs);
-  handle_load_cap_via_cap(rd, 0b100001, ddc_val, vaddr)
+  handle_load_cap_via_cap(rd, DDC_IDX, ddc_val, vaddr)
 }
 
 union clause ast = CLoadCapCap : (regbits, regbits)
@@ -995,7 +995,7 @@ function clause execute (CLoadCapCap(rd, cs)) =
   handle_load_cap_via_cap(rd, 0b0 @ cs, cap_val, vaddr)
 }
 
-val handle_store_data_via_cap : (regbits, regbits, Capability, xlenbits, word_width) -> bool effect {eamem, escape, rmem, rreg, wmv, wmvt, wreg}
+val handle_store_data_via_cap : (regbits, capreg_idx, Capability, xlenbits, word_width) -> bool effect {eamem, escape, rmem, rreg, wmv, wmvt, wreg}
 function handle_store_data_via_cap(rs, cs, cap_val, vaddrBits, width) = {
   let (base, top) = getCapBounds(cap_val);
   let vaddr = unsigned(vaddrBits);
@@ -1003,19 +1003,19 @@ function handle_store_data_via_cap(rs, cs, cap_val, vaddrBits, width) = {
   let aq : bool = false;
   let rl : bool = false;
   if not(cap_val.tag) then {
-    handle_cheri_reg_exception(CapEx_TagViolation, cs);
+    handle_cheri_cap_exception(CapEx_TagViolation, cs);
     false
   } else if cap_val.sealed then {
-    handle_cheri_reg_exception(CapEx_SealViolation, cs);
+    handle_cheri_cap_exception(CapEx_SealViolation, cs);
     false
   } else if not (cap_val.permit_store) then {
-    handle_cheri_reg_exception(CapEx_PermitStoreViolation, cs);
+    handle_cheri_cap_exception(CapEx_PermitStoreViolation, cs);
     false
   } else if (vaddr + size) > top then {
-    handle_cheri_reg_exception(CapEx_LengthViolation, cs);
+    handle_cheri_cap_exception(CapEx_LengthViolation, cs);
     false
   } else if vaddr < base then {
-    handle_cheri_reg_exception(CapEx_LengthViolation, cs);
+    handle_cheri_cap_exception(CapEx_LengthViolation, cs);
     false
   } else if check_misaligned(vaddrBits, width) then {
     handle_mem_exception(vaddrBits, E_SAMO_Addr_Align);
@@ -1050,7 +1050,7 @@ function clause execute (CStoreDDC(rd, rs, width)) =
 {
   let ddc_val = DDC;
   let vaddr = ddc_val.address + X(rs);
-  handle_store_data_via_cap(rd, 0b00000, ddc_val, vaddr, width)
+  handle_store_data_via_cap(rd, DDC_IDX, ddc_val, vaddr, width)
 }
 
 union clause ast = CStoreCap : (regbits, regbits, word_width)
@@ -1058,29 +1058,29 @@ function clause execute (CStoreCap(rs, cs, width)) =
 {
   let cap_val = readCapReg(cs);
   let vaddr = cap_val.address;
-  handle_store_data_via_cap(rs, cs, cap_val, vaddr, width)
+  handle_store_data_via_cap(rs, 0b0 @ cs, cap_val, vaddr, width)
 }
 
-val handle_store_cap_via_cap : (regbits, regbits, Capability, xlenbits) -> bool effect {eamem, escape, rmem, rreg, wmv, wreg, wmvt}
+val handle_store_cap_via_cap : (regbits, capreg_idx, Capability, xlenbits) -> bool effect {eamem, escape, rmem, rreg, wmv, wreg, wmvt}
 function handle_store_cap_via_cap(rs, cs, cap_val, vaddrBits) = {
   let (base, top) = getCapBounds(cap_val);
   let vaddr = unsigned(vaddrBits);
   let aq : bool = false;
   let rl : bool = false;
   if not(cap_val.tag) then {
-    handle_cheri_reg_exception(CapEx_TagViolation, cs);
+    handle_cheri_cap_exception(CapEx_TagViolation, cs);
     false
   } else if cap_val.sealed then {
-    handle_cheri_reg_exception(CapEx_SealViolation, cs);
+    handle_cheri_cap_exception(CapEx_SealViolation, cs);
     false
   } else if not (cap_val.permit_store) then {
-    handle_cheri_reg_exception(CapEx_PermitStoreViolation, cs);
+    handle_cheri_cap_exception(CapEx_PermitStoreViolation, cs);
     false
   } else if (vaddr + cap_size) > top then {
-    handle_cheri_reg_exception(CapEx_LengthViolation, cs);
+    handle_cheri_cap_exception(CapEx_LengthViolation, cs);
     false
   } else if vaddr < base then {
-    handle_cheri_reg_exception(CapEx_LengthViolation, cs);
+    handle_cheri_cap_exception(CapEx_LengthViolation, cs);
     false
   } else if not(is_aligned_addr(vaddrBits, cap_size)) then {
     handle_mem_exception(vaddrBits, E_SAMO_Addr_Align);
@@ -1110,7 +1110,7 @@ function clause execute (CStoreCapDDC(rd, rs)) =
 {
   let ddc_val = DDC;
   let vaddr = ddc_val.address + X(rs);
-  handle_store_cap_via_cap(rd, 0b00000, ddc_val, vaddr)
+  handle_store_cap_via_cap(rd, DDC_IDX, ddc_val, vaddr)
 }
 
 union clause ast = CStoreCapCap : (regbits, regbits)
@@ -1118,7 +1118,7 @@ function clause execute (CStoreCapCap(rs, cs)) =
 {
   let cap_val = readCapReg(cs);
   let vaddr = cap_val.address;
-  handle_store_cap_via_cap(rs, cs, cap_val, vaddr)
+  handle_store_cap_via_cap(rs, 0b0 @ cs, cap_val, vaddr)
 }
 
 union clause ast = CAP_AUIPC : (bits(20), regbits)
@@ -1127,6 +1127,22 @@ function clause execute CAP_AUIPC(imm, rd) = {
   let ret = setCapAddrOrNull(PCC, PC + off);
   writeCapReg(rd, ret);
   true
+}
+
+union clause ast = CLoadCapImm : (regbits, regbits, bits(12))
+function clause execute CLoadCapImm(cd, rs1, off12) =
+{
+  let offset : xlenbits = EXTS(off12);
+  let (cap_val, vaddr, cause_regno) = get_cheri_cap_addr(rs1, offset);
+  handle_load_cap_via_cap(cd, cause_regno, cap_val, vaddr)
+}
+
+union clause ast = CStoreCapImm : (regbits, regbits, bits(12))
+function clause execute CStoreCapImm(cs2, rs1, off12) =
+{
+  let offset : xlenbits = EXTS(off12);
+  let (cap_val, vaddr, cause_regno) = get_cheri_cap_addr(rs1, offset);
+  handle_store_cap_via_cap(cs2, cause_regno, cap_val, vaddr)
 }
 
 /*
@@ -1584,3 +1600,9 @@ mapping clause assembly = CLoadCapDDC(rd, rs)    <-> "lqDDC" ^ spc() ^ reg_name(
 mapping clause assembly = CLoadCapCap(rd, rs)    <-> "lqCap" ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs)
 mapping clause assembly = CStoreCapDDC(rs2, rs1) <-> "sqDDC" ^ spc() ^ reg_name(rs2) ^ sep() ^ reg_name(rs1)
 mapping clause assembly = CStoreCapCap(rs2, rs1) <-> "sqCap" ^ spc() ^ reg_name(rs2) ^ sep() ^ reg_name(rs1)
+
+mapping clause encdec = CLoadCapImm(cd, rs1, offset) <-> offset @ rs1 @ 0b010 @ cd @ 0b0001111
+mapping clause encdec = CStoreCapImm(cs2, rs1, off7 @ off5) <-> off7 : bits(7) @ cs2 @ rs1 @ 0b100 @ off5 : bits(5) @ 0b0100011
+
+mapping clause assembly = CLoadCapImm(cd, rs1, offset) <-> "lq" ^ spc() ^ reg_name(cd) ^ sep() ^ reg_name(rs1) ^ sep() ^ hex_bits_12(offset)
+mapping clause assembly = CStoreCapImm(cs2, rs1, offset) <-> "sq" ^ spc() ^ reg_name(cs2) ^ sep() ^ reg_name(rs1) ^ sep() ^ hex_bits_12(offset)
