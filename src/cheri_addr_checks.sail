@@ -18,7 +18,7 @@ function handle_cheri_cap_exception(capEx, regnum) =
 
 /*!
 causes the processor to raise a capability exception by writing the given capability exception cause and register number to the xccsr register then signalling an exception. */
-val handle_cheri_reg_exception : (CapEx, regbits) -> unit effect {escape, rreg, wreg}
+val handle_cheri_reg_exception : (CapEx, regidx) -> unit effect {escape, rreg, wreg}
 function handle_cheri_reg_exception(capEx, regnum) =
   let reg6 = 0b0 @ regnum in
   handle_cheri_cap_exception(capEx, reg6)
@@ -100,8 +100,8 @@ type ext_data_addr_error = (CapEx, capreg_idx)
 For given base register and offset returns, depending on current capability mode flag, a
 bounding capability, effective address, and capreg_idx (for use in cap cause).
  */
-val get_cheri_cap_addr : (regbits, xlenbits) -> (Capability, xlenbits, capreg_idx) effect {rreg, escape}
-function get_cheri_cap_addr (base_reg : regbits, offset : xlenbits) = {
+val get_cheri_cap_addr : (regidx, xlenbits) -> (Capability, xlenbits, capreg_idx) effect {rreg, escape}
+function get_cheri_cap_addr (base_reg : regidx, offset : xlenbits) = {
   if (PCC.flag_cap_mode) then
     let base_cap = readCapReg(base_reg) in
     (base_cap, base_cap.address + offset, 0b0 @ base_reg)
@@ -110,7 +110,7 @@ function get_cheri_cap_addr (base_reg : regbits, offset : xlenbits) = {
     (ddc, ddc.address + X(base_reg) + offset, DDC_IDX);
 }
 
-function ext_data_get_addr(base_reg : regbits, offset : xlenbits, acc : AccessType, rt : ReadType, width : word_width)
+function ext_data_get_addr(base_reg : regidx, offset : xlenbits, acc : AccessType, rt : ReadType, width : word_width)
          -> Ext_DataAddr_Check(ext_data_addr_error) = {
 
   let (cap_val, newAddr, cause_regno) = get_cheri_cap_addr(base_reg, offset);

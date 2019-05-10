@@ -34,28 +34,28 @@
 
 /* Operations that extract parts of a capability into GPR */
 
-union clause ast = CGetPerm   : (regbits, regbits)
-union clause ast = CGetType   : (regbits, regbits)
-union clause ast = CGetBase   : (regbits, regbits)
-union clause ast = CGetLen    : (regbits, regbits)
-union clause ast = CGetTag    : (regbits, regbits)
-union clause ast = CGetSealed : (regbits, regbits)
-union clause ast = CGetOffset : (regbits, regbits)
-union clause ast = CGetAddr   : (regbits, regbits)
-union clause ast = CGetFlags  : (regbits, regbits)
+union clause ast = CGetPerm   : (regidx, regidx)
+union clause ast = CGetType   : (regidx, regidx)
+union clause ast = CGetBase   : (regidx, regidx)
+union clause ast = CGetLen    : (regidx, regidx)
+union clause ast = CGetTag    : (regidx, regidx)
+union clause ast = CGetSealed : (regidx, regidx)
+union clause ast = CGetOffset : (regidx, regidx)
+union clause ast = CGetAddr   : (regidx, regidx)
+union clause ast = CGetFlags  : (regidx, regidx)
 
 function clause execute (CGetPerm(rd, cb)) =
 {
   let capVal = readCapReg(cb);
   X(rd) = EXTZ(getCapPerms(capVal));
-  true
+  RETIRE_SUCCESS
 }
 
 function clause execute (CGetFlags(rd, cb)) =
 {
   let capVal = readCapReg(cb);
   X(rd) = EXTZ(getCapFlags(capVal));
-  true
+  RETIRE_SUCCESS
 }
 
 function clause execute (CGetType(rd, cb)) =
@@ -64,21 +64,21 @@ function clause execute (CGetType(rd, cb)) =
   X(rd) = if   capVal.sealed
           then EXTZ(capVal.otype)
           else 0xffffffffffffffff;
-  true
+  RETIRE_SUCCESS
 }
 
 function clause execute (CGetBase(rd, cb)) =
 {
   let capVal = readCapReg(cb);
   X(rd) = to_bits(64, getCapBase(capVal));
-  true
+  RETIRE_SUCCESS
 }
 
 function clause execute (CGetOffset(rd, cb)) =
 {
   let capVal = readCapReg(cb);
   X(rd) = to_bits(64, getCapOffset(capVal));
-  true
+  RETIRE_SUCCESS
 }
 
 function clause execute (CGetLen(rd, cb)) =
@@ -86,32 +86,32 @@ function clause execute (CGetLen(rd, cb)) =
   let capVal = readCapReg(cb);
   let len65  = getCapLength(capVal);
   X(rd) = to_bits(64, if len65 > MAX_U64 then MAX_U64 else len65);
-  true
+  RETIRE_SUCCESS
 }
 
 function clause execute (CGetTag(rd, cb)) =
 {
   let capVal = readCapReg(cb);
   X(rd) = EXTZ(capVal.tag);
-  true
+  RETIRE_SUCCESS
 }
 
 function clause execute (CGetSealed(rd, cb)) =
 {
   let capVal = readCapReg(cb);
   X(rd) = EXTZ(capVal.sealed);
-  true
+  RETIRE_SUCCESS
 }
 
 function clause execute (CGetAddr(rd, cb)) =
 {
   let capVal = readCapReg(cb);
   X(rd) = to_bits(64, getCapCursor(capVal));
-  true
+  RETIRE_SUCCESS
 }
 /*
 
-union clause ast = CGetPCCSetOffset : (regbits, regbits)
+union clause ast = CGetPCCSetOffset : (regidx, regidx)
 function clause execute (CGetPCCSetOffset(cd, rs)) =
 {
   checkCP2usable();
@@ -121,39 +121,39 @@ function clause execute (CGetPCCSetOffset(cd, rs)) =
     writeCapReg(cd, newPCC)
   else
     writeCapReg(cd, int_to_cap(rs_val));
-  true
+  RETIRE_SUCCESS
 }
 /* Get and Set CP2 cause register */
 
-union clause ast = CGetCause : regbits
+union clause ast = CGetCause : regidx
 function clause execute (CGetCause(rd)) =
 {
   if not (pcc_access_system_regs ()) then {
     handle_cheri_pcc_exception(CapEx_AccessSystemRegsViolation);
-    false
+    RETIRE_FAIL
   } else {
     X(rd) = EXTZ(CapCause.bits());
-    true
+    RETIRE_SUCCESS
   }
 }
 
-union clause ast = CSetCause : regbits
+union clause ast = CSetCause : regidx
 function clause execute (CSetCause(rt)) =
 {
   if not (pcc_access_system_regs ()) then {
     handle_cheri_pcc_exception(CapEx_AccessSystemRegsViolation);
-    false
+    RETIRE_FAIL
   } else {
     let rt_val = X(rt);
     CapCause->ExcCode() = rt_val[15..8];
     CapCause->RegNum()  = rt_val[7..0];
-    true
+    RETIRE_SUCCESS
   }
 }
 
 */
 
-union clause ast = CSpecialRW : (regbits, regbits, regbits)
+union clause ast = CSpecialRW : (regidx, regidx, regidx)
 function clause execute (CSpecialRW(cd, cs, idx)) =
 {
   let (specialExists, ro, priv, needASR) : (bool, bool, Privilege, bool) = match idx {
@@ -172,12 +172,12 @@ function clause execute (CSpecialRW(cd, cs, idx)) =
   };
   if (not(specialExists)) then {
     handle_illegal();
-    false
+    RETIRE_FAIL
   } else if (ro & cs != 0) |
      (cur_privilege <_u priv) |
      (needASR & not(pcc_access_system_regs())) then {
     handle_cheri_cap_exception(CapEx_AccessSystemRegsViolation, 0b1 @ idx);
-    false
+    RETIRE_FAIL
   } else {
     let cs_val = readCapReg(cs);
     if (cd != 0) then {
@@ -218,55 +218,55 @@ function clause execute (CSpecialRW(cd, cs, idx)) =
         _  => assert(false, "unreachable")
       }
     };
-    true
+    RETIRE_SUCCESS
   }
 }
 
-union clause ast = CAndPerm : (regbits, regbits, regbits)
+union clause ast = CAndPerm : (regidx, regidx, regidx)
 function clause execute(CAndPerm(cd, cb, rt)) =
 {
   let cb_val = readCapReg(cb);
   let rt_val = X(rt);
   if not (cb_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cb);
-    false
+    RETIRE_FAIL
   } else if cb_val.sealed then {
     handle_cheri_reg_exception(CapEx_SealViolation, cb);
-    false
+    RETIRE_FAIL
   } else {
     let perms   = getCapPerms(cb_val);
     let newCap  = setCapPerms(cb_val, (perms & rt_val[30..0]));
     writeCapReg(cd, newCap);
-    true
+    RETIRE_SUCCESS
   }
 }
 
-union clause ast = CSetFlags : (regbits, regbits, regbits)
+union clause ast = CSetFlags : (regidx, regidx, regidx)
 function clause execute(CSetFlags(cd, cb, rt)) =
 {
   let cb_val = readCapReg(cb);
   let rt_val = X(rt);
   if cb_val.tag & cb_val.sealed then {
     handle_cheri_reg_exception(CapEx_SealViolation, cb);
-    false
+    RETIRE_FAIL
   } else {
     let newCap  = setCapFlags(cb_val, truncate(rt_val, num_flags));
     writeCapReg(cd, newCap);
-    true
+    RETIRE_SUCCESS
   }
 }
 
-union clause ast = CToPtr : (regbits, regbits, regbits)
+union clause ast = CToPtr : (regidx, regidx, regidx)
 function clause execute(CToPtr(rd, cb, ct)) =
 {
   let ct_val = readCapRegDDC(ct);
   let cb_val = readCapReg(cb);
   if not (ct_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, ct);
-    false
+    RETIRE_FAIL
   } else if cb_val.tag & cb_val.sealed then {
     handle_cheri_reg_exception(CapEx_SealViolation, cb);
-    false
+    RETIRE_FAIL
   } else {
     let ctBase = getCapBase(ct_val);
     /* Note: returning zero for untagged values breaks magic constants such as SIG_IGN */
@@ -274,74 +274,74 @@ function clause execute(CToPtr(rd, cb, ct)) =
               zeros()
             else
               to_bits(64, getCapCursor(cb_val) - ctBase);
-    true
+    RETIRE_SUCCESS
   }
 }
 
-union clause ast = CSub : (regbits, regbits, regbits)
+union clause ast = CSub : (regidx, regidx, regidx)
 function clause execute(CSub(rd, cb, ct)) =
 {
   let ct_val = readCapReg(ct);
   let cb_val = readCapReg(cb);
   X(rd) = to_bits(64, getCapCursor(cb_val) - getCapCursor(ct_val));
-  true
+  RETIRE_SUCCESS
 }
 
-union clause ast = CIncOffset : (regbits, regbits, regbits)
+union clause ast = CIncOffset : (regidx, regidx, regidx)
 function clause execute (CIncOffset(cd, cb, rt)) =
 {
   let cb_val = readCapReg(cb);
   let rt_val = X(rt);
   if cb_val.tag & cb_val.sealed then {
     handle_cheri_reg_exception(CapEx_SealViolation, cb);
-    false
+    RETIRE_FAIL
   } else {
     let (success, newCap) = incCapOffset(cb_val, rt_val);
     if success then
         writeCapReg(cd, newCap)
     else
         writeCapReg(cd, int_to_cap(cb_val.address + rt_val));
-    true
+    RETIRE_SUCCESS
   }
 }
 
-union clause ast = CIncOffsetImmediate : (regbits, regbits, bits(12))
+union clause ast = CIncOffsetImmediate : (regidx, regidx, bits(12))
 function clause execute (CIncOffsetImmediate(cd, cb, imm)) =
 {
   let cb_val = readCapReg(cb);
   let imm64 : bits(64) = EXTS(imm);
   if cb_val.tag & cb_val.sealed then {
     handle_cheri_reg_exception(CapEx_SealViolation, cb);
-    false
+    RETIRE_FAIL
   } else {
     let (success, newCap) = incCapOffset(cb_val, imm64);
     if success then
         writeCapReg(cd, newCap)
     else
         writeCapReg(cd, int_to_cap(cb_val.address + imm64));
-    true
+    RETIRE_SUCCESS
   }
 }
 
-union clause ast = CSetOffset : (regbits, regbits, regbits)
+union clause ast = CSetOffset : (regidx, regidx, regidx)
 function clause execute (CSetOffset(cd, cb, rt)) =
 {
   let cb_val = readCapReg(cb);
   let rt_val = X(rt);
   if cb_val.tag & cb_val.sealed then {
     handle_cheri_reg_exception(CapEx_SealViolation, cb);
-    false
+    RETIRE_FAIL
   } else {
     let (success, newCap) = setCapOffset(cb_val, rt_val);
     if success then
         writeCapReg(cd, newCap)
     else
         writeCapReg(cd, int_to_cap(to_bits(64, getCapBase(cb_val)) + rt_val));
-    true
+    RETIRE_SUCCESS
   }
 }
 
-union clause ast = CSetBounds : (regbits, regbits, regbits)
+union clause ast = CSetBounds : (regidx, regidx, regidx)
 function clause execute (CSetBounds(cd, cb, rt)) =
 {
   let cb_val = readCapReg(cb);
@@ -352,24 +352,24 @@ function clause execute (CSetBounds(cd, cb, rt)) =
   let newTop = cursor + rt_val;
   if not (cb_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cb);
-    false
+    RETIRE_FAIL
   } else if cb_val.sealed then {
     handle_cheri_reg_exception(CapEx_SealViolation, cb);
-    false
+    RETIRE_FAIL
   } else if cursor < base then {
     handle_cheri_reg_exception(CapEx_LengthViolation, cb);
-    false
+    RETIRE_FAIL
   } else if newTop > top then {
     handle_cheri_reg_exception(CapEx_LengthViolation, cb);
-    false
+    RETIRE_FAIL
   } else {
     let (_, newCap) = setCapBounds(cb_val, to_bits(64, cursor), to_bits(65, newTop));
     writeCapReg(cd, newCap); /* ignore exact */
-    true
+    RETIRE_SUCCESS
   }
 }
 
-union clause ast = CSetBoundsImmediate : (regbits, regbits, bits(12))
+union clause ast = CSetBoundsImmediate : (regidx, regidx, bits(12))
 function clause execute (CSetBoundsImmediate(cd, cb, imm)) =
 {
   let cb_val = readCapReg(cb);
@@ -380,24 +380,24 @@ function clause execute (CSetBoundsImmediate(cd, cb, imm)) =
   let newTop = cursor + immU;
   if not (cb_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cb);
-    false
+    RETIRE_FAIL
   } else if cb_val.sealed then {
     handle_cheri_reg_exception(CapEx_SealViolation, cb);
-    false
+    RETIRE_FAIL
   } else if cursor < base then {
     handle_cheri_reg_exception(CapEx_LengthViolation, cb);
-    false
+    RETIRE_FAIL
   } else if newTop > top then {
     handle_cheri_reg_exception(CapEx_LengthViolation, cb);
-    false
+    RETIRE_FAIL
   } else {
     let (_, newCap) = setCapBounds(cb_val, to_bits(64, cursor), to_bits(65, newTop));
     writeCapReg(cd, newCap); /* ignore exact */
-    true
+    RETIRE_SUCCESS
   }
 }
 
-union clause ast = CSetBoundsExact : (regbits, regbits, regbits)
+union clause ast = CSetBoundsExact : (regidx, regidx, regidx)
 function clause execute (CSetBoundsExact(cd, cb, rt)) =
 {
   let cb_val = readCapReg(cb);
@@ -408,41 +408,41 @@ function clause execute (CSetBoundsExact(cd, cb, rt)) =
   let newTop = cursor + rt_val;
   if not (cb_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cb);
-    false
+    RETIRE_FAIL
   } else if cb_val.sealed then {
     handle_cheri_reg_exception(CapEx_SealViolation, cb);
-    false
+    RETIRE_FAIL
   } else if cursor < base then {
     handle_cheri_reg_exception(CapEx_LengthViolation, cb);
-    false
+    RETIRE_FAIL
   } else if newTop > top then {
     handle_cheri_reg_exception(CapEx_LengthViolation, cb);
-    false
+    RETIRE_FAIL
   } else {
     let (exact, newCap) = setCapBounds(cb_val, to_bits(64, cursor), to_bits(65, newTop));
     if not (exact) then {
       handle_cheri_reg_exception(CapEx_InexactBounds, cb);
-      false
+      RETIRE_FAIL
     } else {
       writeCapReg(cd, newCap);
-      true
+      RETIRE_SUCCESS
     }
   }
 }
 
-union clause ast = CClearTag : (regbits, regbits)
+union clause ast = CClearTag : (regidx, regidx)
 function clause execute (CClearTag(cd, cb)) =
 {
   let cb_val = readCapReg(cb);
   writeCapReg(cd, {cb_val with tag=false});
-  true
+  RETIRE_SUCCESS
 }
 
-union clause ast = CMove : (regbits, regbits)
+union clause ast = CMove : (regidx, regidx)
 function clause execute (CMove(cd, cb)) =
 {
   writeCapReg(cd) = readCapReg(cb);
-  true
+  RETIRE_SUCCESS
 }
 
 union clause ast = ClearRegs : (ClearRegSet, bits(2), bits(8))
@@ -458,34 +458,34 @@ function clause execute (ClearRegs(regset, q, m)) =
         GPRegs => X(8 * unsigned(q) + i) = zeros(),
         FPRegs => () /* XXX no F regs yet */
       };
-  true
+  RETIRE_SUCCESS
 }
 
-union clause ast = CFromPtr : (regbits, regbits, regbits)
+union clause ast = CFromPtr : (regidx, regidx, regidx)
 function clause execute (CFromPtr(cd, cb, rt)) =
 {
   let cb_val = readCapRegDDC(cb);
   let rt_val = X(rt);
   if rt_val == 0x0000000000000000 then {
     writeCapReg(cd, null_cap);
-    true
+    RETIRE_SUCCESS
   } else if not (cb_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cb);
-    false
+    RETIRE_FAIL
   } else if cb_val.sealed then {
     handle_cheri_reg_exception(CapEx_SealViolation, cb);
-    false
+    RETIRE_FAIL
   } else {
     let (success, newCap) = setCapOffset(cb_val, rt_val);
     if success then
         writeCapReg(cd, newCap)
     else
         writeCapReg(cd, int_to_cap(to_bits(64, getCapBase(cb_val)) + rt_val));
-    true
+    RETIRE_SUCCESS
   }
 }
 
-union clause ast = CBuildCap : (regbits, regbits, regbits)
+union clause ast = CBuildCap : (regidx, regidx, regidx)
 function clause execute (CBuildCap(cd, cb, ct)) =
 {
   let cb_val = readCapRegDDC(cb);
@@ -499,22 +499,22 @@ function clause execute (CBuildCap(cd, cb, ct)) =
   let ct_offset = getCapOffset(ct_val);
   if not (cb_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cb);
-    false
+    RETIRE_FAIL
   } else if cb_val.sealed then {
     handle_cheri_reg_exception(CapEx_SealViolation, cb);
-    false
+    RETIRE_FAIL
   } else if ct_base < cb_base then {
     handle_cheri_reg_exception(CapEx_LengthViolation, cb);
-    false
+    RETIRE_FAIL
   } else if ct_top > cb_top then {
     handle_cheri_reg_exception(CapEx_LengthViolation, cb);
-    false
+    RETIRE_FAIL
   } else if ct_base > ct_top then { /* check for length < 0 - possible because ct might be untagged */
     handle_cheri_reg_exception(CapEx_LengthViolation, ct);
-    false
+    RETIRE_FAIL
   } else if (ct_perms & cb_perms) != ct_perms then {
     handle_cheri_reg_exception(CapEx_UserDefViolation, cb);
-    false
+    RETIRE_FAIL
   } else {
     let (exact, cd1) = setCapBounds(cb_val, to_bits(64, ct_base), to_bits(65, ct_top));
     let (representable, cd2) = setCapOffset(cd1, to_bits(64, ct_offset));
@@ -523,12 +523,12 @@ function clause execute (CBuildCap(cd, cb, ct)) =
       assert(exact, "CBuildCap: setCapBounds was not exact"); /* base and top came from ct originally so will be exact */
       assert(representable, "CBuildCap: offset was not representable"); /* similarly offset should be representable XXX except for fastRepCheck */
       writeCapReg(cd, cd3);
-      true
+      RETIRE_SUCCESS
     }
   }
 }
 
-union clause ast = CCopyType : (regbits, regbits, regbits)
+union clause ast = CCopyType : (regidx, regidx, regidx)
 function clause execute (CCopyType(cd, cb, ct)) =
 {
   let cb_val = readCapReg(cb);
@@ -538,30 +538,30 @@ function clause execute (CCopyType(cd, cb, ct)) =
   let ct_otype = unsigned(ct_val.otype);
   if not (cb_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cb);
-    false
+    RETIRE_FAIL
   } else if cb_val.sealed then {
     handle_cheri_reg_exception(CapEx_SealViolation, cb);
-    false
+    RETIRE_FAIL
   } else if ct_val.sealed then {
     if ct_otype < cb_base then {
       handle_cheri_reg_exception(CapEx_LengthViolation, cb);
-      false
+      RETIRE_FAIL
     } else if ct_otype >= cb_top then {
       handle_cheri_reg_exception(CapEx_LengthViolation, cb);
-      false
+      RETIRE_FAIL
     } else {
       let (success, cap) = setCapOffset(cb_val, to_bits(64, ct_otype - cb_base));
       assert(success, "CopyType: offset is in bounds so should be representable");
       writeCapReg(cd, cap);
-      true
+      RETIRE_SUCCESS
     }
   } else {
     writeCapReg(cd, int_to_cap(0xffffffffffffffff));
-    true
+    RETIRE_SUCCESS
   }
 }
 
-union clause ast = CCheckPerm : (regbits, regbits)
+union clause ast = CCheckPerm : (regidx, regidx)
 function clause execute (CCheckPerm(cs, rt)) =
 {
   let cs_val = readCapReg(cs);
@@ -569,50 +569,50 @@ function clause execute (CCheckPerm(cs, rt)) =
   let rt_perms = X(rt);
   if not (cs_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cs);
-    false
+    RETIRE_FAIL
   } else if (cs_perms & rt_perms) != rt_perms then {
     handle_cheri_reg_exception(CapEx_UserDefViolation, cs);
-    false
+    RETIRE_FAIL
   } else
-    true
+    RETIRE_SUCCESS
 }
 
-union clause ast = CCheckType : (regbits, regbits)
+union clause ast = CCheckType : (regidx, regidx)
 function clause execute (CCheckType(cs, cb)) =
 {
   let cs_val = readCapReg(cs);
   let cb_val = readCapReg(cb);
   if not (cs_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cs);
-    false
+    RETIRE_FAIL
   } else if not (cb_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cb);
-    false
+    RETIRE_FAIL
   } else if not (cs_val.sealed) then {
     handle_cheri_reg_exception(CapEx_SealViolation, cs);
-    false
+    RETIRE_FAIL
   } else if not (cb_val.sealed) then {
     handle_cheri_reg_exception(CapEx_SealViolation, cb);
-    false
+    RETIRE_FAIL
   } else if cs_val.otype != cb_val.otype then {
     handle_cheri_reg_exception(CapEx_TypeViolation, cs);
-    false
+    RETIRE_FAIL
   } else
-    true
+    RETIRE_SUCCESS
 }
 
-union clause ast = CCheckTag : (regbits)
+union clause ast = CCheckTag : (regidx)
 function clause execute (CCheckTag (cs)) =
 {
   let cs_val = readCapReg(cs);
   if not(cs_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cs);
-    false
+    RETIRE_FAIL
   } else
-    true
+    RETIRE_SUCCESS
 }
 
-union clause ast = CTestSubset : (regbits, regbits, regbits)
+union clause ast = CTestSubset : (regidx, regidx, regidx)
 function clause execute (CTestSubset(rd, cb, ct)) =
 {
   let cb_val = readCapRegDDC(cb);
@@ -634,10 +634,10 @@ function clause execute (CTestSubset(rd, cb, ct)) =
                else
                   0b1;
   X(rd) = EXTZ(result);
-  true
+  RETIRE_SUCCESS
 }
 
-union clause ast = CSeal : (regbits, regbits, regbits)
+union clause ast = CSeal : (regidx, regidx, regidx)
 function clause execute (CSeal(cd, cs, ct)) =
 {
   let cs_val = readCapReg(cs);
@@ -647,41 +647,41 @@ function clause execute (CSeal(cd, cs, ct)) =
   let ct_base   = getCapBase(ct_val);
   if not (cs_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cs);
-    false
+    RETIRE_FAIL
   } else if not (ct_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, ct);
-    false
+    RETIRE_FAIL
   } else if cs_val.sealed then {
     handle_cheri_reg_exception(CapEx_SealViolation, cs);
-    false
+    RETIRE_FAIL
   } else if ct_val.sealed then {
     handle_cheri_reg_exception(CapEx_SealViolation, ct);
-    false
+    RETIRE_FAIL
   } else if not (ct_val.permit_seal) then {
     handle_cheri_reg_exception(CapEx_PermitSealViolation, ct);
-    false
+    RETIRE_FAIL
   } else if ct_cursor < ct_base then {
     handle_cheri_reg_exception(CapEx_LengthViolation, ct);
-    false
+    RETIRE_FAIL
   } else if ct_cursor >= ct_top then {
     handle_cheri_reg_exception(CapEx_LengthViolation, ct);
-    false
+    RETIRE_FAIL
   } else if ct_cursor > max_otype then {
     handle_cheri_reg_exception(CapEx_LengthViolation, ct);
-    false
+    RETIRE_FAIL
   } else {
     let (success, newCap) = sealCap(cs_val, to_bits(24, ct_cursor));
     if not (success) then {
       handle_cheri_reg_exception(CapEx_InexactBounds, cs);
-      false
+      RETIRE_FAIL
     } else {
       writeCapReg(cd, newCap);
-      true
+      RETIRE_SUCCESS
     }
   }
 }
 
-union clause ast = CCSeal : (regbits, regbits, regbits)
+union clause ast = CCSeal : (regidx, regidx, regidx)
 function clause execute (CCSeal(cd, cs, ct)) =
 {
   let cs_val = readCapReg(cs);
@@ -691,41 +691,41 @@ function clause execute (CCSeal(cd, cs, ct)) =
   let ct_base   = getCapBase(ct_val);
   if not (cs_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cs);
-    false
+    RETIRE_FAIL
   } else if not (ct_val.tag) | (getCapCursor(ct_val) == MAX_U64) then {
     writeCapReg(cd, cs_val);
-    true
+    RETIRE_SUCCESS
   } else if cs_val.sealed then {
     handle_cheri_reg_exception(CapEx_SealViolation, cs);
-    false
+    RETIRE_FAIL
   } else if ct_val.sealed then {
     handle_cheri_reg_exception(CapEx_SealViolation, ct);
-    false
+    RETIRE_FAIL
   } else if not (ct_val.permit_seal) then {
     handle_cheri_reg_exception(CapEx_PermitSealViolation, ct);
-    false
+    RETIRE_FAIL
   } else if ct_cursor < ct_base then {
     handle_cheri_reg_exception(CapEx_LengthViolation, ct);
-    false
+    RETIRE_FAIL
   } else if ct_cursor >= ct_top then {
     handle_cheri_reg_exception(CapEx_LengthViolation, ct);
-    false
+    RETIRE_FAIL
   } else if ct_cursor > max_otype then {
     handle_cheri_reg_exception(CapEx_LengthViolation, ct);
-    false
+    RETIRE_FAIL
   } else {
     let (success, newCap) = sealCap(cs_val, to_bits(24, ct_cursor));
     if not (success) then {
       handle_cheri_reg_exception(CapEx_InexactBounds, cs);
-      false
+      RETIRE_FAIL
     } else {
       writeCapReg(cd, newCap);
-      true
+      RETIRE_SUCCESS
     }
   }
 }
 
-union clause ast = CUnseal : (regbits, regbits, regbits)
+union clause ast = CUnseal : (regidx, regidx, regidx)
 function clause execute (CUnseal(cd, cs, ct)) =
 {
   let cs_val = readCapReg(cs);
@@ -733,37 +733,37 @@ function clause execute (CUnseal(cd, cs, ct)) =
   let ct_cursor = getCapCursor(ct_val);
   if not (cs_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cs);
-    false
+    RETIRE_FAIL
   } else if not (ct_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, ct);
-    false
+    RETIRE_FAIL
   } else if not (cs_val.sealed) then {
     handle_cheri_reg_exception(CapEx_SealViolation, cs);
-    false
+    RETIRE_FAIL
   } else if ct_val.sealed then {
     handle_cheri_reg_exception(CapEx_SealViolation, ct);
-    false
+    RETIRE_FAIL
   } else if ct_cursor != unsigned(cs_val.otype) then {
     handle_cheri_reg_exception(CapEx_TypeViolation, ct);
-    false
+    RETIRE_FAIL
   } else if not (ct_val.permit_unseal) then {
     handle_cheri_reg_exception(CapEx_PermitUnsealViolation, ct);
-    false
+    RETIRE_FAIL
   } else if ct_cursor <  getCapBase(ct_val) then {
     handle_cheri_reg_exception(CapEx_LengthViolation, ct);
-    false
+    RETIRE_FAIL
   } else if ct_cursor >= getCapTop(ct_val) then {
     handle_cheri_reg_exception(CapEx_LengthViolation, ct);
-    false
+    RETIRE_FAIL
   } else {
     writeCapReg(cd, {unsealCap(cs_val) with
       global=(cs_val.global & ct_val.global)
     });
-    true
+    RETIRE_SUCCESS
   }
 }
 
-union clause ast = CCall : (regbits, regbits, regbits)
+union clause ast = CCall : (regidx, regidx, regidx)
 function clause execute (CCall(cs, cb, 0b00000)) = /* selector=0 */
 {
   /* Partial implementation of CCall with checks in hardware, but raising a trap to perform trusted stack manipulation */
@@ -772,34 +772,34 @@ function clause execute (CCall(cs, cb, 0b00000)) = /* selector=0 */
   let cs_cursor = getCapCursor(cs_val);
   if not (cs_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cs);
-    false
+    RETIRE_FAIL
   } else if not (cb_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cb);
-    false
+    RETIRE_FAIL
   } else if not (cs_val.sealed) then {
     handle_cheri_reg_exception(CapEx_SealViolation, cs);
-    false
+    RETIRE_FAIL
   } else if not (cb_val.sealed) then {
     handle_cheri_reg_exception(CapEx_SealViolation, cb);
-    false
+    RETIRE_FAIL
   } else if cs_val.otype != cb_val.otype then {
     handle_cheri_reg_exception(CapEx_TypeViolation, cs);
-    false
+    RETIRE_FAIL
   } else if not (cs_val.permit_execute) then {
     handle_cheri_reg_exception(CapEx_PermitExecuteViolation, cs);
-    false
+    RETIRE_FAIL
   } else if cb_val.permit_execute then {
     handle_cheri_reg_exception(CapEx_PermitExecuteViolation, cb);
-    false
+    RETIRE_FAIL
   } else if cs_cursor < getCapBase(cs_val) then {
     handle_cheri_reg_exception(CapEx_LengthViolation, cs);
-    false
+    RETIRE_FAIL
   } else if cs_cursor >= getCapTop(cs_val) then {
     handle_cheri_reg_exception(CapEx_LengthViolation, cs);
-    false
+    RETIRE_FAIL
   } else {
     handle_cheri_reg_exception(CapEx_CallTrap, cs);
-    false
+    RETIRE_FAIL
   }
 }
 
@@ -813,55 +813,55 @@ function clause execute (CCall(cs, cb, 0b00001)) = /* selector=1 */
   let (cs_base, cs_top) = getCapBounds(cs_val);
   if not (cs_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cs);
-    false
+    RETIRE_FAIL
   } else if not (cb_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cb);
-    false
+    RETIRE_FAIL
   } else if not (cs_val.sealed) then {
     handle_cheri_reg_exception(CapEx_SealViolation, cs);
-    false
+    RETIRE_FAIL
   } else if not (cb_val.sealed) then {
     handle_cheri_reg_exception(CapEx_SealViolation, cb);
-    false
+    RETIRE_FAIL
   } else if cs_val.otype != cb_val.otype then {
     handle_cheri_reg_exception(CapEx_TypeViolation, cs);
-    false
+    RETIRE_FAIL
   } else if not (cs_val.permit_ccall) then {
     handle_cheri_reg_exception(CapEx_PermitCCallViolation, cs);
-    false
+    RETIRE_FAIL
   } else if not (cb_val.permit_ccall) then {
     handle_cheri_reg_exception(CapEx_PermitCCallViolation, cb);
-    false
+    RETIRE_FAIL
   } else if not (cs_val.permit_execute) then {
     handle_cheri_reg_exception(CapEx_PermitExecuteViolation, cs);
-    false
+    RETIRE_FAIL
   } else if cb_val.permit_execute then {
     handle_cheri_reg_exception(CapEx_PermitExecuteViolation, cb);
-    false
+    RETIRE_FAIL
   } else if newPC_int < cs_base then {
     handle_cheri_reg_exception(CapEx_LengthViolation, cs);
-    false
+    RETIRE_FAIL
   } else if (newPC_int + min_instruction_bytes ()) > cs_top then {
     handle_cheri_reg_exception(CapEx_LengthViolation, cs);
-    false
+    RETIRE_FAIL
   } else if newPC[1] & ~(haveRVC()) then {
     handle_mem_exception(newPC,  E_Fetch_Addr_Align);
-    false
+    RETIRE_FAIL
   } else {
     C26 = unsealCap(cb_val);
     nextPC = newPC;
     nextPCC = unsealCap(cs_val);
-    true
+    RETIRE_SUCCESS
   }
 }
 
 function clause execute (CCall(_, _, 0b11111)) = /* CReturn */
 {
   handle_cheri_reg_exception(CapEx_ReturnTrap, 0b11111); /* XXX what should correct reg number be? */
-  false
+  RETIRE_FAIL
 }
 
-union clause ast = CJALR : (regbits, regbits)
+union clause ast = CJALR : (regidx, regidx)
 function clause execute(CJALR(cd, cb)) =
 {
   let cb_val = readCapReg(cb);
@@ -870,33 +870,33 @@ function clause execute(CJALR(cd, cb)) =
   let (cb_base, cb_top)  = getCapBounds(cb_val);
   if not (cb_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cb);
-    false
+    RETIRE_FAIL
   } else if (cb_val.sealed) then {
     handle_cheri_reg_exception(CapEx_SealViolation, cb);
-    false
+    RETIRE_FAIL
   } else if not (cb_val.permit_execute) then {
     handle_cheri_reg_exception(CapEx_PermitExecuteViolation, cb);
-    false
+    RETIRE_FAIL
   } else if newPC_int < cb_base then {
     handle_cheri_reg_exception(CapEx_LengthViolation, cb);
-    false
+    RETIRE_FAIL
   } else if (newPC_int + min_instruction_bytes ()) > cb_top then {
     handle_cheri_reg_exception(CapEx_LengthViolation, cb);
-    false
+    RETIRE_FAIL
   } else if newPC[1] & ~(haveRVC()) then {
     handle_mem_exception(newPC,  E_Fetch_Addr_Align);
-    false
+    RETIRE_FAIL
   } else {
     let (success, linkCap) = setCapAddr(PCC, nextPC); /* Note that nextPC accounts for compressed instrucitons */
     assert(success, "Link cap should always be representable.");
     writeCapReg(cd, linkCap);
     nextPC  = newPC;
     nextPCC = cb_val;
-    true
+    RETIRE_SUCCESS
   };
 }
 
-val handle_load_data_via_cap : (regbits, capreg_idx, Capability, xlenbits, bool, word_width) -> bool effect {escape, rmem, rreg, wmv, wmvt, wreg}
+val handle_load_data_via_cap : (regidx, capreg_idx, Capability, xlenbits, bool, word_width) -> Retired effect {escape, rmem, rreg, wmv, wmvt, wreg}
 function handle_load_data_via_cap(rd, cs, cap_val, vaddrBits, is_unsigned, width) = {
   let (base, top) = getCapBounds(cap_val);
   let vaddr = unsigned(vaddrBits);
@@ -905,29 +905,29 @@ function handle_load_data_via_cap(rd, cs, cap_val, vaddrBits, is_unsigned, width
   let rl : bool = false;
   if not(cap_val.tag) then {
     handle_cheri_cap_exception(CapEx_TagViolation, cs);
-    false
+    RETIRE_FAIL
   } else if cap_val.sealed then {
     handle_cheri_cap_exception(CapEx_SealViolation, cs);
-    false
+    RETIRE_FAIL
   } else if not (cap_val.permit_load) then {
     handle_cheri_cap_exception(CapEx_PermitLoadViolation, cs);
-    false
+    RETIRE_FAIL
   } else if (vaddr + size) > top then {
     handle_cheri_cap_exception(CapEx_LengthViolation, cs);
-    false
+    RETIRE_FAIL
   } else if vaddr < base then {
     handle_cheri_cap_exception(CapEx_LengthViolation, cs);
-    false
+    RETIRE_FAIL
   } else if check_misaligned(vaddrBits, width) then {
     handle_mem_exception(vaddrBits, E_Load_Addr_Align);
-    false
+    RETIRE_FAIL
   } else match translateAddr(vaddrBits, Read, Data) {
-    TR_Failure(e) => { handle_mem_exception(vaddrBits, e); false },
+    TR_Failure(e) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
     TR_Address(addr) => process_load(rd, vaddrBits, mem_read(addr, size, aq, rl, false), is_unsigned)
   }
 }
 
-union clause ast = CLoadDDC : (regbits, regbits, bool, word_width)
+union clause ast = CLoadDDC : (regidx, regidx, bool, word_width)
 function clause execute (CLoadDDC(rd, rs, is_unsigned, width)) =
 {
   let ddc_val = DDC;
@@ -935,7 +935,7 @@ function clause execute (CLoadDDC(rd, rs, is_unsigned, width)) =
   handle_load_data_via_cap(rd, DDC_IDX, ddc_val, vaddr, is_unsigned, width)
 }
 
-union clause ast = CLoadCap : (regbits, regbits, bool, word_width)
+union clause ast = CLoadCap : (regidx, regidx, bool, word_width)
 function clause execute (CLoadCap(rd, cs, is_unsigned, width)) =
 {
   let cap_val = readCapReg(cs);
@@ -943,7 +943,7 @@ function clause execute (CLoadCap(rd, cs, is_unsigned, width)) =
   handle_load_data_via_cap(rd, 0b0 @ cs, cap_val, vaddr, is_unsigned, width)
 }
 
-val handle_load_cap_via_cap : (regbits, capreg_idx, Capability, xlenbits) -> bool effect {escape, rmem, rmemt, rreg, wmv, wmvt, wreg}
+val handle_load_cap_via_cap : (regidx, capreg_idx, Capability, xlenbits) -> Retired effect {escape, rmem, rmemt, rreg, wmv, wmvt, wreg}
 function handle_load_cap_via_cap(rd, cs, cap_val, vaddrBits) = {
   let (base, top) = getCapBounds(cap_val);
   let vaddr = unsigned(vaddrBits);
@@ -951,35 +951,35 @@ function handle_load_cap_via_cap(rd, cs, cap_val, vaddrBits) = {
   let rl : bool = false;
   if not(cap_val.tag) then {
     handle_cheri_cap_exception(CapEx_TagViolation, cs);
-    false
+    RETIRE_FAIL
   } else if cap_val.sealed then {
     handle_cheri_cap_exception(CapEx_SealViolation, cs);
-    false
+    RETIRE_FAIL
   } else if not (cap_val.permit_load) then {
     handle_cheri_cap_exception(CapEx_PermitLoadViolation, cs);
-    false
+    RETIRE_FAIL
   } else if (vaddr + cap_size) > top then {
     handle_cheri_cap_exception(CapEx_LengthViolation, cs);
-    false
+    RETIRE_FAIL
   } else if vaddr < base then {
     handle_cheri_cap_exception(CapEx_LengthViolation, cs);
-    false
+    RETIRE_FAIL
   } else if not(is_aligned_addr(vaddrBits, cap_size)) then {
     handle_mem_exception(vaddrBits, E_Load_Addr_Align);
-    false
+    RETIRE_FAIL
   } else match translateAddr(vaddrBits, Read, Data) {
-    TR_Failure(e) => { handle_mem_exception(vaddrBits, e); false },
+    TR_Failure(e) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
     TR_Address(addr) => {
       let c = mem_read_cap(addr, aq, rl, false);
       match c {
-        MemValue(v) => {writeCapReg(rd, v); true},
-        MemException(e) => {handle_mem_exception(vaddrBits, e); false }
+        MemValue(v) => {writeCapReg(rd, v); RETIRE_SUCCESS},
+        MemException(e) => {handle_mem_exception(vaddrBits, e); RETIRE_FAIL }
       }
     }
   }
 }
 
-union clause ast = CLoadCapDDC : (regbits, regbits)
+union clause ast = CLoadCapDDC : (regidx, regidx)
 function clause execute (CLoadCapDDC(rd, rs)) =
 {
   let ddc_val = DDC;
@@ -987,7 +987,7 @@ function clause execute (CLoadCapDDC(rd, rs)) =
   handle_load_cap_via_cap(rd, DDC_IDX, ddc_val, vaddr)
 }
 
-union clause ast = CLoadCapCap : (regbits, regbits)
+union clause ast = CLoadCapCap : (regidx, regidx)
 function clause execute (CLoadCapCap(rd, cs)) =
 {
   let cap_val = readCapReg(cs);
@@ -995,7 +995,7 @@ function clause execute (CLoadCapCap(rd, cs)) =
   handle_load_cap_via_cap(rd, 0b0 @ cs, cap_val, vaddr)
 }
 
-val handle_store_data_via_cap : (regbits, capreg_idx, Capability, xlenbits, word_width) -> bool effect {eamem, escape, rmem, rreg, wmv, wmvt, wreg}
+val handle_store_data_via_cap : (regidx, capreg_idx, Capability, xlenbits, word_width) -> Retired effect {eamem, escape, rmem, rreg, wmv, wmvt, wreg}
 function handle_store_data_via_cap(rs, cs, cap_val, vaddrBits, width) = {
   let (base, top) = getCapBounds(cap_val);
   let vaddr = unsigned(vaddrBits);
@@ -1004,28 +1004,28 @@ function handle_store_data_via_cap(rs, cs, cap_val, vaddrBits, width) = {
   let rl : bool = false;
   if not(cap_val.tag) then {
     handle_cheri_cap_exception(CapEx_TagViolation, cs);
-    false
+    RETIRE_FAIL
   } else if cap_val.sealed then {
     handle_cheri_cap_exception(CapEx_SealViolation, cs);
-    false
+    RETIRE_FAIL
   } else if not (cap_val.permit_store) then {
     handle_cheri_cap_exception(CapEx_PermitStoreViolation, cs);
-    false
+    RETIRE_FAIL
   } else if (vaddr + size) > top then {
     handle_cheri_cap_exception(CapEx_LengthViolation, cs);
-    false
+    RETIRE_FAIL
   } else if vaddr < base then {
     handle_cheri_cap_exception(CapEx_LengthViolation, cs);
-    false
+    RETIRE_FAIL
   } else if check_misaligned(vaddrBits, width) then {
     handle_mem_exception(vaddrBits, E_SAMO_Addr_Align);
-    false
+    RETIRE_FAIL
   } else match translateAddr(vaddrBits, Write, Data) {
-    TR_Failure(e) => { handle_mem_exception(vaddrBits, e); false },
+    TR_Failure(e) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
     TR_Address(addr) => {
       let eares : MemoryOpResult(unit) = mem_write_ea(addr, size, aq, rl, false);
       match (eares) {
-        MemException(e) => { handle_mem_exception(addr, e); false },
+        MemException(e) => { handle_mem_exception(addr, e); RETIRE_FAIL },
         MemValue(_) => {
           let rs_val = X(rs);
           let res : MemoryOpResult(bool) = match width {
@@ -1035,9 +1035,9 @@ function handle_store_data_via_cap(rs, cs, cap_val, vaddrBits, width) = {
             DOUBLE => mem_write_value(addr, 8, rs_val,        aq, rl, false)
           };
           match (res) {
-            MemValue(true)  => true,
+            MemValue(true)  => RETIRE_SUCCESS,
             MemValue(false) => internal_error("store got false from mem_write_value"),
-            MemException(e) => { handle_mem_exception(addr, e); false }
+            MemException(e) => { handle_mem_exception(addr, e); RETIRE_FAIL }
           }
         }
       }
@@ -1045,7 +1045,7 @@ function handle_store_data_via_cap(rs, cs, cap_val, vaddrBits, width) = {
   }
 }
 
-union clause ast = CStoreDDC : (regbits, regbits, word_width)
+union clause ast = CStoreDDC : (regidx, regidx, word_width)
 function clause execute (CStoreDDC(rd, rs, width)) =
 {
   let ddc_val = DDC;
@@ -1053,7 +1053,7 @@ function clause execute (CStoreDDC(rd, rs, width)) =
   handle_store_data_via_cap(rd, DDC_IDX, ddc_val, vaddr, width)
 }
 
-union clause ast = CStoreCap : (regbits, regbits, word_width)
+union clause ast = CStoreCap : (regidx, regidx, word_width)
 function clause execute (CStoreCap(rs, cs, width)) =
 {
   let cap_val = readCapReg(cs);
@@ -1061,7 +1061,7 @@ function clause execute (CStoreCap(rs, cs, width)) =
   handle_store_data_via_cap(rs, 0b0 @ cs, cap_val, vaddr, width)
 }
 
-val handle_store_cap_via_cap : (regbits, capreg_idx, Capability, xlenbits) -> bool effect {eamem, escape, rmem, rreg, wmv, wreg, wmvt}
+val handle_store_cap_via_cap : (regidx, capreg_idx, Capability, xlenbits) -> Retired effect {eamem, escape, rmem, rreg, wmv, wreg, wmvt}
 function handle_store_cap_via_cap(rs, cs, cap_val, vaddrBits) = {
   let (base, top) = getCapBounds(cap_val);
   let vaddr = unsigned(vaddrBits);
@@ -1069,35 +1069,35 @@ function handle_store_cap_via_cap(rs, cs, cap_val, vaddrBits) = {
   let rl : bool = false;
   if not(cap_val.tag) then {
     handle_cheri_cap_exception(CapEx_TagViolation, cs);
-    false
+    RETIRE_FAIL
   } else if cap_val.sealed then {
     handle_cheri_cap_exception(CapEx_SealViolation, cs);
-    false
+    RETIRE_FAIL
   } else if not (cap_val.permit_store) then {
     handle_cheri_cap_exception(CapEx_PermitStoreViolation, cs);
-    false
+    RETIRE_FAIL
   } else if (vaddr + cap_size) > top then {
     handle_cheri_cap_exception(CapEx_LengthViolation, cs);
-    false
+    RETIRE_FAIL
   } else if vaddr < base then {
     handle_cheri_cap_exception(CapEx_LengthViolation, cs);
-    false
+    RETIRE_FAIL
   } else if not(is_aligned_addr(vaddrBits, cap_size)) then {
     handle_mem_exception(vaddrBits, E_SAMO_Addr_Align);
-    false
+    RETIRE_FAIL
   } else match translateAddr(vaddrBits, Write, Data) {
-    TR_Failure(e) => { handle_mem_exception(vaddrBits, e); false },
+    TR_Failure(e) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
     TR_Address(addr) => {
       let eares : MemoryOpResult(unit) = mem_write_ea_cap(addr, aq, rl, false);
       match (eares) {
-        MemException(e) => { handle_mem_exception(addr, e); false },
+        MemException(e) => { handle_mem_exception(addr, e); RETIRE_FAIL },
         MemValue(_) => {
           let rs_val = readCapReg(rs);
           let res : MemoryOpResult(bool) = mem_write_cap(addr, rs_val, aq, rl, false);
           match (res) {
-            MemValue(true)  => true,
+            MemValue(true)  => RETIRE_SUCCESS,
             MemValue(false) => internal_error("store got false from mem_write_value"),
-            MemException(e) => { handle_mem_exception(addr, e); false }
+            MemException(e) => { handle_mem_exception(addr, e); RETIRE_FAIL }
           }
         }
       }
@@ -1105,7 +1105,7 @@ function handle_store_cap_via_cap(rs, cs, cap_val, vaddrBits) = {
   }
 }
 
-union clause ast = CStoreCapDDC : (regbits, regbits)
+union clause ast = CStoreCapDDC : (regidx, regidx)
 function clause execute (CStoreCapDDC(rd, rs)) =
 {
   let ddc_val = DDC;
@@ -1113,7 +1113,7 @@ function clause execute (CStoreCapDDC(rd, rs)) =
   handle_store_cap_via_cap(rd, DDC_IDX, ddc_val, vaddr)
 }
 
-union clause ast = CStoreCapCap : (regbits, regbits)
+union clause ast = CStoreCapCap : (regidx, regidx)
 function clause execute (CStoreCapCap(rs, cs)) =
 {
   let cap_val = readCapReg(cs);
@@ -1121,15 +1121,15 @@ function clause execute (CStoreCapCap(rs, cs)) =
   handle_store_cap_via_cap(rs, 0b0 @ cs, cap_val, vaddr)
 }
 
-union clause ast = CAP_AUIPC : (bits(20), regbits)
+union clause ast = CAP_AUIPC : (bits(20), regidx)
 function clause execute CAP_AUIPC(imm, rd) = {
   let off : xlenbits = EXTS(imm @ 0x000);
   let ret = setCapAddrOrNull(PCC, PC + off);
   writeCapReg(rd, ret);
-  true
+  RETIRE_SUCCESS
 }
 
-union clause ast = CLoadCapImm : (regbits, regbits, bits(12))
+union clause ast = CLoadCapImm : (regidx, regidx, bits(12))
 function clause execute CLoadCapImm(cd, rs1, off12) =
 {
   let offset : xlenbits = EXTS(off12);
@@ -1137,7 +1137,7 @@ function clause execute CLoadCapImm(cd, rs1, off12) =
   handle_load_cap_via_cap(cd, cause_regno, cap_val, vaddr)
 }
 
-union clause ast = CStoreCapImm : (regbits, regbits, bits(12))
+union clause ast = CStoreCapImm : (regidx, regidx, bits(12))
 function clause execute CStoreCapImm(cs2, rs1, off12) =
 {
   let offset : xlenbits = EXTS(off12);
@@ -1147,7 +1147,7 @@ function clause execute CStoreCapImm(cs2, rs1, off12) =
 
 /*
 
-union clause ast = CLoadTags : (regbits, regbits)
+union clause ast = CLoadTags : (regidx, regidx)
 function clause execute (CLoadTags(rd, cb)) =
 {
   checkCP2usable();
@@ -1188,7 +1188,7 @@ function clause execute (CLoadTags(rd, cb)) =
   }
 }
 
-union clause ast = CStore : (regbits, regbits, regbits, bits(8), WordType)
+union clause ast = CStore : (regidx, regidx, regidx, bits(8), WordType)
 function clause execute (CStore(rs, cb, rt, offset, width)) =
 {
   checkCP2usable();
@@ -1227,7 +1227,7 @@ function clause execute (CStore(rs, cb, rt, offset, width)) =
   }
 }
 
-union clause ast = CStoreConditional : (regbits, regbits, regbits, WordType)
+union clause ast = CStoreConditional : (regidx, regidx, regidx, WordType)
 function clause execute (CStoreConditional(rs, cb, rd, width)) =
 {
   checkCP2usable();
@@ -1269,7 +1269,7 @@ function clause execute (CStoreConditional(rs, cb, rd, width)) =
   }
 }
 
-union clause ast = CSC : (regbits, regbits, regbits, bits(11))
+union clause ast = CSC : (regidx, regidx, regidx, bits(11))
 function clause execute (CSC(cs, cb, rt, offset)) =
 {
   checkCP2usable();
@@ -1309,7 +1309,7 @@ function clause execute (CSC(cs, cb, rt, offset)) =
   }
 }
 
-union clause ast = CSCC : (regbits, regbits, regbits)
+union clause ast = CSCC : (regidx, regidx, regidx)
 function clause execute (CSCC(cs, cb, rd)) =
 {
   checkCP2usable();
@@ -1353,7 +1353,7 @@ function clause execute (CSCC(cs, cb, rd)) =
   }
 }
 
-union clause ast = CLC : (regbits, regbits, regbits, bits(11))
+union clause ast = CLC : (regidx, regidx, regidx, bits(11))
 function clause execute (CLC(cd, cb, rt, offset)) =
 {
   checkCP2usable();
@@ -1386,7 +1386,7 @@ function clause execute (CLC(cd, cb, rt, offset)) =
   }
 }
 
-union clause ast = CLCBI : (regbits, regbits, bits(16))
+union clause ast = CLCBI : (regidx, regidx, bits(16))
 function clause execute (CLCBI(cd, cb, offset)) =
 {
   checkCP2usable();
@@ -1419,7 +1419,7 @@ function clause execute (CLCBI(cd, cb, offset)) =
   }
 }
 
-union clause ast = CLLC : (regbits, regbits)
+union clause ast = CLLC : (regidx, regidx)
 function clause execute (CLLC(cd, cb)) =
 {
   checkCP2usable();
@@ -1482,8 +1482,8 @@ mapping clause encdec = CJALR(cd, cb)      if (haveXcheri()) <-> 0b1111111 @ 0b0
 mapping clause encdec = CCheckPerm(cs, rt) if (haveXcheri()) <-> 0b1111111 @ 0b01000 @ rt @ 0b000 @ cs @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CCheckType(cs, cb) if (haveXcheri()) <-> 0b1111111 @ 0b01001 @ cb @ 0b000 @ cs @ 0b1011011 if (haveXcheri())
 
-mapping clause encdec = ClearRegs(GPRegs, q, m3 @ m5) if (haveXcheri()) <-> 0b1111111 @ 0b01101 @ q : bits(2) @ m3 : bits(3) @ 0b000 @ m5 : regbits @ 0b1011011 if (haveXcheri())
-mapping clause encdec = ClearRegs(FPRegs, q, m3 @ m5) if (haveXcheri()) <-> 0b1111111 @ 0b10000 @ q : bits(2) @ m3 : bits(3) @ 0b000 @ m5 : regbits @ 0b1011011 if (haveXcheri())
+mapping clause encdec = ClearRegs(GPRegs, q, m3 @ m5) if (haveXcheri()) <-> 0b1111111 @ 0b01101 @ q : bits(2) @ m3 : bits(3) @ 0b000 @ m5 : regidx @ 0b1011011 if (haveXcheri())
+mapping clause encdec = ClearRegs(FPRegs, q, m3 @ m5) if (haveXcheri()) <-> 0b1111111 @ 0b10000 @ q : bits(2) @ m3 : bits(3) @ 0b000 @ m5 : regidx @ 0b1011011 if (haveXcheri())
 
 mapping clause assembly = CGetPerm(rd, cb)   <-> "CGetPerm"   ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(cb)
 mapping clause assembly = CGetFlags(rd, cb)  <-> "CGetFlags"  ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(cb)
