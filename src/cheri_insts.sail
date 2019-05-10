@@ -1604,5 +1604,5 @@ mapping clause assembly = CStoreCapCap(rs2, rs1) <-> "sqCap" ^ spc() ^ reg_name(
 mapping clause encdec = CLoadCapImm(cd, rs1, offset) <-> offset @ rs1 @ 0b010 @ cd @ 0b0001111
 mapping clause encdec = CStoreCapImm(cs2, rs1, off7 @ off5) <-> off7 : bits(7) @ cs2 @ rs1 @ 0b100 @ off5 : bits(5) @ 0b0100011
 
-mapping clause assembly = CLoadCapImm(cd, rs1, offset) <-> "lq" ^ spc() ^ reg_name(cd) ^ sep() ^ reg_name(rs1) ^ sep() ^ hex_bits_12(offset)
-mapping clause assembly = CStoreCapImm(cs2, rs1, offset) <-> "sq" ^ spc() ^ reg_name(cs2) ^ sep() ^ reg_name(rs1) ^ sep() ^ hex_bits_12(offset)
+mapping clause assembly = CLoadCapImm(cd, rs1, offset) <-> "lq" ^ spc() ^ reg_name(cd) ^ sep() ^ hex_bits_12(offset) ^ opt_spc() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
+mapping clause assembly = CStoreCapImm(cs2, rs1, offset) <-> "sq" ^ spc() ^ reg_name(cs2) ^ sep() ^ hex_bits_12(offset) ^ opt_spc() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
