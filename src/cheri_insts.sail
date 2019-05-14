@@ -1243,7 +1243,7 @@ mapping clause assembly = CCall(cs, cb, 0b00001) <-> "CCallFast"  ^ spc() ^ reg_
 mapping clause assembly = CCall(cs, cb, 0b11111) <-> "CCallReturn" ^ spc() ^ reg_name(cs) ^ sep() ^ reg_name(cb)
 
 mapping clause assembly = CTestSubset(rd, cb, ct) <-> "CTestSubset" ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(cb) ^ sep() ^ reg_name(ct)
-mapping clause assembly = CSpecialRW(cd, cs, idx) <-> "CSpecialRW"  ^ spc() ^ reg_name(cd) ^ sep() ^ reg_name(cs) ^ sep() ^ reg_name(idx)
+mapping clause assembly = CSpecialRW(cd, cs, idx) <-> "CSpecialRW"  ^ spc() ^ reg_name(cd) ^ sep() ^ reg_name(cs) ^ sep() ^ hex_bits_5(idx)
 
 mapping clause assembly = CIncOffsetImmediate(cd, cb, imm12) <-> "CIncOffsetImmediate" ^ spc() ^ reg_name(cd) ^ sep() ^ reg_name(cb) ^ sep() ^ hex_bits_12(imm12)
 mapping clause assembly = CSetBoundsImmediate(cd, cb, imm12) <-> "CSetBoundsImmediate" ^ spc() ^ reg_name(cd) ^ sep() ^ reg_name(cb) ^ sep() ^ hex_bits_12(imm12)
