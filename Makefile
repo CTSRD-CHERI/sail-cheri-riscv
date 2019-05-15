@@ -241,7 +241,7 @@ c_emulator/riscv_rvfi: generated_definitions/c/riscv_rvfi_model.c $(SAIL_RISCV_D
 
 latex: $(SAIL_SRCS) Makefile
 	mkdir -p generated_definitions/latex
-	$(SAIL) -latex -latex_prefix sail -o generated_definitions/latex $(SAIL_SRCS)
+	$(SAIL) -latex -latex_prefix sailRISCV -o generated_definitions/latex $(SAIL_SRCS)
 
 generated_definitions/isabelle/$(ARCH)/ROOT: $(SAIL_RISCV_DIR)/handwritten_support/ROOT
 	mkdir -p generated_definitions/isabelle/$(ARCH)
