@@ -27,6 +27,7 @@ SAIL_SYS_SRCS += $(SAIL_RISCV_MODEL_DIR)/riscv_next_regs.sail
 SAIL_SYS_SRCS += $(SAIL_CHERI_MODEL_DIR)/cheri_sys_exceptions.sail
 SAIL_SYS_SRCS += $(SAIL_RISCV_MODEL_DIR)/riscv_sync_exception.sail
 SAIL_SYS_SRCS += $(SAIL_RISCV_MODEL_DIR)/riscv_next_control.sail
+SAIL_SYS_SRCS += $(SAIL_CHERI_MODEL_DIR)/cheri_csr_ext.sail
 SAIL_SYS_SRCS += $(SAIL_RISCV_MODEL_DIR)/riscv_sys_control.sail
 SAIL_SYS_SRCS += $(SAIL_CHECK_SRCS)
 

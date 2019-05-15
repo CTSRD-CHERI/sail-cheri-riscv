@@ -2,7 +2,7 @@
 
 /* Capability control csr */
 
-bitfield ccsr : bits(64) = {
+bitfield ccsr : xlenbits = {
   cap_idx : 13 .. 8,
   cause   :  7 .. 3, /* cap cause */
   m       :  2,      /* mode */
@@ -13,6 +13,56 @@ bitfield ccsr : bits(64) = {
 register mccsr : ccsr
 register sccsr : ccsr
 register uccsr : ccsr
+
+/* access to CCSRs */
+
+// for now, use a single privilege-independent legalizer
+function legalize_ccsr(c : ccsr, v : xlenbits) -> ccsr = {
+  // write only the defined bits, leaving the other bits untouched
+  // Technically, WPRI does not need a legalizer, since software is
+  // assumed to legalize; so we could remove this function.
+  let v = Mk_ccsr(v);
+  let c = update_cap_idx(c, v.cap_idx());
+  let c = update_cause(c, v.cause());
+  let c = update_m(c, v.m());
+  let c = update_d(c, v.d());
+  let c = update_e(c, v.e());
+  c
+}
+
+function read_Xcheri_CSR(csr : csreg) -> option(xlenbits) = {
+  let res : option(xlenbits) =
+  match csr {
+    0x8C0 => Some(uccsr.bits()),
+    0x9C0 => Some(sccsr.bits()),
+    0xBC0 => Some(mccsr.bits()),
+    _     => None()
+  };
+  res
+}
+
+function write_Xcheri_CSR(csr: csreg, value : xlenbits) -> bool = {
+  let res : option(xlenbits) =
+  match csr {
+    0x8C0 => { uccsr = legalize_ccsr(uccsr, value); Some(uccsr.bits()) },
+    0x9C0 => { sccsr = legalize_ccsr(sccsr, value); Some(sccsr.bits()) },
+    0xBC0 => { mccsr = legalize_ccsr(mccsr, value); Some(mccsr.bits()) },
+    _     => None()
+  };
+  match res {
+    Some(v) => { print_reg("CSR " ^ BitStr(csr) ^ " <- " ^ BitStr(v) ^ " (input: " ^ BitStr(value) ^ ")");
+                 true },
+    None()  => false
+  }
+}
+
+function is_XCheri_CSR_defined(csr : bits(12), p : Privilege) -> bool =
+  match csr {
+    0x8C0 => haveUsrMode(),                                    // uccsr
+    0x9C0 => haveSupMode() & (p == Machine | p == Supervisor), // sccsr
+    0xBC0 => p == Machine | p == Supervisor,                   // mccsr
+    _     => false
+  }
 
 /* Other architectural registers */
 
