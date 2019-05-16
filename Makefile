@@ -240,8 +240,7 @@ c_emulator/riscv_rvfi: generated_definitions/c/riscv_rvfi_model.c $(SAIL_RISCV_D
 	gcc -g $(C_WARNINGS) $(C_FLAGS) $< -DRVFI_DII $(SAIL_RISCV_DIR)/c_emulator/riscv_sim.c $(C_SRCS) $(SAIL_LIB_DIR)/*.c $(C_LIBS) -o $@
 
 latex: $(SAIL_SRCS) Makefile
-	mkdir -p generated_definitions/latex
-	$(SAIL) -latex -latex_prefix sailRISCV -o generated_definitions/latex $(SAIL_SRCS)
+	$(SAIL) -latex -latex_prefix sailRISCV -o sail_latex_riscv $(SAIL_SRCS)
 
 generated_definitions/isabelle/$(ARCH)/ROOT: $(SAIL_RISCV_DIR)/handwritten_support/ROOT
 	mkdir -p generated_definitions/isabelle/$(ARCH)
@@ -350,7 +349,7 @@ generated_definitions/lem-for-rmem/riscv.lem: $(SAIL_RMEM_SRCS)
 #include $(SAIL_DIR)/etc/loc.mk
 
 clean:
-	-rm -rf generated_definitions/ocaml/* generated_definitions/c/* generated_definitions/latex/*
+	-rm -rf generated_definitions/ocaml/* generated_definitions/c/* generated_definitions/latex/* sail_riscv_latex
 	-rm -rf generated_definitions/lem/* generated_definitions/isabelle/* generated_definitions/hol4/* generated_definitions/coq/*
 	-rm -rf generated_definitions/lem-for-rmem/*
 	-rm -f c_emulator/riscv_sim_RV32 c_emulator/riscv_sim_RV64  c_emulator/riscv_rvfi
