@@ -94,14 +94,17 @@ function ext_init_regs () = {
   nextPCC = default_cap;
 
   UTCC = default_cap;
+  MTDC = null_cap;
   UScratchC = null_cap;
   UEPCC = null_cap;
 
   STCC = default_cap;
+  STDC = null_cap;
   SScratchC = null_cap;
   SEPCC = null_cap;
 
   MTCC = default_cap;
+  MTDC = null_cap;
   MScratchC = null_cap;
   MEPCC = null_cap;
 

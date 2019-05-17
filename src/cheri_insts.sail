@@ -160,12 +160,15 @@ function clause execute (CSpecialRW(cd, cs, idx)) =
     0  => (true, true,  User, false),
     1  => (true, false, User, false),
     4  => (true, false, User, true),
+    5  => (true, false, User, true),
     6  => (true, false, User, true),
     7  => (true, false, User, true),
     12 => (true, false, Supervisor, true),
+    13 => (true, false, Supervisor, true),
     14 => (true, false, Supervisor, true),
     15 => (true, false, Supervisor, true),
     28 => (true, false, Machine, true),
+    29 => (true, false, Machine, true),
     30 => (true, false, Machine, true),
     31 => (true, false, Machine, true),
     _  => (false, true, Machine, true)
@@ -190,12 +193,15 @@ function clause execute (CSpecialRW(cd, cs, idx)) =
         },
         1  => DDC,
         4  => UTCC,
+        5  => UTDC,
         6  => UScratchC,
         7  => UEPCC, /* XXX should mask offset as per uepc etc? */
         12 => STCC,
+        13 => STDC,
         14 => SScratchC,
         15 => SEPCC,
         28 => MTCC,
+        29 => MTDC,
         30 => MScratchC,
         31 => MEPCC,
         _  => {assert(false, "unreachable"); undefined}
@@ -207,12 +213,15 @@ function clause execute (CSpecialRW(cd, cs, idx)) =
       match idx {
         1  => DDC = cs_val,
         4  => UTCC = cs_val,   /* XXX should legalize mode? */
+        5  => UTDC = cs_val,
         6  => UScratchC = cs_val,
         7  => UEPCC = cs_val, /* XXX should legalize offset as per uepc etc? */
         12 => STCC = cs_val,
+        13 => STDC = cs_val,
         14 => SScratchC = cs_val,
         15 => SEPCC = cs_val,
         28 => MTCC = cs_val,
+        29 => MTDC = cs_val,
         30 => MScratchC = cs_val,
         31 => MEPCC = cs_val,
         _  => assert(false, "unreachable")
