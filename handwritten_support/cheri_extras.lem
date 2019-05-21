@@ -1,0 +1,17 @@
+open import Pervasives
+open import Pervasives_extra
+open import Sail2_instr_kinds
+open import Sail2_values
+open import Sail2_operators_mwords
+open import Sail2_prompt_monad
+open import Sail2_prompt
+
+val write_tag_bool : forall 'rv 'e. mword ty64 -> bool -> monad 'rv unit 'e
+let write_tag_bool addr tag =
+  read_memt Read_plain addr 16 >>= (fun ((cap : mword ty128), _) ->
+  write_memt Write_plain addr 16 cap (bitU_of_bool tag) >>= (fun _ -> return ()))
+
+val read_tag_bool : forall 'rv 'e. mword ty64 -> monad 'rv bool 'e
+let read_tag_bool addr =
+  read_memt Read_plain addr 16 >>= (fun ((cap : mword ty128), tag) ->
+  bool_of_bitU_nondet tag)

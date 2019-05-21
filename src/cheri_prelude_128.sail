@@ -287,10 +287,9 @@ function getCapBounds(c) : Capability -> (uint64, CapLen) =
   /* Compute region corrections for top and base relative to a */
   let correction_base = bHi - aHi in
   let correction_top  = tHi - aHi in
-  let a_top = (a >> (E + 14)) in
-  let e_zeros = zeros(E) in {
-    base : bits(65) = truncate((a_top + correction_base) @ c.B @ e_zeros, 65);
-    top  : bits(65) = truncate((a_top + correction_top)  @ c.T @ e_zeros, 65);
+  let a_top = (a >> (E + 14)) in {
+    base : bits(65) = truncate((a_top + correction_base) @ c.B @ zeros(E), 65);
+    top  : bits(65) = truncate((a_top + correction_top)  @ c.T @ zeros(E), 65);
     if (base[64] == bitone) then {
       /* If base[64] is set this indicates under or overflow i.e. a has
        * wrapped around the address space and been corrected. In this case
@@ -442,7 +441,7 @@ function setCapBounds(cap, base, top) : (Capability, bits(64), bits(65)) -> (boo
     /* Find out whether we have lost significant bits of base and top using a
      * mask of bits that we will lose (including 3 extra for exp).
      */
-    maskLo : bits(65) = EXTZ(replicate_bits(0b1, e + 3));
+    maskLo : bits(65) = slice_mask(0, e + 3);
     z65    : bits(65) = zeros();
     lostSignificantBase = (base65 & maskLo) != z65;
     lostSignificantTop = (top & maskLo) != z65;

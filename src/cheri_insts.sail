@@ -932,7 +932,13 @@ function handle_load_data_via_cap(rd, cs, cap_val, vaddrBits, is_unsigned, width
     RETIRE_FAIL
   } else match translateAddr(vaddrBits, Read, Data) {
     TR_Failure(e) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
-    TR_Address(addr) => process_load(rd, vaddrBits, mem_read(addr, size, aq, rl, false), is_unsigned)
+    TR_Address(addr) =>
+      match width {
+        BYTE => process_load(rd, vaddrBits, mem_read(addr, 1, aq, rl, false), is_unsigned),
+        HALF => process_load(rd, vaddrBits, mem_read(addr, 2, aq, rl, false), is_unsigned),
+        WORD => process_load(rd, vaddrBits, mem_read(addr, 4, aq, rl, false), is_unsigned),
+        DOUBLE => process_load(rd, vaddrBits, mem_read(addr, 8, aq, rl, false), is_unsigned)
+      }
   }
 }
 
