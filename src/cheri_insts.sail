@@ -1265,36 +1265,39 @@ mapping clause assembly = CSetBoundsImmediate(cd, cb, imm12) <-> "CSetBoundsImme
 
 /* Loads and stores */
 
+let haveRV128 = sizeof(xlen) >= 128
+let haveRV64  = sizeof(xlen) >= 64
+
 mapping clause encdec = CLoadDDC(rd, rs, false, BYTE)   if (haveXcheri()) <-> 0b1111101 @ 0b00000 @ rs @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lbddc */
 mapping clause encdec = CLoadDDC(rd, rs, false, HALF)   if (haveXcheri()) <-> 0b1111101 @ 0b00001 @ rs @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lhddc */
 mapping clause encdec = CLoadDDC(rd, rs, false, WORD)   if (haveXcheri()) <-> 0b1111101 @ 0b00010 @ rs @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lwddc */
-mapping clause encdec = CLoadDDC(rd, rs, false, DOUBLE) if (haveXcheri()) <-> 0b1111101 @ 0b00011 @ rs @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* ldddc */
+mapping clause encdec = CLoadDDC(rd, rs, false, DOUBLE) if (haveXcheri() & haveRV64) <-> 0b1111101 @ 0b00011 @ rs @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveRV64) /* ldddc */
 mapping clause encdec = CLoadDDC(rd, rs, true, BYTE)    if (haveXcheri()) <-> 0b1111101 @ 0b00100 @ rs @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lbuddc */
 mapping clause encdec = CLoadDDC(rd, rs, true, HALF)    if (haveXcheri()) <-> 0b1111101 @ 0b00101 @ rs @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lhuddc */
-mapping clause encdec = CLoadDDC(rd, rs, true, WORD)    if (haveXcheri()) <-> 0b1111101 @ 0b00110 @ rs @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & sizeof(xlen) > 32)  /* lwuddc */
-mapping clause encdec = CLoadDDC(rd, rs, true, DOUBLE)  if (haveXcheri()) <-> 0b1111101 @ 0b00111 @ rs @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & sizeof(xlen) > 64) /* lduddc */
+mapping clause encdec = CLoadDDC(rd, rs, true, WORD)    if (haveXcheri() & haveRV64)  <-> 0b1111101 @ 0b00110 @ rs @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveRV64)  /* lwuddc */
+mapping clause encdec = CLoadDDC(rd, rs, true, DOUBLE)  if (haveXcheri() & haveRV128) <-> 0b1111101 @ 0b00111 @ rs @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveRV128) /* lduddc */
 mapping clause encdec = CLoadCapDDC(rd, rs)             if (haveXcheri()) <-> 0b1111101 @ 0b10111 @ rs @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lqddc */
 
 mapping clause encdec = CLoadCap(rd, cs, false, BYTE)   if (haveXcheri()) <-> 0b1111101 @ 0b01000 @ cs @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lbcap */
 mapping clause encdec = CLoadCap(rd, cs, false, HALF)   if (haveXcheri()) <-> 0b1111101 @ 0b01001 @ cs @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lhcap */
 mapping clause encdec = CLoadCap(rd, cs, false, WORD)   if (haveXcheri()) <-> 0b1111101 @ 0b01010 @ cs @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lwcap */
-mapping clause encdec = CLoadCap(rd, cs, false, DOUBLE) if (haveXcheri()) <-> 0b1111101 @ 0b01011 @ cs @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* ldcap */
+mapping clause encdec = CLoadCap(rd, cs, false, DOUBLE) if (haveXcheri() & haveRV64) <-> 0b1111101 @ 0b01011 @ cs @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveRV64)  /* ldcap */
 mapping clause encdec = CLoadCap(rd, cs, true, BYTE)    if (haveXcheri()) <-> 0b1111101 @ 0b01100 @ cs @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lbucap */
 mapping clause encdec = CLoadCap(rd, cs, true, HALF)    if (haveXcheri()) <-> 0b1111101 @ 0b01101 @ cs @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lhucap */
-mapping clause encdec = CLoadCap(rd, cs, true, WORD)    if (haveXcheri()) <-> 0b1111101 @ 0b01110 @ cs @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & sizeof(xlen) > 32)  /* lwucap */
-mapping clause encdec = CLoadCap(rd, cs, true, DOUBLE)  if (haveXcheri()) <-> 0b1111101 @ 0b01111 @ cs @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & sizeof(xlen) > 64)  /* lducap */
+mapping clause encdec = CLoadCap(rd, cs, true, WORD)    if (haveXcheri() & haveRV64)  <-> 0b1111101 @ 0b01110 @ cs @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveRV64)  /* lwucap */
+mapping clause encdec = CLoadCap(rd, cs, true, DOUBLE)  if (haveXcheri() & haveRV128) <-> 0b1111101 @ 0b01111 @ cs @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveRV128) /* lducap */
 mapping clause encdec = CLoadCapCap(rd, cs)             if (haveXcheri()) <-> 0b1111101 @ 0b11111 @ cs @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lqcap */
 
 mapping clause encdec = CStoreDDC(rs2, rs1, BYTE)       if (haveXcheri()) <-> 0b1111100 @ rs2 @ rs1 @ 0b000 @ 0b00000 @ 0b1011011 if (haveXcheri()) /* sbddc */
 mapping clause encdec = CStoreDDC(rs2, rs1, HALF)       if (haveXcheri()) <-> 0b1111100 @ rs2 @ rs1 @ 0b000 @ 0b00001 @ 0b1011011 if (haveXcheri()) /* shddc */
 mapping clause encdec = CStoreDDC(rs2, rs1, WORD)       if (haveXcheri()) <-> 0b1111100 @ rs2 @ rs1 @ 0b000 @ 0b00010 @ 0b1011011 if (haveXcheri()) /* swddc */
-mapping clause encdec = CStoreDDC(rs2, rs1, DOUBLE)     if (haveXcheri()) <-> 0b1111100 @ rs2 @ rs1 @ 0b000 @ 0b00011 @ 0b1011011 if (haveXcheri()) /* sdddc */
+mapping clause encdec = CStoreDDC(rs2, rs1, DOUBLE)     if (haveXcheri() & haveRV64) <-> 0b1111100 @ rs2 @ rs1 @ 0b000 @ 0b00011 @ 0b1011011 if (haveXcheri() & haveRV64) /* sdddc */
 mapping clause encdec = CStoreCapDDC(rs2, rs1)          if (haveXcheri()) <-> 0b1111100 @ rs2 @ rs1 @ 0b000 @ 0b00100 @ 0b1011011 if (haveXcheri()) /* sqddc */
 
 mapping clause encdec = CStoreCap(rs2, cs, BYTE)        if (haveXcheri()) <-> 0b1111100 @ rs2 @ cs  @ 0b000 @ 0b01000 @ 0b1011011 if (haveXcheri()) /* sbcap */
 mapping clause encdec = CStoreCap(rs2, cs, HALF)        if (haveXcheri()) <-> 0b1111100 @ rs2 @ cs  @ 0b000 @ 0b01001 @ 0b1011011 if (haveXcheri()) /* shcap */
 mapping clause encdec = CStoreCap(rs2, cs, WORD)        if (haveXcheri()) <-> 0b1111100 @ rs2 @ cs  @ 0b000 @ 0b01010 @ 0b1011011 if (haveXcheri()) /* swcap */
-mapping clause encdec = CStoreCap(rs2, cs, DOUBLE)      if (haveXcheri()) <-> 0b1111100 @ rs2 @ cs  @ 0b000 @ 0b01011 @ 0b1011011 if (haveXcheri()) /* sdcap */
+mapping clause encdec = CStoreCap(rs2, cs, DOUBLE)      if (haveXcheri() & haveRV64) <-> 0b1111100 @ rs2 @ cs  @ 0b000 @ 0b01011 @ 0b1011011 if (haveXcheri() & haveRV64) /* sdcap */
 mapping clause encdec = CStoreCapCap(rs2, cs)           if (haveXcheri()) <-> 0b1111100 @ rs2 @ cs  @ 0b000 @ 0b01100 @ 0b1011011 if (haveXcheri()) /* sqcap */
 
 mapping clause assembly = CLoadDDC(rd, rs, u, w) <-> "l" ^ size_mnemonic(w) ^ maybe_u(u) ^ "DDC" ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs)
