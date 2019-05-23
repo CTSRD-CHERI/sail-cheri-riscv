@@ -1271,8 +1271,8 @@ mapping clause encdec = CLoadDDC(rd, rs, false, WORD)   if (haveXcheri()) <-> 0b
 mapping clause encdec = CLoadDDC(rd, rs, false, DOUBLE) if (haveXcheri()) <-> 0b1111101 @ 0b00011 @ rs @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* ldddc */
 mapping clause encdec = CLoadDDC(rd, rs, true, BYTE)    if (haveXcheri()) <-> 0b1111101 @ 0b00100 @ rs @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lbuddc */
 mapping clause encdec = CLoadDDC(rd, rs, true, HALF)    if (haveXcheri()) <-> 0b1111101 @ 0b00101 @ rs @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lhuddc */
-mapping clause encdec = CLoadDDC(rd, rs, true, WORD)    if (haveXcheri()) <-> 0b1111101 @ 0b00110 @ rs @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lwuddc */
-mapping clause encdec = CLoadDDC(rd, rs, true, DOUBLE)  if (haveXcheri()) <-> 0b1111101 @ 0b00111 @ rs @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lduddc */
+mapping clause encdec = CLoadDDC(rd, rs, true, WORD)    if (haveXcheri()) <-> 0b1111101 @ 0b00110 @ rs @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & sizeof(xlen) > 32)  /* lwuddc */
+mapping clause encdec = CLoadDDC(rd, rs, true, DOUBLE)  if (haveXcheri()) <-> 0b1111101 @ 0b00111 @ rs @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & sizeof(xlen) > 64) /* lduddc */
 mapping clause encdec = CLoadCapDDC(rd, rs)             if (haveXcheri()) <-> 0b1111101 @ 0b10111 @ rs @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lqddc */
 
 mapping clause encdec = CLoadCap(rd, cs, false, BYTE)   if (haveXcheri()) <-> 0b1111101 @ 0b01000 @ cs @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lbcap */
@@ -1281,8 +1281,8 @@ mapping clause encdec = CLoadCap(rd, cs, false, WORD)   if (haveXcheri()) <-> 0b
 mapping clause encdec = CLoadCap(rd, cs, false, DOUBLE) if (haveXcheri()) <-> 0b1111101 @ 0b01011 @ cs @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* ldcap */
 mapping clause encdec = CLoadCap(rd, cs, true, BYTE)    if (haveXcheri()) <-> 0b1111101 @ 0b01100 @ cs @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lbucap */
 mapping clause encdec = CLoadCap(rd, cs, true, HALF)    if (haveXcheri()) <-> 0b1111101 @ 0b01101 @ cs @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lhucap */
-mapping clause encdec = CLoadCap(rd, cs, true, WORD)    if (haveXcheri()) <-> 0b1111101 @ 0b01110 @ cs @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lwucap */
-mapping clause encdec = CLoadCap(rd, cs, true, DOUBLE)  if (haveXcheri()) <-> 0b1111101 @ 0b01111 @ cs @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lducap */
+mapping clause encdec = CLoadCap(rd, cs, true, WORD)    if (haveXcheri()) <-> 0b1111101 @ 0b01110 @ cs @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & sizeof(xlen) > 32)  /* lwucap */
+mapping clause encdec = CLoadCap(rd, cs, true, DOUBLE)  if (haveXcheri()) <-> 0b1111101 @ 0b01111 @ cs @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & sizeof(xlen) > 64)  /* lducap */
 mapping clause encdec = CLoadCapCap(rd, cs)             if (haveXcheri()) <-> 0b1111101 @ 0b11111 @ cs @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lqcap */
 
 mapping clause encdec = CStoreDDC(rs2, rs1, BYTE)       if (haveXcheri()) <-> 0b1111100 @ rs2 @ rs1 @ 0b000 @ 0b00000 @ 0b1011011 if (haveXcheri()) /* sbddc */
