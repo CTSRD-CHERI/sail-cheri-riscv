@@ -60,9 +60,9 @@ function prepare_trap_vector(p : Privilege, c : Mcause) -> xlenbits = {
 val get_xret_target : Privilege -> xlenbits effect {rreg}
 function get_xret_target(p) =
   match p {
-    Machine    => getCapOffsetBits(MEPCC),
-    Supervisor => getCapOffsetBits(SEPCC),
-    User       => getCapOffsetBits(UEPCC)
+    Machine    => {nextPCC = MEPCC; getCapOffsetBits(MEPCC)},
+    Supervisor => {nextPCC = SEPCC; getCapOffsetBits(SEPCC)},
+    User       => {nextPCC = UEPCC; getCapOffsetBits(UEPCC)}
   }
 
 val set_xret_target : (Privilege, xlenbits) -> xlenbits effect {rreg, wreg}
