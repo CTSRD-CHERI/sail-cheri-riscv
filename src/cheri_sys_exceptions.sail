@@ -76,6 +76,15 @@ function set_xret_target(p, value) = {
   target
 }
 
+val prepare_xret_target : (Privilege) -> xlenbits effect {rreg, wreg}
+function prepare_xret_target(p) = {
+  match p {
+    Machine    => {nextPCC = MEPCC; getCapOffsetBits(MEPCC)},
+    Supervisor => {nextPCC = SEPCC; getCapOffsetBits(SEPCC)},
+    User       => {nextPCC = UEPCC; getCapOffsetBits(UEPCC)}
+  }
+}
+
 /* other trap-related CSRs */
 
 function get_mtvec() -> xlenbits =
