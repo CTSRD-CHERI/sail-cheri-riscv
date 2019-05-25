@@ -505,6 +505,7 @@ function clause execute (CBuildCap(cd, cb, ct)) =
   let ct_top = getCapTop(ct_val);
   let cb_perms = getCapPerms(cb_val);
   let ct_perms = getCapPerms(ct_val);
+  let ct_flags = getCapFlags(ct_val);
   let ct_offset = getCapOffset(ct_val);
   if not (cb_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cb);
@@ -528,10 +529,11 @@ function clause execute (CBuildCap(cd, cb, ct)) =
     let (exact, cd1) = setCapBounds(cb_val, to_bits(64, ct_base), to_bits(65, ct_top));
     let (representable, cd2) = setCapOffset(cd1, to_bits(64, ct_offset));
     let cd3 = setCapPerms(cd2, ct_perms);
+    let cd4 = setCapFlags(cd3, ct_flags);
     {
       assert(exact, "CBuildCap: setCapBounds was not exact"); /* base and top came from ct originally so will be exact */
       assert(representable, "CBuildCap: offset was not representable"); /* similarly offset should be representable XXX except for fastRepCheck */
-      writeCapReg(cd, cd3);
+      writeCapReg(cd, cd4);
       RETIRE_SUCCESS
     }
   }
