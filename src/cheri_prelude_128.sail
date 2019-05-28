@@ -66,7 +66,8 @@ struct Capability = {
 }
 
 /* Reset E and T calculated to make top 2**64. */
-let resetE = to_bits(6, 52)
+let maxE = 52
+let resetE = to_bits(6, maxE)
 let resetT = 0b01 @ 0x000 /* bit 12 set */
 
 let null_cap : Capability = struct {
@@ -273,7 +274,7 @@ function unsealCap(cap) : Capability -> Capability =
     {cap with sealed=false, otype=ones()}
 
 function getCapBounds(c) : Capability -> (uint64, CapLen) =
-  let E = unsigned(c.E) in
+  let E = min(maxE, unsigned(c.E)) in
   let a : bits(64) = c.address in
   /* Extract bits we need to make the top correction and calculate representable limit */
   let a3 = truncate(a >> (E + 11), 3) in
@@ -343,10 +344,10 @@ function getCapCursor(cap) : Capability -> uint64 = unsigned(cap.address)
 /*
 function fastRepCheck(c, i) : (Capability, bits(64)) -> bool=
     let 'E = unsigned(c.E) in
-    if (E >= resetE) then
+    if (E >= maxE) then
         true /* in this case representable region is whole address space */
     else
-        let E'       = min(E, resetE) in
+        let E'       = min(E, maxE) in
         let i_top    = signed(i >>_s (E+23)) in
         let i_mid : bits(23) = truncate(i >>_s E)in
         let a_mid : bits(23) = truncate(c.address >> E) in
@@ -419,7 +420,7 @@ function setCapBounds(cap, base, top) : (Capability, bits(64), bits(65)) -> (boo
    * second from the top as assumed during decoding. We ignore the bottom
    * MW - 1 bits because those are handled by the ie = 0 format.
    */
-  let e = 52 - CountLeadingZeros(length[64..13]);
+  let e = maxE - CountLeadingZeros(length[64..13]);
   // Use use internal exponent if e is non-zero or if e is zero but
   // but the implied bit of length is not zero (denormal vs. normal case)
   let ie = (e != 0) | length[12];
