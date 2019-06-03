@@ -23,7 +23,7 @@ depends: [
   "ocamlbuild"
   "lem"
   "sail" {>= "0.9"}
-  "sail-riscv"
+  "sail-riscv" {>= "0.3"}
   "linksem" {>= "0.3"}
   "conf-gmp"
   "conf-zlib"
