@@ -404,12 +404,14 @@ function incCapOffset(c, delta) : (Capability, bits(64)) -> (bool, Capability) =
 /*  let representable = fastRepCheck(c, delta) in */
     (representable, newCap)
 
-val CountLeadingZeros : forall 'N , 'N >= 2. bits('N) -> {'n, 0 <= 'n <= 'N . atom('n)}
+val CountLeadingZeros = {smt: "count_leading_zeros", c:"count_leading_zeros"} : forall 'N , 'N >= 2. bits('N) -> {'n, 0 <= 'n <= 'N . atom('n)}
+/*
 function CountLeadingZeros x = {
   foreach (i from ('N - 1) to 0 by 1 in dec)
     if [x[i]] == 0b1 then return 'N - i - 1;
   return 'N;
 }
+*/
 
 /* An 'ideal' version of setCapBounds as described in paper. */
 function setCapBounds(cap, base, top) : (Capability, bits(64), bits(65)) -> (bool, Capability) = {
@@ -442,7 +444,7 @@ function setCapBounds(cap, base, top) : (Capability, bits(64), bits(65)) -> (boo
     /* Find out whether we have lost significant bits of base and top using a
      * mask of bits that we will lose (including 3 extra for exp).
      */
-    maskLo : bits(65) = slice_mask(0, e + 3);
+    maskLo : bits(65) = EXTZ(ones(e + 3));
     z65    : bits(65) = zeros();
     lostSignificantBase = (base65 & maskLo) != z65;
     lostSignificantTop = (top & maskLo) != z65;
@@ -496,4 +498,12 @@ function capToString (cap) = {
   concat_str(" base:",
   concat_str(BitStr(to_bits(64, getCapBase(cap))),
   concat_str(" length:", len_str)))))))))))))
+}
+
+function printCapInfo(c) : Capability -> unit = {
+  let (base, top) = getCapBounds(c);
+  print_bits("E:", c.E);
+  print_bits("B:", c.B);
+  print_bits("T:", c.T);
+  print_bits("a:", c.address);
 }
