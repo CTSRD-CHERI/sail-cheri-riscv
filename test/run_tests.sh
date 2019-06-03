@@ -71,14 +71,14 @@ for test in $RISCVTESTDIR/riscv-tests/rv64*.elf; do
 done
 finish_suite "64-bit RISCV OCaml tests"
 
-if make c_emulator/riscv_sim_RV64;
+if make c_emulator/cheri_riscv_sim_RV64;
 then
     green "Building 64-bit RISCV C emulator" "ok"
 else
     red "Building 64-bit RISCV C emulator" "fail"
 fi
 for test in $RISCVTESTDIR/riscv-tests/rv64*.elf; do
-    if timeout 5 $RISCVDIR/c_emulator/riscv_sim_RV64 -p $test > ${test%.elf}.cout 2>&1 && grep -q SUCCESS ${test%.elf}.cout
+    if timeout 5 $RISCVDIR/c_emulator/cheri_riscv_sim_RV64 -p $test > ${test%.elf}.cout 2>&1 && grep -q SUCCESS ${test%.elf}.cout
     then
 	green "C-64 $(basename $test)" "ok"
     else

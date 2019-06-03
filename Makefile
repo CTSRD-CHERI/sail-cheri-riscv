@@ -173,7 +173,7 @@ else
 RISCV_EXTRAS_LEM = 0.7.1/riscv_extras.lem
 endif
 
-all: ocaml_emulator/riscv_ocaml_sim_$(ARCH) c_emulator/riscv_sim_$(ARCH) riscv_isa riscv_coq riscv_hol riscv_rmem
+all: ocaml_emulator/riscv_ocaml_sim_$(ARCH) c_emulator/cheri_riscv_sim_$(ARCH) riscv_isa riscv_coq riscv_hol riscv_rmem
 .PHONY: all
 
 check: $(SAIL_SRCS) $(SAIL_RISCV_MODEL_DIR)/main.sail Makefile
@@ -227,7 +227,7 @@ generated_definitions/c/riscv_model_$(ARCH).c: $(SAIL_SRCS) $(SAIL_RISCV_MODEL_D
 	mkdir -p generated_definitions/c
 	$(SAIL) $(SAIL_FLAGS) -O -memo_z3 -c -c_include riscv_prelude.h -c_include riscv_platform.h -c_no_main $(SAIL_SRCS) $(SAIL_RISCV_MODEL_DIR)/main.sail -o $(basename $@)
 
-c_emulator/riscv_sim_$(ARCH): generated_definitions/c/riscv_model_$(ARCH).c $(SAIL_RISCV_DIR)/c_emulator/riscv_sim.c $(C_INCS) $(C_SRCS) Makefile
+c_emulator/cheri_riscv_sim_$(ARCH): generated_definitions/c/riscv_model_$(ARCH).c $(SAIL_RISCV_DIR)/c_emulator/riscv_sim.c $(C_INCS) $(C_SRCS) Makefile
 	mkdir -p c_emulator
 	gcc -g $(C_WARNINGS) $(C_FLAGS) $< $(SAIL_RISCV_DIR)/c_emulator/riscv_sim.c $(C_SRCS) $(SAIL_LIB_DIR)/*.c $(C_LIBS) -o $@
 
@@ -349,11 +349,13 @@ generated_definitions/lem-for-rmem/riscv.lem: $(SAIL_RMEM_SRCS)
 cloc:
 	cloc --force-lang C,sail $(SAIL_SRCS)
 
+opam-build: c_emulator/cheri_riscv_sim_RV64
+
 clean:
 	-rm -rf generated_definitions/ocaml/* generated_definitions/c/* generated_definitions/latex/* sail_riscv_latex
 	-rm -rf generated_definitions/lem/* generated_definitions/isabelle/* generated_definitions/hol4/* generated_definitions/coq/*
 	-rm -rf generated_definitions/lem-for-rmem/*
-	-rm -f c_emulator/riscv_sim_RV32 c_emulator/riscv_sim_RV64  c_emulator/riscv_rvfi
+	-rm -f c_emulator/cheri_riscv_sim_RV32 c_emulator/cheri_riscv_sim_RV64  c_emulator/riscv_rvfi
 	-rm -rf ocaml_emulator/_sbuild ocaml_emulator/_build ocaml_emulator/riscv_ocaml_sim_RV32 ocaml_emulator/riscv_ocaml_sim_RV64 ocaml_emulator/tracecmp
 	-rm -f *.gcno *.gcda
 	-Holmake cleanAll
