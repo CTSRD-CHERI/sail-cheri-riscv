@@ -70,22 +70,22 @@ function clause execute (CGetType(rd, cb)) =
 function clause execute (CGetBase(rd, cb)) =
 {
   let capVal = readCapReg(cb);
-  X(rd) = to_bits(64, getCapBase(capVal));
+  X(rd) = getCapBaseBits(capVal);
   RETIRE_SUCCESS
 }
 
 function clause execute (CGetOffset(rd, cb)) =
 {
   let capVal = readCapReg(cb);
-  X(rd) = to_bits(64, getCapOffset(capVal));
+  X(rd) = getCapOffsetBits(capVal);
   RETIRE_SUCCESS
 }
 
 function clause execute (CGetLen(rd, cb)) =
 {
   let capVal = readCapReg(cb);
-  let len65  = getCapLength(capVal);
-  X(rd) = to_bits(64, if len65 > MAX_U64 then MAX_U64 else len65);
+  let len  = getCapLength(capVal);
+  X(rd) = to_bits(sizeof(xlen), if len > MAX_ADDR then MAX_ADDR else len);
   RETIRE_SUCCESS
 }
 
@@ -106,7 +106,7 @@ function clause execute (CGetSealed(rd, cb)) =
 function clause execute (CGetAddr(rd, cb)) =
 {
   let capVal = readCapReg(cb);
-  X(rd) = to_bits(64, getCapCursor(capVal));
+  X(rd) = capVal.address;
   RETIRE_SUCCESS
 }
 /*
@@ -282,7 +282,7 @@ function clause execute(CToPtr(rd, cb, ct)) =
     X(rd) = if not (cb_val.tag) then
               zeros()
             else
-              to_bits(64, getCapCursor(cb_val) - ctBase);
+              cb_val.address - ctBase;
     RETIRE_SUCCESS
   }
 }
@@ -292,7 +292,7 @@ function clause execute(CSub(rd, cb, ct)) =
 {
   let ct_val = readCapReg(ct);
   let cb_val = readCapReg(cb);
-  X(rd) = to_bits(64, getCapCursor(cb_val) - getCapCursor(ct_val));
+  X(rd) = cb_val.address - ct_val.address;
   RETIRE_SUCCESS
 }
 
@@ -345,7 +345,7 @@ function clause execute (CSetOffset(cd, cb, rt)) =
     if success then
         writeCapReg(cd, newCap)
     else
-        writeCapReg(cd, int_to_cap(to_bits(64, getCapBase(cb_val)) + rt_val));
+        writeCapReg(cd, int_to_cap(getCapBaseBits(cb_val) + rt_val));
     RETIRE_SUCCESS
   }
 }
@@ -703,7 +703,7 @@ function clause execute (CCSeal(cd, cs, ct)) =
   if not (cs_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cs);
     RETIRE_FAIL
-  } else if not (ct_val.tag) | (getCapCursor(ct_val) == MAX_U64) then {
+  } else if not (ct_val.tag) | (getCapCursor(ct_val) == MAX_ADDR) then {
     writeCapReg(cd, cs_val);
     RETIRE_SUCCESS
   } else if cs_val.sealed then {

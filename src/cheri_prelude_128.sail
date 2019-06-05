@@ -32,8 +32,17 @@
 /*  SUCH DAMAGE.                                                          */
 /*========================================================================*/
 
-type CapBits = bits(128)
-let max_otype = MAX(18)
+/* width of capability in bytes (excluding tag) */
+let 'cap_size = 16
+type CapBits = bits(8*'cap_size)
+/* width of otype field in bits */
+let 'otype_width = 18
+let 'uperms_width = 4
+let 'cap_addr_width = sizeof(xlen)
+let 'cap_len_width  = sizeof(xlen) + 1
+let MAX_ADDR = MAX(cap_addr_width)
+type CapAddrInt = range(0, (2 ^ 'cap_addr_width) - 1)
+type CapLen = range(0, 2 ^ 65) /* XXX sail can't handle if this is expressed as cap_len_width */
 
 /* A partially decompressed version of a capability -- E, B, T,
  * lenMSB, sealed and otype fields are not present in all formats and are
@@ -121,8 +130,6 @@ let default_cap : Capability = struct {
   otype                  = ones(),
   address                = zeros()
 }
-
-let 'cap_size = 16
 
 /* Convert from capabilty bits (128 bits with tag) to a more convenient struct. */
 function capBitsToCapability(t, c) : (bool, CapBits) -> Capability = {
@@ -218,62 +225,7 @@ function capToBits(cap) : Capability -> bits(128) = {
   );
 }
 
-/* When saving/restoring capabilities xor them with bits of null_cap --
- * this ensures that canonical null_cap is always all-zeros in memory
- * even though it may have bits set logically (e.g. length or exponent
- */
-
-let null_cap_bits : bits(128) = capToBits(null_cap)
-
-function capToMemBits(cap) : Capability -> bits(128) =
-  capToBits(cap) ^ null_cap_bits
-
-function memBitsToCapability(tag, b) : (bool, bits(128)) -> Capability =
-  capBitsToCapability(tag, b ^ null_cap_bits)
-
-function getCapPerms(cap) : Capability -> bits(31) =
-    let perms : bits(15) = EXTZ(getCapHardPerms(cap)) in
-    (0x000 /* uperms 30-19 */
-  @ cap.uperms
-  @ perms)
-
-function setCapPerms(cap, perms) : (Capability, bits(31)) -> Capability =
-    { cap with
-      uperms                 = perms[18..15],
-      /* 14..12 reserved -- ignore */
-      permit_set_CID         = perms[11],
-      access_system_regs     = perms[10],
-      permit_unseal          = perms[9],
-      permit_ccall           = perms[8],
-      permit_seal            = perms[7],
-      permit_store_local_cap = perms[6],
-      permit_store_cap       = perms[5],
-      permit_load_cap        = perms[4],
-      permit_store           = perms[3],
-      permit_load            = perms[2],
-      permit_execute         = perms[1],
-      global                 = perms[0]
-      }
-
-/*!
-Gets the architecture specific capability flags for given capability.
- */
-val getCapFlags : Capability -> CFlags
-function getCapFlags(cap) = cap.flag_cap_mode /* NB cast from bool to bits(1) */
-
-/*!
-THIS`(cap, flags)` sets the architecture specific capability flags on `cap` to `flags` and returns the result as new capability.
- */
-val setCapFlags : (Capability, CFlags) -> Capability
-function setCapFlags(cap, flags) = {cap with flag_cap_mode = flags[0]}
-
-function sealCap(cap, otyp) : (Capability, bits(24)) -> (bool, Capability) =
-    (true, {cap with sealed=true, otype=otyp[17..0]})
-
-function unsealCap(cap) : Capability -> Capability =
-    {cap with sealed=false, otype=ones()}
-
-function getCapBounds(c) : Capability -> (uint64, CapLen) =
+function getCapBounds(c) : Capability -> (CapAddrInt, CapLen) =
   let E = min(maxE, unsigned(c.E)) in
   let a : bits(64) = c.address in
   /* Extract bits we need to make the top correction and calculate representable limit */
@@ -302,44 +254,6 @@ function getCapBounds(c) : Capability -> (uint64, CapLen) =
     (unsigned(base[63..0]), unsigned(top))
   }
 
-function getCapBase(c) : Capability -> uint64 =
-    let (base, _) = getCapBounds(c) in
-    base
-
-function getCapBaseBits(c) : Capability -> bits(64) =
-    to_bits(64, getCapBase(c))
-
-function getCapTop (c) : Capability -> CapLen =
-    let (_, top) = getCapBounds(c) in
-    top
-
-function getCapOffset(c) : Capability -> uint64 =
-    let base = getCapBase(c) in
-    (unsigned(c.address) - base) % pow2(64)
-
-function getCapOffsetBits(c) : Capability -> bits(64) =
-    let base = getCapBase(c) in
-    c.address - to_bits(64, base)
-
-function getCapLength(c) : Capability -> CapLen =
-    let ('base, 'top) = getCapBounds(c) in {
-        /* For valid capabilties we expect top >= base and hence
-         * length >= 0 but representation does allow top < base in some
-         * cases so might encounter on untagged capabilities. Here we just
-         * pretend it is a 65-bit quantitiy and wrap.
-         */
-        assert (not(c.tag) | top >= base);
-        (top - base) % pow2(65)
-    }
-
-val inCapBounds  : (Capability, bits(64), uint64) -> bool
-function inCapBounds (cap, addr, size) = {
-  let (base, top) = getCapBounds(cap);
-  let a = unsigned(addr);
-  (a >= base) & ((a + size) <= top)
-}
-
-function getCapCursor(cap) : Capability -> uint64 = unsigned(cap.address)
 
 /*
 function fastRepCheck(c, i) : (Capability, bits(64)) -> bool=
@@ -366,50 +280,6 @@ function fastRepCheck(c, i) : (Capability, bits(64)) -> bool=
         else
           false
 */
-
-function int_to_cap (offset) : bits(64) -> Capability =
-    {null_cap with address = offset}
-
-function capBoundsEqual (c1, c2) : (Capability, Capability) -> bool =
-    let (base1, top1) = getCapBounds(c1) in
-    let (base2, top2) = getCapBounds(c2) in
-    (base1 == base2) & (top1 == top2)
-
-val setCapAddr : (Capability, bits(64)) -> (bool, Capability)
-function setCapAddr(c, addr) =
-    let newCap = { c with address = addr } in
-    let representable = capBoundsEqual(c, newCap) in
-    (representable, newCap)
-
-function setCapAddrOrNull (cap, addr) : (Capability, bits(64)) -> Capability =
-  let (representable, newCap) = setCapAddr(cap, addr) in
-  if representable then newCap else int_to_cap(addr)
-
-function setCapOffset(c, offset) : (Capability, bits(64)) -> (bool, Capability) =
-    let base64 : bits(64) = to_bits(64, getCapBase(c)) in
-    let newAddress : bits(64) = base64 + offset in
-    let newCap     = { c with address = newAddress } in
-    let representable = capBoundsEqual(c, newCap) in
-/*  let representable = fastRepCheck(c, (newAddress - c.address)) in */
-    (representable, newCap)
-
-function setCapOffsetOrNull (cap, offset) : (Capability, bits(64)) -> Capability =
-    let (representable, newCap) = setCapOffset(cap, offset) in
-    if representable & not(cap.sealed) then newCap else int_to_cap(newCap.address)
-
-function incCapOffset(c, delta) : (Capability, bits(64)) -> (bool, Capability) =
-    let newAddress : bits(64) = c.address + delta in
-    let newCap     = { c with address = newAddress } in
-    let representable = capBoundsEqual(c, newCap) in
-/*  let representable = fastRepCheck(c, delta) in */
-    (representable, newCap)
-
-val CountLeadingZeros : forall 'N , 'N >= 2. bits('N) -> {'n, 0 <= 'n <= 'N . atom('n)}
-function CountLeadingZeros x = {
-  foreach (i from ('N - 1) to 0 by 1 in dec)
-    if [x[i]] == 0b1 then return 'N - i - 1;
-  return 'N;
-}
 
 /* An 'ideal' version of setCapBounds as described in paper. */
 function setCapBounds(cap, base, top) : (Capability, bits(64), bits(65)) -> (bool, Capability) = {
@@ -475,25 +345,4 @@ function setCapBounds(cap, base, top) : (Capability, bits(64), bits(65)) -> (boo
   let newCap = {cap with address=base, E=to_bits(6, if incE then e + 1 else e), B=Bbits, T=Tbits, internal_e=ie};
   let exact = not(lostSignificantBase | lostSignificantTop);
   (exact, newCap)
-}
-
-val capToString : (Capability) -> string effect {escape}
-function capToString (cap) = {
-  let len = getCapLength(cap);
-  let len_str = BitStr(to_bits(68, len));
-  /* Print architectural type which is -1 for unsealed caps */
-  let otype64 : bits(64) = if cap.sealed then EXTZ(cap.otype) else ones();
-  concat_str(" t:",
-  concat_str(if cap.tag then "1" else "0",
-  concat_str(" s:",
-  concat_str(if cap.sealed then "1" else "0",
-  concat_str(" perms:",
-  concat_str(BitStr(0b0 @ getCapPerms(cap)),
-  concat_str(" type:",
-  concat_str(BitStr(otype64),
-  concat_str(" offset:",
-  concat_str(BitStr(to_bits(64, getCapOffset(cap))),
-  concat_str(" base:",
-  concat_str(BitStr(to_bits(64, getCapBase(cap))),
-  concat_str(" length:", len_str)))))))))))))
 }

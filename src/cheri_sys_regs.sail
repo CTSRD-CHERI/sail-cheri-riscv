@@ -85,7 +85,7 @@ register MEPCC     : Capability
 
 /* Cheri PCC helpers */
 
-function min_instruction_bytes () -> uint64 = {
+function min_instruction_bytes () -> CapAddrInt = {
   if   (~ (sys_enable_writable_misa ())) & (~ (sys_enable_rvc ()))
   then 4  /* RVC is hardwired to be disabled */
   else 2  /* RVC is active or it could become active */
