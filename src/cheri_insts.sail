@@ -63,7 +63,7 @@ function clause execute (CGetType(rd, cb)) =
   let capVal = readCapReg(cb);
   X(rd) = if   capVal.sealed
           then EXTZ(capVal.otype)
-          else 0xffffffffffffffff;
+          else ones();
   RETIRE_SUCCESS
 }
 
@@ -318,16 +318,16 @@ union clause ast = CIncOffsetImmediate : (regidx, regidx, bits(12))
 function clause execute (CIncOffsetImmediate(cd, cb, imm)) =
 {
   let cb_val = readCapReg(cb);
-  let imm64 : bits(64) = EXTS(imm);
+  let immBits : xlenbits = EXTS(imm);
   if cb_val.tag & cb_val.sealed then {
     handle_cheri_reg_exception(CapEx_SealViolation, cb);
     RETIRE_FAIL
   } else {
-    let (success, newCap) = incCapOffset(cb_val, imm64);
+    let (success, newCap) = incCapOffset(cb_val, immBits);
     if success then
         writeCapReg(cd, newCap)
     else
-        writeCapReg(cd, int_to_cap(cb_val.address + imm64));
+        writeCapReg(cd, int_to_cap(cb_val.address + immBits));
     RETIRE_SUCCESS
   }
 }
@@ -372,7 +372,7 @@ function clause execute (CSetBounds(cd, cb, rt)) =
     handle_cheri_reg_exception(CapEx_LengthViolation, cb);
     RETIRE_FAIL
   } else {
-    let (_, newCap) = setCapBounds(cb_val, to_bits(64, cursor), to_bits(65, newTop));
+    let (_, newCap) = setCapBounds(cb_val, to_bits(cap_addr_width, cursor), to_bits(cap_len_width, newTop));
     writeCapReg(cd, newCap); /* ignore exact */
     RETIRE_SUCCESS
   }
@@ -400,7 +400,7 @@ function clause execute (CSetBoundsImmediate(cd, cb, imm)) =
     handle_cheri_reg_exception(CapEx_LengthViolation, cb);
     RETIRE_FAIL
   } else {
-    let (_, newCap) = setCapBounds(cb_val, to_bits(64, cursor), to_bits(65, newTop));
+    let (_, newCap) = setCapBounds(cb_val, to_bits(cap_addr_width, cursor), to_bits(cap_len_width, newTop));
     writeCapReg(cd, newCap); /* ignore exact */
     RETIRE_SUCCESS
   }
@@ -428,7 +428,7 @@ function clause execute (CSetBoundsExact(cd, cb, rt)) =
     handle_cheri_reg_exception(CapEx_LengthViolation, cb);
     RETIRE_FAIL
   } else {
-    let (exact, newCap) = setCapBounds(cb_val, to_bits(64, cursor), to_bits(65, newTop));
+    let (exact, newCap) = setCapBounds(cb_val, to_bits(cap_addr_width, cursor), to_bits(cap_len_width, newTop));
     if not (exact) then {
       handle_cheri_reg_exception(CapEx_InexactBounds, cb);
       RETIRE_FAIL
@@ -475,7 +475,7 @@ function clause execute (CFromPtr(cd, cb, rt)) =
 {
   let cb_val = readCapRegDDC(cb);
   let rt_val = X(rt);
-  if rt_val == 0x0000000000000000 then {
+  if rt_val == zeros() then {
     writeCapReg(cd, null_cap);
     RETIRE_SUCCESS
   } else if not (cb_val.tag) then {
@@ -489,7 +489,7 @@ function clause execute (CFromPtr(cd, cb, rt)) =
     if success then
         writeCapReg(cd, newCap)
     else
-        writeCapReg(cd, int_to_cap(to_bits(64, getCapBase(cb_val)) + rt_val));
+        writeCapReg(cd, int_to_cap(getCapBaseBits(cb_val) + rt_val));
     RETIRE_SUCCESS
   }
 }
@@ -506,7 +506,6 @@ function clause execute (CBuildCap(cd, cb, ct)) =
   let cb_perms = getCapPerms(cb_val);
   let ct_perms = getCapPerms(ct_val);
   let ct_flags = getCapFlags(ct_val);
-  let ct_offset = getCapOffset(ct_val);
   if not (cb_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cb);
     RETIRE_FAIL
@@ -526,8 +525,8 @@ function clause execute (CBuildCap(cd, cb, ct)) =
     handle_cheri_reg_exception(CapEx_UserDefViolation, cb);
     RETIRE_FAIL
   } else {
-    let (exact, cd1) = setCapBounds(cb_val, to_bits(64, ct_base), to_bits(65, ct_top));
-    let (representable, cd2) = setCapOffset(cd1, to_bits(64, ct_offset));
+    let (exact, cd1) = setCapBounds(cb_val, to_bits(cap_addr_width, ct_base), to_bits(cap_len_width, ct_top));
+    let (representable, cd2) = setCapOffset(cd1, getCapOffsetBits(ct_val));
     let cd3 = setCapPerms(cd2, ct_perms);
     let cd4 = setCapFlags(cd3, ct_flags);
     {
@@ -561,13 +560,13 @@ function clause execute (CCopyType(cd, cb, ct)) =
       handle_cheri_reg_exception(CapEx_LengthViolation, cb);
       RETIRE_FAIL
     } else {
-      let (success, cap) = setCapOffset(cb_val, to_bits(64, ct_otype - cb_base));
+      let (success, cap) = setCapOffset(cb_val, to_bits(cap_addr_width, ct_otype - cb_base));
       assert(success, "CopyType: offset is in bounds so should be representable");
       writeCapReg(cd, cap);
       RETIRE_SUCCESS
     }
   } else {
-    writeCapReg(cd, int_to_cap(0xffffffffffffffff));
+    writeCapReg(cd, int_to_cap(ones()));
     RETIRE_SUCCESS
   }
 }
@@ -576,7 +575,7 @@ union clause ast = CCheckPerm : (regidx, regidx)
 function clause execute (CCheckPerm(cs, rt)) =
 {
   let cs_val = readCapReg(cs);
-  let cs_perms : bits(64) = EXTZ(getCapPerms(cs_val));
+  let cs_perms : xlenbits = EXTZ(getCapPerms(cs_val));
   let rt_perms = X(rt);
   if not (cs_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cs);
@@ -935,11 +934,11 @@ function handle_load_data_via_cap(rd, cs, cap_val, vaddrBits, is_unsigned, width
   } else match translateAddr(vaddrBits, Read, Data) {
     TR_Failure(e) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
     TR_Address(addr) =>
-      match width {
-        BYTE => process_load(rd, vaddrBits, mem_read(addr, 1, aq, rl, false), is_unsigned),
-        HALF => process_load(rd, vaddrBits, mem_read(addr, 2, aq, rl, false), is_unsigned),
-        WORD => process_load(rd, vaddrBits, mem_read(addr, 4, aq, rl, false), is_unsigned),
-        DOUBLE => process_load(rd, vaddrBits, mem_read(addr, 8, aq, rl, false), is_unsigned)
+      match (width, sizeof(xlen)) {
+        (BYTE, _)    => process_load(rd, vaddrBits, mem_read(addr, 1, aq, rl, false), is_unsigned),
+        (HALF, _)    => process_load(rd, vaddrBits, mem_read(addr, 2, aq, rl, false), is_unsigned),
+        (WORD, _)    => process_load(rd, vaddrBits, mem_read(addr, 4, aq, rl, false), is_unsigned),
+        (DOUBLE, 64) => process_load(rd, vaddrBits, mem_read(addr, 8, aq, rl, false), is_unsigned)
       }
   }
 }
@@ -1045,11 +1044,11 @@ function handle_store_data_via_cap(rs, cs, cap_val, vaddrBits, width) = {
         MemException(e) => { handle_mem_exception(addr, e); RETIRE_FAIL },
         MemValue(_) => {
           let rs_val = X(rs);
-          let res : MemoryOpResult(bool) = match width {
-            BYTE   => mem_write_value(addr, 1, rs_val[7..0],  aq, rl, false),
-            HALF   => mem_write_value(addr, 2, rs_val[15..0], aq, rl, false),
-            WORD   => mem_write_value(addr, 4, rs_val[31..0], aq, rl, false),
-            DOUBLE => mem_write_value(addr, 8, rs_val,        aq, rl, false)
+          let res : MemoryOpResult(bool) = match (width, sizeof(xlen)) {
+            (BYTE, _)     => mem_write_value(addr, 1, rs_val[7..0],  aq, rl, false),
+            (HALF, _)     => mem_write_value(addr, 2, rs_val[15..0], aq, rl, false),
+            (WORD, _)     => mem_write_value(addr, 4, rs_val[31..0], aq, rl, false),
+            (DOUBLE, 64) => mem_write_value(addr, 8, rs_val,        aq, rl, false)
           };
           match (res) {
             MemValue(true)  => RETIRE_SUCCESS,
@@ -1311,8 +1310,11 @@ mapping clause assembly = CLoadCapCap(rd, rs)    <-> "lqCap" ^ spc() ^ reg_name(
 mapping clause assembly = CStoreCapDDC(rs2, rs1) <-> "sqDDC" ^ spc() ^ reg_name(rs2) ^ sep() ^ reg_name(rs1)
 mapping clause assembly = CStoreCapCap(rs2, rs1) <-> "sqCap" ^ spc() ^ reg_name(rs2) ^ sep() ^ reg_name(rs1)
 
-mapping clause encdec = CLoadCapImm(cd, rs1, offset) <-> offset @ rs1 @ 0b010 @ cd @ 0b0001111
-mapping clause encdec = CStoreCapImm(cs2, rs1, off7 @ off5) <-> off7 : bits(7) @ cs2 @ rs1 @ 0b100 @ off5 : bits(5) @ 0b0100011
+mapping clause encdec = CLoadCapImm(cd, rs1, offset) if sizeof(xlen) == 64 <-> offset @ rs1 @ 0b010 @ cd @ 0b0001111 if sizeof(xlen) == 64 /* clc / lq */
+mapping clause encdec = CLoadCapImm(cd, rs1, offset) if sizeof(xlen) == 32 <-> offset @ rs1 @ 0b011 @ cd @ 0b0000011 if sizeof(xlen) == 32 /* clc / ld */
 
-mapping clause assembly = CLoadCapImm(cd, rs1, offset) <-> "lq" ^ spc() ^ reg_name(cd) ^ sep() ^ hex_bits_12(offset) ^ opt_spc() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
-mapping clause assembly = CStoreCapImm(cs2, rs1, offset) <-> "sq" ^ spc() ^ reg_name(cs2) ^ sep() ^ hex_bits_12(offset) ^ opt_spc() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
+mapping clause encdec = CStoreCapImm(cs2, rs1, off7 @ off5) if sizeof(xlen) == 64 <-> off7 : bits(7) @ cs2 @ rs1 @ 0b100 @ off5 : bits(5) @ 0b0100011 if sizeof(xlen) == 64 /* csc / sq */
+mapping clause encdec = CStoreCapImm(cs2, rs1, off7 @ off5) if sizeof(xlen) == 32 <-> off7 : bits(7) @ cs2 @ rs1 @ 0b011 @ off5 : bits(5) @ 0b0100011 if sizeof(xlen) == 32 /* csc / sd */
+
+mapping clause assembly = CLoadCapImm(cd, rs1, offset)   <-> "clc" ^ spc() ^ reg_name(cd) ^ sep() ^ hex_bits_12(offset) ^ opt_spc() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
+mapping clause assembly = CStoreCapImm(cs2, rs1, offset) <-> "csc" ^ spc() ^ reg_name(cs2) ^ sep() ^ hex_bits_12(offset) ^ opt_spc() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"

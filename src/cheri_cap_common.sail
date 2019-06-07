@@ -34,7 +34,7 @@
 
 
 let max_otype = MAX(otype_width)
-type CapAddr = bits('cap_addr_width)
+type CapAddr = bits(cap_addr_width)
 
 /* When saving/restoring capabilities xor them with bits of null_cap --
  * this ensures that canonical null_cap is always all-zeros in memory

@@ -73,7 +73,7 @@ function ext_control_check_addr(pc : xlenbits) -> Ext_ControlAddr_Check(ext_cont
    * below may include a set addr[0], and so the bounds checks should
    * be accurate.
    */
-  let target : xlenbits = (pcc_base + pc)[63 .. 1] @ 0b0;
+  let target : xlenbits = [pcc_base + pc with 0=bitzero];
   if   not(inCapBounds(PCC, target, min_instruction_bytes ()))
   then Ext_ControlAddr_Error(CapEx_LengthViolation, PCC_IDX)
   else Ext_ControlAddr_OK(target)

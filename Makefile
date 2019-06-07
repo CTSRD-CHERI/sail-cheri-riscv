@@ -1,10 +1,25 @@
 # Simplified makefile for CHERI.
-ARCH = RV64
-
+ARCH ?= RV64
+ifeq ($(ARCH),32)
+  override ARCH := RV32
+else ifeq ($(ARCH),64)
+  override ARCH := RV64
+endif
 
 SAIL_RISCV_DIR=sail-riscv
 SAIL_RISCV_MODEL_DIR=$(SAIL_RISCV_DIR)/model
 SAIL_CHERI_MODEL_DIR=src
+
+ifeq ($(ARCH),RV32)
+  SAIL_XLEN := $(SAIL_RISCV_MODEL_DIR)/riscv_xlen32.sail
+  CHERI_CAP_IMPL := cheri_prelude_64.sail
+else ifeq ($(ARCH),RV64)
+  SAIL_XLEN := $(SAIL_RISCV_MODEL_DIR)/riscv_xlen64.sail
+  CHERI_CAP_IMPL := cheri_prelude_128.sail
+else
+  $(error '$(ARCH)' is not a valid architecture, must be one of: RV32, RV64)
+endif
+
 
 # Instruction sources, depending on target
 SAIL_CHECK_SRCS = $(SAIL_RISCV_MODEL_DIR)/riscv_addr_checks_common.sail \
@@ -45,15 +60,14 @@ SAIL_VM_SRCS += $(SAIL_RV64_VM_SRCS)
 endif
 
 # Non-instruction sources
-SAIL_XLEN = $(SAIL_RISCV_MODEL_DIR)/riscv_xlen64.sail
 PRELUDE = $(SAIL_RISCV_MODEL_DIR)/prelude.sail \
           $(SAIL_RISCV_MODEL_DIR)/prelude_mapping.sail \
           $(SAIL_XLEN) \
           $(SAIL_CHERI_MODEL_DIR)/cheri_prelude.sail \
+          $(SAIL_CHERI_MODEL_DIR)/cheri_types.sail \
+          $(SAIL_CHERI_MODEL_DIR)/$(CHERI_CAP_IMPL) \
           $(SAIL_CHERI_MODEL_DIR)/cheri_mem_metadata.sail \
           $(SAIL_RISCV_MODEL_DIR)/prelude_mem.sail \
-          $(SAIL_CHERI_MODEL_DIR)/cheri_types.sail \
-          $(SAIL_CHERI_MODEL_DIR)/cheri_prelude_128.sail \
           $(SAIL_CHERI_MODEL_DIR)/cheri_cap_common.sail
 
 SAIL_REGS_SRCS = $(SAIL_CHERI_MODEL_DIR)/cheri_reg_type.sail \
