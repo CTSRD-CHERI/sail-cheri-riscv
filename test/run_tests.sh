@@ -55,14 +55,14 @@ make clean
 
 printf "Building 64-bit RISCV specification...\n"
 
-if make ocaml_emulator/riscv_ocaml_sim_RV64 ;
+if make ocaml_emulator/cheri_riscv_ocaml_sim_RV64 ;
 then
     green "Building 64-bit RISCV OCaml emulator" "ok"
 else
     red "Building 64-bit RISCV OCaml emulator" "fail"
 fi
 for test in $RISCVTESTDIR/riscv-tests/rv64*.elf; do
-    if $RISCVDIR/ocaml_emulator/riscv_ocaml_sim_RV64 "$test" >"${test/.elf/.out}" 2>&1 && grep -q SUCCESS "${test/.elf/.out}"
+    if $RISCVDIR/ocaml_emulator/cheri_riscv_ocaml_sim_RV64 "$test" >"${test/.elf/.out}" 2>&1 && grep -q SUCCESS "${test/.elf/.out}"
     then
        green "OCaml-64 $(basename $test)" "ok"
     else
