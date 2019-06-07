@@ -188,7 +188,7 @@ else
 RISCV_EXTRAS_LEM = 0.7.1/riscv_extras.lem
 endif
 
-all: ocaml_emulator/riscv_ocaml_sim_$(ARCH) c_emulator/cheri_riscv_sim_$(ARCH) riscv_isa riscv_coq riscv_hol riscv_rmem
+all: ocaml_emulator/cheri_riscv_ocaml_sim_$(ARCH) c_emulator/cheri_riscv_sim_$(ARCH) riscv_isa riscv_coq riscv_hol riscv_rmem
 .PHONY: all
 
 check: $(SAIL_SRCS) $(SAIL_RISCV_MODEL_DIR)/main.sail Makefile
@@ -215,11 +215,11 @@ ocaml_emulator/_sbuild/coverage.native: generated_definitions/ocaml/$(ARCH)/risc
 	cp $(SAIL_RISCV_DIR)/ocaml_emulator/_tags.bisect ocaml_emulator/_sbuild/_tags
 	cd ocaml_emulator/_sbuild && ocamlbuild -use-ocamlfind riscv_ocaml_sim.native && cp -L riscv_ocaml_sim.native coverage.native
 
-ocaml_emulator/riscv_ocaml_sim_$(ARCH): ocaml_emulator/_sbuild/riscv_ocaml_sim.native
+ocaml_emulator/cheri_riscv_ocaml_sim_$(ARCH): ocaml_emulator/_sbuild/riscv_ocaml_sim.native
 	rm -f $@ && cp -L $^ $@ && rm -f $^
 
 ocaml_emulator/coverage_$(ARCH): ocaml_emulator/_sbuild/coverage.native
-	rm -f ocaml_emulator/riscv_ocaml_sim_$(ARCH) && cp -L $^ ocaml_emulator/riscv_ocaml_sim_$(ARCH) # since the test scripts runs this file
+	rm -f ocaml_emulator/cheri_riscv_ocaml_sim_$(ARCH) && cp -L $^ ocaml_emulator/cheri_riscv_ocaml_sim_$(ARCH) # since the test scripts runs this file
 	rm -rf bisect*.out bisect ocaml_emulator/coverage_$(ARCH) $^
 	./test/run_tests.sh # this will generate bisect*.out files in this directory
 	mkdir ocaml_emulator/bisect && mv bisect*.out bisect/
@@ -250,7 +250,7 @@ generated_definitions/c/riscv_rvfi_model.c: $(SAIL_RVFI_SRCS) $(SAIL_RISCV_MODEL
 	mkdir -p generated_definitions/c
 	$(SAIL) $(SAIL_FLAGS) -O -memo_z3 -c -c_include riscv_prelude.h -c_include riscv_platform.h -c_no_main $(SAIL_RVFI_SRCS) $(SAIL_RISCV_MODEL_DIR)/main.sail -o $(basename $@)
 
-c_emulator/riscv_rvfi: generated_definitions/c/riscv_rvfi_model.c $(SAIL_RISCV_DIR)/c_emulator/riscv_sim.c $(C_INCS) $(C_SRCS) Makefile
+c_emulator/cheri_riscv_rvfi: generated_definitions/c/riscv_rvfi_model.c $(SAIL_RISCV_DIR)/c_emulator/riscv_sim.c $(C_INCS) $(C_SRCS) Makefile
 	mkdir -p c_emulator
 	gcc -g $(C_WARNINGS) $(C_FLAGS) $< -DRVFI_DII $(SAIL_RISCV_DIR)/c_emulator/riscv_sim.c $(C_SRCS) $(SAIL_LIB_DIR)/*.c $(C_LIBS) -o $@
 
@@ -370,8 +370,8 @@ clean:
 	-rm -rf generated_definitions/ocaml/* generated_definitions/c/* generated_definitions/latex/* sail_riscv_latex
 	-rm -rf generated_definitions/lem/* generated_definitions/isabelle/* generated_definitions/hol4/* generated_definitions/coq/*
 	-rm -rf generated_definitions/lem-for-rmem/*
-	-rm -f c_emulator/cheri_riscv_sim_RV32 c_emulator/cheri_riscv_sim_RV64  c_emulator/riscv_rvfi
-	-rm -rf ocaml_emulator/_sbuild ocaml_emulator/_build ocaml_emulator/riscv_ocaml_sim_RV32 ocaml_emulator/riscv_ocaml_sim_RV64 ocaml_emulator/tracecmp
+	-rm -f c_emulator/cheri_riscv_sim_RV32 c_emulator/cheri_riscv_sim_RV64  c_emulator/cheri_riscv_rvfi
+	-rm -rf ocaml_emulator/_sbuild ocaml_emulator/_build ocaml_emulator/cheri_riscv_ocaml_sim_RV32 ocaml_emulator/cheri_riscv_ocaml_sim_RV64 ocaml_emulator/tracecmp
 	-rm -f *.gcno *.gcda
 	-Holmake cleanAll
 	-rm -f $(SAIL_RISCV_DIR)/handwritten_support/riscv_extras.vo $(SAIL_RISCV_DIR)/handwritten_support/riscv_extras.glob $(SAIL_RISCV_DIR)/handwritten_support/.riscv_extras.aux
