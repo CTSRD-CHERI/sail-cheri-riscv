@@ -287,22 +287,22 @@ function fastRepCheck(c, i) : (Capability, bits(64)) -> bool=
 */
 
 /* An 'ideal' version of setCapBounds as described in paper. */
-function setCapBounds(cap, base, top) : (Capability, bits(32), bits(33)) -> (bool, Capability) = (false, cap) /*{
+function setCapBounds(cap, base, top) : (Capability, bits(32), bits(33)) -> (bool, Capability) = {
   /* {cap with base=base; length=(bits(64)) length; offset=0} */
-  let base65 = 0b0 @ base;
-  let length = top - base65;
+  let base33 = 0b0 @ base;
+  let length = top - base33;
   /* Find an exponent that will put the most significant bit of length
    * second from the top as assumed during decoding. We ignore the bottom
    * MW - 1 bits because those are handled by the ie = 0 format.
    */
-  let e = maxE - CountLeadingZeros(length[64..13]);
+  let e = maxE - CountLeadingZeros(length[32..7]);
   // Use use internal exponent if e is non-zero or if e is zero but
   // but the implied bit of length is not zero (denormal vs. normal case)
-  let ie = (e != 0) | length[12];
+  let ie = (e != 0) | length[16];
 
   /* The non-ie e == 0 case is easy. It is exact so just extract relevant bits. */
-  Bbits = truncate(base, 14);
-  Tbits = truncate(top, 14);
+  Bbits = truncate(base, 8);
+  Tbits = truncate(top, 8);
   lostSignificantTop : bool = false;
   lostSignificantBase : bool = false;
   incE : bool = false;
@@ -311,16 +311,16 @@ function setCapBounds(cap, base, top) : (Capability, bits(32), bits(33)) -> (boo
     /* the internal exponent case is trickier */
 
     /* Extract B and T bits (we lose 3 bits of each to store the exponent) */
-    B_ie = truncate(base >> (e + 3), 11);
-    T_ie = truncate(top >> (e + 3), 11);
+    B_ie = truncate(base >> (e + 3), 5);
+    T_ie = truncate(top >> (e + 3), 5);
 
     /* Find out whether we have lost significant bits of base and top using a
      * mask of bits that we will lose (including 3 extra for exp).
      */
-    maskLo : bits(65) = slice_mask(0, e + 3);
-    z65    : bits(65) = zeros();
-    lostSignificantBase = (base65 & maskLo) != z65;
-    lostSignificantTop = (top & maskLo) != z65;
+    maskLo : bits(33) = slice_mask(0, e + 3);
+    z33    : bits(33) = zeros();
+    lostSignificantBase = (base33 & maskLo) != z33;
+    lostSignificantTop = (top & maskLo) != z33;
 
     if lostSignificantTop then {
       /* we must increment T to make sure it is still above top even with lost bits.
@@ -331,7 +331,7 @@ function setCapBounds(cap, base, top) : (Capability, bits(32), bits(33)) -> (boo
     /* Has the length overflowed? We chose e so that the top two bits of len would be 0b01,
        but either because of incrementing T or losing bits of base it might have grown. */
     len_ie = T_ie - B_ie;
-    if len_ie[10] then {
+    if len_ie[4] then {
       /* length overflow -- increment E by one and then recalculate
          T, B etc accordingly */
       incE = true;
@@ -339,9 +339,9 @@ function setCapBounds(cap, base, top) : (Capability, bits(32), bits(33)) -> (boo
       lostSignificantBase = lostSignificantBase | B_ie[0];
       lostSignificantTop  = lostSignificantTop | T_ie[0];
 
-      B_ie = truncate(base >> (e + 4), 11);
+      B_ie = truncate(base >> (e + 4), 5);
       let incT : range(0,1) = if lostSignificantTop then 1 else 0;
-      T_ie = truncate(top >> (e + 4), 11) + incT;
+      T_ie = truncate(top >> (e + 4), 5) + incT;
     };
 
     Bbits = B_ie @ 0b000;
@@ -351,4 +351,4 @@ function setCapBounds(cap, base, top) : (Capability, bits(32), bits(33)) -> (boo
   let exact = not(lostSignificantBase | lostSignificantTop);
   (exact, newCap)
 }
-*/
+
