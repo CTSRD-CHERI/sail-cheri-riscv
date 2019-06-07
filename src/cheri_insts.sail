@@ -988,7 +988,7 @@ function handle_load_cap_via_cap(rd, cs, cap_val, vaddrBits) = {
     TR_Address(addr) => {
       let c = mem_read_cap(addr, aq, rl, false);
       match c {
-        MemValue(v) => {writeCapReg(rd, v); RETIRE_SUCCESS},
+        MemValue(v) => {writeCapReg(rd, {v with tag = v.tag & cap_val.permit_load_cap}); RETIRE_SUCCESS},
         MemException(e) => {handle_mem_exception(vaddrBits, e); RETIRE_FAIL }
       }
     }
@@ -1081,6 +1081,7 @@ val handle_store_cap_via_cap : (regidx, capreg_idx, Capability, xlenbits) -> Ret
 function handle_store_cap_via_cap(rs, cs, cap_val, vaddrBits) = {
   let (base, top) = getCapBounds(cap_val);
   let vaddr = unsigned(vaddrBits);
+  let rs_val = readCapReg(rs);
   let aq : bool = false;
   let rl : bool = false;
   if not(cap_val.tag) then {
@@ -1091,6 +1092,12 @@ function handle_store_cap_via_cap(rs, cs, cap_val, vaddrBits) = {
     RETIRE_FAIL
   } else if not (cap_val.permit_store) then {
     handle_cheri_cap_exception(CapEx_PermitStoreViolation, cs);
+    RETIRE_FAIL
+  } else if not (cap_val.permit_store_cap) then {
+    handle_cheri_cap_exception(CapEx_PermitStoreCapViolation, cs);
+    RETIRE_FAIL
+  } else if not (cap_val.permit_store_local_cap) & rs_val.tag & not(rs_val.global) then {
+    handle_cheri_cap_exception(CapEx_PermitStoreLocalCapViolation, cs);
     RETIRE_FAIL
   } else if (vaddr + cap_size) > top then {
     handle_cheri_cap_exception(CapEx_LengthViolation, cs);
@@ -1108,7 +1115,6 @@ function handle_store_cap_via_cap(rs, cs, cap_val, vaddrBits) = {
       match (eares) {
         MemException(e) => { handle_mem_exception(addr, e); RETIRE_FAIL },
         MemValue(_) => {
-          let rs_val = readCapReg(rs);
           let res : MemoryOpResult(bool) = mem_write_cap(addr, rs_val, aq, rl, false);
           match (res) {
             MemValue(true)  => RETIRE_SUCCESS,
