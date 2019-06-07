@@ -169,7 +169,7 @@ function incCapOffset(c, delta) : (Capability, CapAddr) -> (bool, Capability) =
 val capToString : (Capability) -> string effect {escape}
 function capToString (cap) = {
   let len = getCapLength(cap);
-  let len_str = BitStr(to_bits(68, len));
+  let len_str = BitStr(to_bits(cap_len_width + 3, len));
   /* Print architectural type which is -1 for unsealed caps */
   let otype64 : CapAddr = if cap.sealed then EXTZ(cap.otype) else ones();
   concat_str(" t:",
