@@ -10,7 +10,7 @@ You can build either an ocaml or C emulator, or a special binary for use with [T
 ```
 make ocaml_emulator/cheri_riscv_ocaml_sim_RV64
 make c_emulator/cheri_riscv_sim_RV64
-make c_emulator/riscv_rvfi
+make c_emulator/cheri_riscv_rvfi
 ```
 
 
