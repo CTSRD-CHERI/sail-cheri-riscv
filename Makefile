@@ -1,4 +1,5 @@
 # Simplified makefile for CHERI.
+# Default architecture to build for all and non-namespaced targets
 ARCH ?= RV64
 ifeq ($(ARCH),32)
   override ARCH := RV32
@@ -10,15 +11,14 @@ SAIL_RISCV_DIR=sail-riscv
 SAIL_RISCV_MODEL_DIR=$(SAIL_RISCV_DIR)/model
 SAIL_CHERI_MODEL_DIR=src
 
-ifeq ($(ARCH),RV32)
-  SAIL_XLEN := $(SAIL_RISCV_MODEL_DIR)/riscv_xlen32.sail
-  CHERI_CAP_IMPL := cheri_prelude_64.sail
-else ifeq ($(ARCH),RV64)
-  SAIL_XLEN := $(SAIL_RISCV_MODEL_DIR)/riscv_xlen64.sail
-  CHERI_CAP_IMPL := cheri_prelude_128.sail
-else
-  $(error '$(ARCH)' is not a valid architecture, must be one of: RV32, RV64)
-endif
+SAIL_RV32_XLEN := $(SAIL_RISCV_MODEL_DIR)/riscv_xlen32.sail
+CHERI_CAP_RV32_IMPL := cheri_prelude_64.sail
+
+SAIL_RV64_XLEN := $(SAIL_RISCV_MODEL_DIR)/riscv_xlen64.sail
+CHERI_CAP_RV64_IMPL := cheri_prelude_128.sail
+
+SAIL_XLEN = $(SAIL_$(ARCH)_XLEN)
+CHERI_CAP_IMPL = $(CHERI_CAP_$(ARCH)_IMPL)
 
 
 # Instruction sources, depending on target
@@ -53,11 +53,7 @@ SAIL_RV64_VM_SRCS = $(SAIL_RISCV_MODEL_DIR)/riscv_vmem_sv39.sail \
                     $(SAIL_RISCV_MODEL_DIR)/riscv_vmem_rv64.sail
 
 SAIL_VM_SRCS = $(SAIL_RISCV_MODEL_DIR)/riscv_vmem_common.sail $(SAIL_RISCV_MODEL_DIR)/riscv_vmem_tlb.sail
-ifeq ($(ARCH),RV32)
-SAIL_VM_SRCS += $(SAIL_RV32_VM_SRCS)
-else
-SAIL_VM_SRCS += $(SAIL_RV64_VM_SRCS)
-endif
+SAIL_VM_SRCS += $(SAIL_$(ARCH)_VM_SRCS)
 
 # Non-instruction sources
 PRELUDE = $(SAIL_RISCV_MODEL_DIR)/prelude.sail \
@@ -110,17 +106,18 @@ RVFI_STEP_SRCS = $(SAIL_RISCV_MODEL_DIR)/riscv_step_common.sail \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_step.sail
 
 # Control inclusion of 64-bit only riscv_analysis
-ifeq ($(ARCH),RV32)
-SAIL_OTHER_SRCS     = $(SAIL_STEP_SRCS)
-SAIL_OTHER_COQ_SRCS = $(SAIL_RISCV_MODEL_DIR)/riscv_termination_common.sail \
-                      $(SAIL_RISCV_MODEL_DIR)/riscv_termination_rv32.sail
-else
-SAIL_OTHER_SRCS     = $(SAIL_STEP_SRCS) \
-                      $(SAIL_RISCV_MODEL_DIR)/riscv_analysis.sail
-SAIL_OTHER_COQ_SRCS = $(SAIL_RISCV_MODEL_DIR)/riscv_termination_common.sail \
-                      $(SAIL_RISCV_MODEL_DIR)/riscv_termination_rv64.sail \
-                      $(SAIL_RISCV_MODEL_DIR)/riscv_analysis.sail
-endif
+SAIL_RV32_OTHER_SRCS     = $(SAIL_STEP_SRCS)
+SAIL_RV32_OTHER_COQ_SRCS = $(SAIL_RISCV_MODEL_DIR)/riscv_termination_common.sail \
+                           $(SAIL_RISCV_MODEL_DIR)/riscv_termination_rv32.sail
+
+SAIL_RV64_OTHER_SRCS     = $(SAIL_STEP_SRCS) \
+                           $(SAIL_RISCV_MODEL_DIR)/riscv_analysis.sail
+SAIL_RV64_OTHER_COQ_SRCS = $(SAIL_RISCV_MODEL_DIR)/riscv_termination_common.sail \
+                           $(SAIL_RISCV_MODEL_DIR)/riscv_termination_rv64.sail \
+                           $(SAIL_RISCV_MODEL_DIR)/riscv_analysis.sail
+
+SAIL_OTHER_SRCS     = $(SAIL_$(ARCH)_OTHER_SRCS)
+SAIL_OTHER_COQ_SRCS = $(SAIL_$(ARCH)_OTHER_COQ_SRCS)
 
 
 PRELUDE_SRCS   = $(PRELUDE)
@@ -188,6 +185,9 @@ else
 RISCV_EXTRAS_LEM = 0.7.1/riscv_extras.lem
 endif
 
+ocaml_emulator/cheri_riscv_ocaml_sim_RV32 c_emulator/cheri_riscv_sim_RV32: override ARCH := RV32
+ocaml_emulator/cheri_riscv_ocaml_sim_RV64 c_emulator/cheri_riscv_sim_RV64: override ARCH := RV64
+
 all: ocaml_emulator/cheri_riscv_ocaml_sim_$(ARCH) c_emulator/cheri_riscv_sim_$(ARCH) riscv_isa riscv_coq riscv_hol riscv_rmem
 .PHONY: all
 
@@ -200,30 +200,30 @@ interpret: $(SAIL_SRCS) $(SAIL_RISCV_MODEL_DIR)/main.sail
 cgen: $(SAIL_SRCS) $(SAIL_RISCV_MODEL_DIR)/main.sail
 	$(SAIL) -cgen $(SAIL_FLAGS) $(SAIL_SRCS) $(SAIL_RISCV_MODEL_DIR)/main.sail
 
-generated_definitions/ocaml/$(ARCH)/riscv.ml: $(SAIL_SRCS) Makefile
-	mkdir -p generated_definitions/ocaml/$(ARCH)
-	$(SAIL) $(SAIL_FLAGS) -ocaml -ocaml-nobuild -ocaml_build_dir generated_definitions/ocaml/$(ARCH) -o riscv $(SAIL_SRCS)
+generated_definitions/ocaml/%/riscv.ml: $(SAIL_SRCS) Makefile
+	mkdir -p generated_definitions/ocaml/$*
+	$(SAIL) $(SAIL_FLAGS) -ocaml -ocaml-nobuild -ocaml_build_dir generated_definitions/ocaml/$* -o riscv $(SAIL_SRCS)
 
-ocaml_emulator/_sbuild/riscv_ocaml_sim.native: generated_definitions/ocaml/$(ARCH)/riscv.ml $(PLATFORM_OCAML_SRCS) Makefile
-	mkdir -p ocaml_emulator/_sbuild
-	cp $(PLATFORM_OCAML_SRCS) generated_definitions/ocaml/$(ARCH)/*.ml ocaml_emulator/_sbuild
-	cd ocaml_emulator/_sbuild && ocamlbuild -use-ocamlfind riscv_ocaml_sim.native
+ocaml_emulator/_sbuild/%/riscv_ocaml_sim.native: generated_definitions/ocaml/%/riscv.ml $(PLATFORM_OCAML_SRCS) Makefile
+	mkdir -p ocaml_emulator/_sbuild/$*
+	cp $(PLATFORM_OCAML_SRCS) generated_definitions/ocaml/$*/*.ml ocaml_emulator/_sbuild/$*
+	cd ocaml_emulator/_sbuild/$* && ocamlbuild -use-ocamlfind riscv_ocaml_sim.native
 
-ocaml_emulator/_sbuild/coverage.native: generated_definitions/ocaml/$(ARCH)/riscv.ml $(SAIL_RISCV_DIR)/ocaml_emulator/_tags.bisect $(PLATFORM_OCAML_SRCS) Makefile
-	mkdir -p ocaml_emulator/_sbuild
-	cp $(PLATFORM_OCAML_SRCS) generated_definitions/ocaml/$(ARCH)/*.ml ocaml_emulator/_sbuild
-	cp $(SAIL_RISCV_DIR)/ocaml_emulator/_tags.bisect ocaml_emulator/_sbuild/_tags
-	cd ocaml_emulator/_sbuild && ocamlbuild -use-ocamlfind riscv_ocaml_sim.native && cp -L riscv_ocaml_sim.native coverage.native
+ocaml_emulator/_sbuild/$(ARCH)/coverage.native: generated_definitions/ocaml/$(ARCH)/riscv.ml $(SAIL_RISCV_DIR)/ocaml_emulator/_tags.bisect $(PLATFORM_OCAML_SRCS) Makefile
+	mkdir -p ocaml_emulator/_sbuild/$(ARCH)
+	cp $(PLATFORM_OCAML_SRCS) generated_definitions/ocaml/$(ARCH)/*.ml ocaml_emulator/_sbuild/$(ARCH)
+	cp $(SAIL_RISCV_DIR)/ocaml_emulator/_tags.bisect ocaml_emulator/_sbuild/$(ARCH)/_tags
+	cd ocaml_emulator/_sbuild/$(ARCH) && ocamlbuild -use-ocamlfind riscv_ocaml_sim.native && cp -L riscv_ocaml_sim.native coverage.native
 
-ocaml_emulator/cheri_riscv_ocaml_sim_$(ARCH): ocaml_emulator/_sbuild/riscv_ocaml_sim.native
+ocaml_emulator/cheri_riscv_ocaml_sim_%: ocaml_emulator/_sbuild/%/riscv_ocaml_sim.native
 	rm -f $@ && cp -L $^ $@ && rm -f $^
 
-ocaml_emulator/coverage_$(ARCH): ocaml_emulator/_sbuild/coverage.native
+ocaml_emulator/coverage_$(ARCH): ocaml_emulator/_sbuild/$(ARCH)/coverage.native
 	rm -f ocaml_emulator/cheri_riscv_ocaml_sim_$(ARCH) && cp -L $^ ocaml_emulator/cheri_riscv_ocaml_sim_$(ARCH) # since the test scripts runs this file
 	rm -rf bisect*.out bisect ocaml_emulator/coverage_$(ARCH) $^
 	./test/run_tests.sh # this will generate bisect*.out files in this directory
 	mkdir ocaml_emulator/bisect && mv bisect*.out bisect/
-	mkdir ocaml_emulator/coverage_$(ARCH) && bisect-ppx-report -html ocaml_emulator/coverage_$(ARCH)/ -I ocaml_emulator/_sbuild/ bisect/bisect*.out
+	mkdir ocaml_emulator/coverage_$(ARCH) && bisect-ppx-report -html ocaml_emulator/coverage_$(ARCH)/ -I ocaml_emulator/_sbuild/$(ARCH)/ bisect/bisect*.out
 
 gcovr:
 	gcovr -r . --html --html-detail -o index.html
@@ -238,11 +238,11 @@ generated_definitions/c/riscv.c: $(SAIL_SRCS) $(SAIL_RISCV_MODEL_DIR)/main.sail 
 c_emulator/riscv_c: generated_definitions/c/riscv.c $(C_INCS) $(C_SRCS) Makefile
 	gcc $(C_WARNINGS) $(C_FLAGS) $< $(C_SRCS) $(SAIL_LIB_DIR)/*.c -lgmp -lz -I $(SAIL_LIB_DIR) -o $@
 
-generated_definitions/c/riscv_model_$(ARCH).c: $(SAIL_SRCS) $(SAIL_RISCV_MODEL_DIR)/main.sail Makefile
+generated_definitions/c/riscv_model_%.c: $(SAIL_SRCS) $(SAIL_RISCV_MODEL_DIR)/main.sail Makefile
 	mkdir -p generated_definitions/c
 	$(SAIL) $(SAIL_FLAGS) -O -memo_z3 -c -c_include riscv_prelude.h -c_include riscv_platform.h -c_no_main $(SAIL_SRCS) $(SAIL_RISCV_MODEL_DIR)/main.sail -o $(basename $@)
 
-c_emulator/cheri_riscv_sim_$(ARCH): generated_definitions/c/riscv_model_$(ARCH).c $(SAIL_RISCV_DIR)/c_emulator/riscv_sim.c $(C_INCS) $(C_SRCS) Makefile
+c_emulator/cheri_riscv_sim_%: generated_definitions/c/riscv_model_%.c $(SAIL_RISCV_DIR)/c_emulator/riscv_sim.c $(C_INCS) $(C_SRCS) Makefile
 	mkdir -p c_emulator
 	gcc -g $(C_WARNINGS) $(C_FLAGS) $< $(SAIL_RISCV_DIR)/c_emulator/riscv_sim.c $(C_SRCS) $(SAIL_LIB_DIR)/*.c $(C_LIBS) -o $@
 
