@@ -376,7 +376,7 @@ isail:
 cloc:
 	cloc --force-lang C,sail $(SAIL_SRCS)
 
-opam-build: c_emulator/cheri_riscv_sim_RV64
+opam-build: c_emulator/cheri_riscv_sim_RV64 c_emulator/cheri_riscv_sim_RV32
 
 clean:
 	-rm -rf generated_definitions/ocaml/* generated_definitions/c/* generated_definitions/latex/* sail_riscv_latex
