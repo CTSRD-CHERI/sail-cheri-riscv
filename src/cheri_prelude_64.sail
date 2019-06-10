@@ -49,6 +49,7 @@ let MAX_ADDR = MAX(cap_addr_width)
 type CapAddrInt = range(0, (2 ^ cap_addr_width) - 1)
 type CapLen = range(0, 2 ^ 33) /* XXX sail can't handle if this is expressed as cap_len_width */
 type mantissa_width : Int = 8
+let mantissa_width = sizeof(mantissa_width)
 
 /* A partially decompressed version of a capability -- E, B, T,
  * lenMSB, sealed and otype fields are not present in all formats and are
@@ -191,44 +192,6 @@ function capBitsToCapability(t, c) : (bool, CapBits) -> Capability = {
     otype                  = otype,
     address                = c[31..0]
   }
-}
-
-function getCapHardPerms(cap) : Capability -> bits(12) =
-   (cap.permit_set_CID
-  @ cap.access_system_regs
-  @ cap.permit_unseal
-  @ cap.permit_ccall
-  @ cap.permit_seal
-  @ cap.permit_store_local_cap
-  @ cap.permit_store_cap
-  @ cap.permit_load_cap
-  @ cap.permit_store
-  @ cap.permit_load
-  @ cap.permit_execute
-  @ cap.global)
-
-/* Convert from capabilty struct to bits (no tag) */
-function capToBits(cap) : Capability -> CapBits = {
-  t_hi : bits(3) = cap.T[5..3];
-  t_lo : bits(3) = cap.T[2..0];
-  b_hi : bits(5) = cap.B[7..3];
-  b_lo : bits(3) = cap.B[2..0];
-  if cap.internal_e then {
-    t_lo = cap.E[5..3];
-    b_lo = cap.E[2..0];
-  };
-  return (cap.uperms
-    @ getCapHardPerms(cap)
-    @ cap.reserved
-    @ cap.flag_cap_mode
-    @ cap.otype
-    @ cap.internal_e
-    @ t_hi
-    @ t_lo
-    @ b_hi
-    @ b_lo
-    @ cap.address
-  );
 }
 
 function getCapBounds(c) : Capability -> (CapAddrInt, CapLen) = 

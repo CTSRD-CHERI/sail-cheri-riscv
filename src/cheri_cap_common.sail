@@ -36,6 +36,45 @@
 let max_otype = MAX(otype_width)
 type CapAddr = bits(cap_addr_width)
 
+
+function getCapHardPerms(cap) : Capability -> bits(12) =
+   (cap.permit_set_CID
+  @ cap.access_system_regs
+  @ cap.permit_unseal
+  @ cap.permit_ccall
+  @ cap.permit_seal
+  @ cap.permit_store_local_cap
+  @ cap.permit_store_cap
+  @ cap.permit_load_cap
+  @ cap.permit_store
+  @ cap.permit_load
+  @ cap.permit_execute
+  @ cap.global)
+
+/* Convert from capabilty struct to bits (no tag) */
+function capToBits(cap) : Capability -> CapBits = {
+  t_hi : bits(mantissa_width - 5) = cap.T[mantissa_width - 3..3];
+  t_lo : bits(3)  = cap.T[2..0];
+  b_hi : bits(mantissa_width - 3) = cap.B[mantissa_width - 1..3];
+  b_lo : bits(3)  = cap.B[2..0];
+  if cap.internal_e then {
+    t_lo = cap.E[5..3];
+    b_lo = cap.E[2..0];
+  };
+  return (cap.uperms
+    @ getCapHardPerms(cap)
+    @ cap.reserved
+    @ cap.flag_cap_mode
+    @ cap.otype
+    @ cap.internal_e
+    @ t_hi
+    @ t_lo
+    @ b_hi
+    @ b_lo
+    @ cap.address
+  );
+}
+
 /* When saving/restoring capabilities xor them with bits of null_cap --
  * this ensures that canonical null_cap is always all-zeros in memory
  * even though it may have bits set logically (e.g. length or exponent
