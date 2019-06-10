@@ -35,7 +35,8 @@ function readCapReg r = {
     28 => x28,
     29 => x29,
     30 => x30,
-    31 => x31
+    31 => x31,
+    _  => internal_error("Invalid capability register")
   }
 }
 
@@ -79,7 +80,8 @@ function writeCapReg (r, v) = {
     28 => x28 = v,
     29 => x29 = v,
     30 => x30 = v,
-    31 => x31 = v
+    31 => x31 = v,
+    _  => internal_error("Invalid capability register")
   };
   if (r != 0) then {
      rvfi_wX(r, v.address);
