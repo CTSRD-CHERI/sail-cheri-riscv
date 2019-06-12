@@ -34,8 +34,8 @@
 
 
 let max_otype = MAX(otype_width)
-type CapAddr = bits(cap_addr_width)
-type CapLenBits = bits(cap_len_width)
+type CapAddrBits = bits(cap_addr_width)
+type CapLenBits  = bits(cap_len_width)
 
 function getCapHardPerms(cap) : Capability -> bits(12) =
    (cap.permit_set_CID
@@ -90,9 +90,9 @@ function memBitsToCapability(tag, b) : (bool, CapBits) -> Capability =
 
 
 
-function getCapBounds(c) : Capability -> (CapAddrInt, CapLen) = 
+function getCapBoundsBits(c) : Capability -> (CapAddrBits, CapLenBits) = 
   let E = min(maxE, unsigned(c.E)) in
-  let a : CapAddr = c.address in
+  let a : CapAddrBits = c.address in
   /* Extract bits we need to make the top correction and calculate representable limit */
   let a3 = truncate(a >> (E + mantissa_width - 3), 3) in
   let B3 = truncateLSB(c.B, 3) in
@@ -116,12 +116,15 @@ function getCapBounds(c) : Capability -> (CapAddrInt, CapLen) =
        */
        top[cap_addr_width] = if (aHi == 1) & (tHi == 1) then bitone else bitzero;
     };
-    (unsigned(base[(cap_addr_width - 1)..0]), unsigned(top))
+    (base[(cap_addr_width - 1)..0], top)
   }
 
+function getCapBounds(cap) : Capability -> (CapAddrInt, CapLen) =
+  let (base, top) = getCapBoundsBits(cap) in
+  (unsigned(base), unsigned(top))
 
 /* An 'ideal' version of setCapBounds as described in paper. */
-function setCapBounds(cap, base, top) : (Capability, CapAddr, CapLenBits) -> (bool, Capability) = {
+function setCapBounds(cap, base, top) : (Capability, CapAddrBits, CapLenBits) -> (bool, Capability) = {
   /* {cap with base=base; length=(bits(64)) length; offset=0} */
   let ext_base = 0b0 @ base;
   let length = top - ext_base;
@@ -225,20 +228,22 @@ function sealCap(cap, otyp) : (Capability, bits(24)) -> (bool, Capability) =
 function unsealCap(cap) : Capability -> Capability =
     {cap with sealed=false, otype=ones()}
 
-
-function getCapBase(c) : Capability -> CapAddrInt =
-    let (base, _) = getCapBounds(c) in
+function getCapBaseBits(c) : Capability -> CapAddrBits =
+    let (base, _) = getCapBoundsBits(c) in
     base
 
-function getCapBaseBits(c) : Capability -> CapAddr =
-    to_bits(cap_addr_width, getCapBase(c))
+function getCapBase(c) : Capability -> CapAddrInt =
+    unsigned(getCapBaseBits(c))
 
-function getCapTop (c) : Capability -> CapLen =
-    let (_, top) = getCapBounds(c) in
+function getCapTopBits(c) : Capability -> CapLenBits =
+    let (_, top) = getCapBoundsBits(c) in
     top
 
-function getCapOffsetBits(c) : Capability -> CapAddr =
-    let base : CapAddr = getCapBaseBits(c) in
+function getCapTop (c) : Capability -> CapLen =
+    unsigned(getCapTopBits(c))
+
+function getCapOffsetBits(c) : Capability -> CapAddrBits =
+    let base : CapAddrBits = getCapBaseBits(c) in
     c.address - base
 
 function getCapOffset(c) : Capability -> CapAddrInt =
@@ -252,10 +257,10 @@ function getCapLength(c) : Capability -> CapLen =
          * pretend it is a 65-bit quantitiy and wrap.
          */
         assert (not(c.tag) | top >= base);
-        (top - base) % pow2(cap_addr_width + 1)
+        (top - base) % pow2(cap_len_width)
     }
 
-val inCapBounds  : (Capability, CapAddr, CapLen) -> bool
+val inCapBounds  : (Capability, CapAddrBits, CapLen) -> bool
 function inCapBounds (cap, addr, size) = {
   let (base, top) = getCapBounds(cap);
   let a = unsigned(addr);
@@ -264,7 +269,7 @@ function inCapBounds (cap, addr, size) = {
 
 function getCapCursor(cap) : Capability -> CapAddrInt = unsigned(cap.address)
 
-function int_to_cap (offset) : CapAddr -> Capability =
+function int_to_cap (offset) : CapAddrBits -> Capability =
     {null_cap with address = offset}
 
 function capBoundsEqual (c1, c2) : (Capability, Capability) -> bool =
@@ -272,17 +277,17 @@ function capBoundsEqual (c1, c2) : (Capability, Capability) -> bool =
     let (base2, top2) = getCapBounds(c2) in
     (base1 == base2) & (top1 == top2)
 
-val setCapAddr : (Capability, CapAddr) -> (bool, Capability)
+val setCapAddr : (Capability, CapAddrBits) -> (bool, Capability)
 function setCapAddr(c, addr) =
     let newCap = { c with address = addr } in
     let representable = capBoundsEqual(c, newCap) in
     (representable, newCap)
 
-function setCapAddrOrNull (cap, addr) : (Capability, CapAddr) -> Capability =
+function setCapAddrOrNull (cap, addr) : (Capability, CapAddrBits) -> Capability =
   let (representable, newCap) = setCapAddr(cap, addr) in
   if representable then newCap else int_to_cap(addr)
 
-function setCapOffset(c, offset) : (Capability, CapAddr) -> (bool, Capability) =
+function setCapOffset(c, offset) : (Capability, CapAddrBits) -> (bool, Capability) =
     let base = getCapBaseBits(c) in
     let newAddress = base + offset in
     let newCap     = { c with address = newAddress } in
@@ -290,12 +295,12 @@ function setCapOffset(c, offset) : (Capability, CapAddr) -> (bool, Capability) =
 /*  let representable = fastRepCheck(c, (newAddress - c.address)) in */
     (representable, newCap)
 
-function setCapOffsetOrNull (cap, offset) : (Capability, CapAddr) -> Capability =
+function setCapOffsetOrNull (cap, offset) : (Capability, CapAddrBits) -> Capability =
     let (representable, newCap) = setCapOffset(cap, offset) in
     if representable & not(cap.sealed) then newCap else int_to_cap(newCap.address)
 
-function incCapOffset(c, delta) : (Capability, CapAddr) -> (bool, Capability) =
-    let newAddress : CapAddr = c.address + delta in
+function incCapOffset(c, delta) : (Capability, CapAddrBits) -> (bool, Capability) =
+    let newAddress : CapAddrBits = c.address + delta in
     let newCap     = { c with address = newAddress } in
     let representable = capBoundsEqual(c, newCap) in
 /*  let representable = fastRepCheck(c, delta) in */
@@ -307,7 +312,7 @@ function capToString (cap) = {
   let len = getCapLength(cap);
   let len_str = BitStr(to_bits(cap_len_width + 3, len));
   /* Print architectural type which is -1 for unsealed caps */
-  let otype64 : CapAddr = if cap.sealed then EXTZ(cap.otype) else ones();
+  let otype64 : CapAddrBits = if cap.sealed then EXTZ(cap.otype) else ones();
   concat_str(" t:",
   concat_str(if cap.tag then "1" else "0",
   concat_str(" s:",
