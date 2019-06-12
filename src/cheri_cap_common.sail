@@ -154,7 +154,7 @@ function setCapBounds(cap, base, top) : (Capability, CapAddrBits, CapLenBits) ->
     /* Find out whether we have lost significant bits of base and top using a
      * mask of bits that we will lose (including 3 extra for exp).
      */
-    maskLo : bits(cap_len_width) = slice_mask(0, e + 3);
+    maskLo : CapLenBits = EXTZ(ones(e+3));
     lostSignificantBase = unsigned(ext_base & maskLo) != 0;
     lostSignificantTop  = unsigned(top & maskLo) != 0;
 
