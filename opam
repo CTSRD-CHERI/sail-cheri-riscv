@@ -22,7 +22,7 @@ depends: [
   "ocamlfind"
   "ocamlbuild"
   "lem"
-  "sail" {>= "0.9"}
+  "sail" {>= "0.10"}
   "sail-riscv" {>= "0.3"}
   "linksem" {>= "0.3"}
   "conf-gmp"

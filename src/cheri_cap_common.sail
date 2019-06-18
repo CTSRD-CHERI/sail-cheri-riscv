@@ -132,7 +132,7 @@ function setCapBounds(cap, base, top) : (Capability, CapAddrBits, CapLenBits) ->
    * second from the top as assumed during decoding. We ignore the bottom
    * MW bits because those are handled by the ie = 0 format.
    */
-  let e = maxE - CountLeadingZeros(length[cap_addr_width..mantissa_width - 1]);
+  let e = maxE - count_leading_zeros(length[cap_addr_width..mantissa_width - 1]);
   // Use use internal exponent if e is non-zero or if e is zero but
   // but the implied bit of length is not zero (denormal vs. normal case)
   let ie = (e != 0) | length[mantissa_width - 2];
