@@ -33,9 +33,10 @@
 /*========================================================================*/
 
 /* width of capability in bytes (excluding tag) */
-let 'cap_size = 16
+type cap_size : Int = 16
+let cap_size = sizeof(cap_size)
 let log2_cap_size = 4
-type CapBits = bits(8*'cap_size)
+type CapBits = bits(8*cap_size)
 /* width of otype field in bits */
 let otype_width = 18
 let uperms_width = 4
