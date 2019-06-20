@@ -68,22 +68,20 @@ let test_setOffset (bounds, offset) =
 */
 
 $counterexample
-function propSetOffset(cap, offset) : (CapBits, CapAddrBits) -> bool = {
-  let cap = capBitsToCapability(true, cap);
+function propSetOffset(base, top, offset) : (CapAddrBits, CapLenBits, CapAddrBits) -> bool = {
+  let (exact, cap) = setCapBounds(default_cap, base, top);
   let (representable, cap') = setCapOffset(cap, offset);
   let (origBase, origTop) = getCapBounds(cap);
   let (newBase, newTop)   = getCapBounds(cap');
-  let sensibleCap = (origBase <= origTop) & (origTop <= pow2(cap_addr_width));
+  let sensibleCap = ((0b0 @ base) <=_u top) & (unsigned(top) <= pow2(cap_addr_width));
   let len = max(pow2(mantissa_width - 2), origTop - origBase);
   let lowerRepOff = 0 - len;
   let upperRepOff = 6 * len;
   let signedOff = 4 * signed(offset);
   let inRepBounds = (lowerRepOff < signedOff) & (signedOff < upperRepOff);
   let representableCorrect = ((origBase == newBase) & (origTop == newTop)) == representable;
-  representableCorrect & (inRepBounds == representable)
+  not(sensibleCap) | (representableCorrect & (inRepBounds == representable))
 }
-
-
 
 /* passes -- trivial 
 $counterexample
