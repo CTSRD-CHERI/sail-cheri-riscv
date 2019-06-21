@@ -351,7 +351,7 @@ function clause execute (CSetOffset(cd, cb, rt)) =
 }
 
 union clause ast = CSetAddr : (regidx, regidx, regidx)
-function clause execute (CSetOffset(cd, cb, rt)) =
+function clause execute (CSetAddr(cd, cb, rt)) =
 {
   let cb_val = readCapReg(cb);
   let rt_val = X(rt);
@@ -1193,7 +1193,7 @@ mapping clause encdec = CUnseal(cd, cs, ct)     if (haveXcheri()) <-> 0b0001100 
 mapping clause encdec = CAndPerm(cd, cs, rt)    if (haveXcheri()) <-> 0b0001101 @ rt @ cs @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CSetFlags(cd, cs, rt)   if (haveXcheri()) <-> 0b0001110 @ rt @ cs @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CSetOffset(cd, cs, rt)  if (haveXcheri()) <-> 0b0001111 @ rt @ cs @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
-mapping clause encdec = CSetAddr(cd, cs, rt)    if (haveXcheri()) <-> 0b0000000 @ rt @ cs @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CSetAddr(cd, cs, rt)    if (haveXcheri()) <-> 0b0010000 @ rt @ cs @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CIncOffset(cd, cs, rt)  if (haveXcheri()) <-> 0b0010001 @ rt @ cs @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CSetBounds(cd, cs, rt)  if (haveXcheri()) <-> 0b0001000 @ rt @ cs @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CSetBoundsExact(cd, cs, rt) if (haveXcheri()) <-> 0b0001001 @ rt @ cs @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
