@@ -1,7 +1,7 @@
 /* accessors for capability representation */
 
 /* reads a given capability register, or the null capability if the argument is zero. */
-val readCapReg : forall 'n, 0 <= 'n < 32. regno('n) -> regtype effect {rreg}
+val readCapReg : forall 'n, 0 <= 'n < 32. regno('n) -> regtype effect {rreg, escape}
 function readCapReg r = {
   match r {
     0  => zero_reg,
@@ -41,7 +41,7 @@ function readCapReg r = {
 }
 
 /* as per [readCapReg] but reads DDC instead of null when argument is zero. */
-val readCapRegDDC : forall 'n, 0 <= 'n < 32 . regno('n) -> Capability effect {rreg}
+val readCapRegDDC : forall 'n, 0 <= 'n < 32 . regno('n) -> Capability effect {rreg, escape}
 function readCapRegDDC(r) =
   if r == 0 then DDC else readCapReg(r)
 

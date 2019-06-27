@@ -8,7 +8,7 @@ function mem_read_cap (addr, aq, rl, res) = {
     else match (aq, rl, res) {
            (false, true,  false) => throw(Error_not_implemented("load.rl")),
            (false, true,  true)  => throw(Error_not_implemented("lr.rl")),
-           (_, _, _)             => checked_mem_read(Data, addr, cap_size, aq, rl, res)
+           (_, _, _)             => checked_mem_read(Read, addr, cap_size, aq, rl, res)
     };
 
   /* It's more idiomatic here to use __ReadRAM_Meta, but we are doing

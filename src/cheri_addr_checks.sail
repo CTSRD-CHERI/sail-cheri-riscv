@@ -110,7 +110,7 @@ function get_cheri_cap_addr (base_reg : regidx, offset : xlenbits) = {
     (ddc, ddc.address + X(base_reg) + offset, DDC_IDX);
 }
 
-function ext_data_get_addr(base_reg : regidx, offset : xlenbits, acc : AccessType, rt : ReadType, width : word_width)
+function ext_data_get_addr(base_reg : regidx, offset : xlenbits, acc : AccessType, width : word_width)
          -> Ext_DataAddr_Check(ext_data_addr_error) = {
 
   let (cap_val, newAddr, cause_regno) = get_cheri_cap_addr(base_reg, offset);
