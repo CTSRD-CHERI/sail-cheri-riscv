@@ -85,7 +85,8 @@ function writeCapReg (r, v) = {
   };
   if (r != 0) then {
      rvfi_wX(r, v.address);
-     print_reg("x" ^ string_of_int(r) ^ " <- " ^ RegStr(v));
+     if get_config_print_reg() then
+       print_reg("x" ^ string_of_int(r) ^ " <- " ^ RegStr(v));
   }
 }
 
