@@ -111,6 +111,48 @@ function ext_init_regs () = {
   MScratchC = null_cap;
   MEPCC = default_cap;
 
+  x1  = null_cap;
+  x2  = null_cap;
+  x3  = null_cap;
+  x4  = null_cap;
+  x5  = null_cap;
+  x6  = null_cap;
+  x7  = null_cap;
+  x8  = null_cap;
+  x9  = null_cap;
+  x10 = null_cap;
+  x11 = null_cap;
+  x12 = null_cap;
+  x13 = null_cap;
+  x14 = null_cap;
+  x15 = null_cap;
+  x16 = null_cap;
+  x17 = null_cap;
+  x18 = null_cap;
+  x19 = null_cap;
+  x20 = null_cap;
+  x21 = null_cap;
+  x22 = null_cap;
+  x23 = null_cap;
+  x24 = null_cap;
+  x25 = null_cap;
+  x26 = null_cap;
+  x27 = null_cap;
+  x28 = null_cap;
+  x29 = null_cap;
+  x30 = null_cap;
+  x31 = null_cap;
+
+  misa->X() = true;
+}
+
+/*!
+This function is called after above when running rvfi and allows the model
+to be initialised differently. For RVFI we initialise cap regs to default
+instead of null.
+ */
+val ext_rvfi_init : unit -> unit effect {wreg}
+function ext_rvfi_init () = {
   x1  = default_cap;
   x2  = default_cap;
   x3  = default_cap;
@@ -142,6 +184,4 @@ function ext_init_regs () = {
   x29 = default_cap;
   x30 = default_cap;
   x31 = default_cap;
-
-  misa->X() = true;
 }
