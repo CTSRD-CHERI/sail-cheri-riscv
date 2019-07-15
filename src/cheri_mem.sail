@@ -8,7 +8,7 @@ function mem_read_cap (addr, aq, rl, res) = {
     else match (aq, rl, res) {
            (false, true,  false) => throw(Error_not_implemented("load.rl")),
            (false, true,  true)  => throw(Error_not_implemented("lr.rl")),
-           (_, _, _)             => checked_mem_read(Read, addr, cap_size, aq, rl, res)
+           (_, _, _)             => checked_mem_read(Read(Data), addr, cap_size, aq, rl, res)
     };
 
   /* It's more idiomatic here to use __ReadRAM_Meta, but we are doing
@@ -35,5 +35,5 @@ function mem_write_ea_cap(addr, aq, rl, con) = {
 val mem_write_cap : (xlenbits, Capability, bool, bool, bool) -> MemoryOpResult(bool) effect {wmv, rreg, wreg, escape, wmvt}
 function mem_write_cap (addr, cap, aq, rl, con) = {
   let cap_bits = capToMemBits(cap);
-  mem_write_value_meta(addr, cap_size, cap_bits, cap.tag, aq, rl, con)
+  mem_write_value_meta(addr, cap_size, cap_bits, Cap, cap.tag, aq, rl, con)
 }

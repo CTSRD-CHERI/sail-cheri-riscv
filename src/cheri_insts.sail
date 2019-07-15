@@ -914,14 +914,14 @@ function handle_load_data_via_cap(rd, cs, cap_val, vaddrBits, is_unsigned, width
   } else if check_misaligned(vaddrBits, width) then {
     handle_mem_exception(vaddrBits, E_Load_Addr_Align);
     RETIRE_FAIL
-  } else match translateAddr(vaddrBits, Read) {
+  } else match translateAddr(vaddrBits, Read(Data)) {
     TR_Failure(e) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
     TR_Address(addr) =>
       match (width, sizeof(xlen)) {
-        (BYTE, _)    => process_load(rd, vaddrBits, mem_read(Read, addr, 1, aq, rl, false), is_unsigned),
-        (HALF, _)    => process_load(rd, vaddrBits, mem_read(Read, addr, 2, aq, rl, false), is_unsigned),
-        (WORD, _)    => process_load(rd, vaddrBits, mem_read(Read, addr, 4, aq, rl, false), is_unsigned),
-        (DOUBLE, 64) => process_load(rd, vaddrBits, mem_read(Read, addr, 8, aq, rl, false), is_unsigned)
+        (BYTE, _)    => process_load(rd, vaddrBits, mem_read(Read(Data), addr, 1, aq, rl, false), is_unsigned),
+        (HALF, _)    => process_load(rd, vaddrBits, mem_read(Read(Data), addr, 2, aq, rl, false), is_unsigned),
+        (WORD, _)    => process_load(rd, vaddrBits, mem_read(Read(Data), addr, 4, aq, rl, false), is_unsigned),
+        (DOUBLE, 64) => process_load(rd, vaddrBits, mem_read(Read(Data), addr, 8, aq, rl, false), is_unsigned)
       }
   }
 }
@@ -961,7 +961,7 @@ function handle_load_cap_via_cap(rd, cs, cap_val, vaddrBits) = {
   } else if not(is_aligned_addr(vaddrBits, cap_size)) then {
     handle_mem_exception(vaddrBits, E_Load_Addr_Align);
     RETIRE_FAIL
-  } else match translateAddr(vaddrBits, Read) {
+  } else match translateAddr(vaddrBits, Read(Cap)) {
     TR_Failure(e) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
     TR_Address(addr) => {
       let c = mem_read_cap(addr, aq, rl, false);
@@ -1009,7 +1009,7 @@ function handle_store_data_via_cap(rs, cs, cap_val, vaddrBits, width) = {
   } else if check_misaligned(vaddrBits, width) then {
     handle_mem_exception(vaddrBits, E_SAMO_Addr_Align);
     RETIRE_FAIL
-  } else match translateAddr(vaddrBits, Write) {
+  } else match translateAddr(vaddrBits, Write(Data)) {
     TR_Failure(e) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
     TR_Address(addr) => {
       let eares : MemoryOpResult(unit) = mem_write_ea(addr, size, aq, rl, false);
@@ -1076,7 +1076,7 @@ function handle_store_cap_via_cap(rs, cs, cap_val, vaddrBits) = {
   } else if not(is_aligned_addr(vaddrBits, cap_size)) then {
     handle_mem_exception(vaddrBits, E_SAMO_Addr_Align);
     RETIRE_FAIL
-  } else match translateAddr(vaddrBits, Write) {
+  } else match translateAddr(vaddrBits, Write(Cap)) {
     TR_Failure(e) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
     TR_Address(addr) => {
       let eares : MemoryOpResult(unit) = mem_write_ea_cap(addr, aq, rl, false);
