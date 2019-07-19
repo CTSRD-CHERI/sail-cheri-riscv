@@ -1,5 +1,9 @@
 /* accessors for default architectural addresses, for use from within instructions */
 
+val get_arch_pc : unit -> xlenbits effect {rreg}
+function get_arch_pc () =
+  PC - getCapBaseBits(PCC)
+
 /* FIXME: The asymmetry between get_next_pc and set_next_pc where one
  * returns the architectural PC but the other set the PCC-relative PC
  * is a bit weird. The way they are currently used it is correct but
