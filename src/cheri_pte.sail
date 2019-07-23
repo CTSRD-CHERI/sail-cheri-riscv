@@ -2,11 +2,6 @@
 
 type pteAttribs = bits(8)
 
-/* Reserved PTE bits could be used by extensions on RV64.  There are
- * no such available bits on RV32, so these bits will be zeros on RV32.
- */
-type extPte = bits(10)
-
 bitfield PTE_Bits : pteAttribs = {
   D : 7,
   A : 6,
@@ -16,6 +11,16 @@ bitfield PTE_Bits : pteAttribs = {
   W : 2,
   R : 1,
   V : 0
+}
+
+/* Reserved PTE bits could be used by extensions on RV64.  There are
+ * no such available bits on RV32, so these bits will be zeros on RV32.
+ */
+type extPte = bits(10)
+
+bitfield Ext_PTE_Bits : extPte = {
+  LoadCap  : 9,
+  StoreCap : 8,
 }
 
 function isPTEPtr(p : pteAttribs, ext : extPte) -> bool = {
@@ -48,6 +53,69 @@ function checkPTEPermission(ac : AccessType(ext_access_type), priv : Privilege, 
     (Write(Data),     Supervisor) => to_pte_check((p.U() == false | do_sum) & p.W() == true),
     (ReadWrite(Data), Supervisor) => to_pte_check((p.U() == false | do_sum) & p.W() == true & (p.R() == true | (p.X() == true & mxr))),
     (Execute(),       Supervisor) => to_pte_check(p.U() == false & p.X() == true),
+
+    (Read(Cap),       User)       => { /* load-cap should probably not be affected by mxr. */
+                                       if   p.U() == true & p.R() == true
+                                       then {
+                                         let  e = Mk_Ext_PTE_Bits(ext);
+                                         if   e.LoadCap() == true
+                                         then PTE_Check_Success()
+                                         else PTE_Check_Ext(PTE_LOAD_CAP_ERR)
+                                       }
+                                       else PTE_Check_Failure()
+                                     },
+
+    (Write(Cap),      User)       => { if   p.U() == true & p.W() == true
+                                       then {
+                                         let  e = Mk_Ext_PTE_Bits(ext);
+                                         if   e.StoreCap() == true
+                                         then PTE_Check_Success()
+                                         else PTE_Check_Ext(PTE_STORE_CAP_ERR)
+                                       }
+                                       else PTE_Check_Failure()
+                                     },
+
+    (ReadWrite(Cap),  User)       => { if   p.U() == true & p.R() == true & p.W() == true
+                                       then {
+                                         let  e = Mk_Ext_PTE_Bits(ext);
+                                         if   e.StoreCap() == true & e.LoadCap() == true
+                                         then PTE_Check_Success()
+                                         /* return the store error since we should cause an exception */
+                                         else PTE_Check_Ext(PTE_STORE_CAP_ERR)
+                                       }
+                                       else PTE_Check_Failure()
+                                     },
+
+    (Read(Cap),       Supervisor) => { if   (p.U() == false | do_sum) & p.R() == true
+                                       then {
+                                         let  e = Mk_Ext_PTE_Bits(ext);
+                                         if   e.LoadCap() == true
+                                         then PTE_Check_Success()
+                                         else PTE_Check_Ext(PTE_LOAD_CAP_ERR)
+                                       }
+                                       else PTE_Check_Failure()
+                                     },
+
+    (Write(Cap),      Supervisor) => { let e = Mk_Ext_PTE_Bits(ext);
+                                       if   (p.U() == false | do_sum) & p.W() == true
+                                       then {
+                                         if   e.StoreCap() == true
+                                         then PTE_Check_Success()
+                                         else PTE_Check_Ext(PTE_STORE_CAP_ERR)
+                                       }
+                                       else PTE_Check_Failure()
+                                     },
+
+    (ReadWrite(Cap),  Supervisor) => { let e = Mk_Ext_PTE_Bits(ext);
+                                       if   (p.U() == false | do_sum) & p.R() == true & p.W() == true
+                                       then {
+                                         if   e.StoreCap() == true & e.LoadCap() == true
+                                         then PTE_Check_Success()
+                                         /* return the store error since we should cause an exception */
+                                         else PTE_Check_Ext(PTE_STORE_CAP_ERR)
+                                       }
+                                       else PTE_Check_Failure()
+                                     },
 
     (_,               Machine)    => internal_error("m-mode mem perm check")
   }

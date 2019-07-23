@@ -26,13 +26,26 @@ overload to_str = {ptw_error_to_str}
 function translationException(a : AccessType(ext_access_type), f : PTW_Error) -> ExceptionType = {
   let e : ExceptionType =
   match (a, f) {
-    (_, PTW_Ext_Error(e))           => E_Extension(ext_translate_exception(e)),
+    /* First handle the vmem extension errors */
+    (ReadWrite(Cap), PTW_Ext_Error(e)) => E_Extension(ext_translate_exception(e)),
+    (Read(Cap), PTW_Ext_Error(e))      => E_Extension(ext_translate_exception(e)),
+    (Write(Cap), PTW_Ext_Error(e))     => E_Extension(ext_translate_exception(e)),
+
+    /* For other exceptions, Cap accesses fault similar to Data accesses below. */
+    (ReadWrite(Cap), PTW_Access())  => E_SAMO_Access_Fault(),
+    (ReadWrite(Cap), _)             => E_SAMO_Page_Fault(),
+    (Read(Cap), PTW_Access())       => E_Load_Access_Fault(),
+    (Read(Cap), _)                  => E_Load_Page_Fault(),
+    (Write(Cap), PTW_Access())      => E_SAMO_Access_Fault(),
+    (Write(Cap), _)                 => E_SAMO_Page_Fault(),
+
     (ReadWrite(Data), PTW_Access()) => E_SAMO_Access_Fault(),
     (ReadWrite(Data), _)            => E_SAMO_Page_Fault(),
     (Read(Data), PTW_Access())      => E_Load_Access_Fault(),
     (Read(Data), _)                 => E_Load_Page_Fault(),
     (Write(Data), PTW_Access())     => E_SAMO_Access_Fault(),
     (Write(Data), _)                => E_SAMO_Page_Fault(),
+
     (Execute(), PTW_Access())       => E_Fetch_Access_Fault(),
     (Execute(), _)                  => E_Fetch_Page_Fault()
   } in {
