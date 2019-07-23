@@ -848,7 +848,7 @@ function clause execute (CCall(cs, cb, 0b00001)) = /* selector=1 */
     handle_cheri_reg_exception(CapEx_LengthViolation, cs);
     RETIRE_FAIL
   } else if newPC[1] & ~(haveRVC()) then {
-    handle_mem_exception(newPC,  E_Fetch_Addr_Align);
+    handle_mem_exception(newPC,  E_Fetch_Addr_Align());
     RETIRE_FAIL
   } else {
     C26 = unsealCap(cb_val);
@@ -882,7 +882,7 @@ function clause execute(CJALR(cd, cb)) =
     handle_cheri_reg_exception(CapEx_LengthViolation, cb);
     RETIRE_FAIL
   } else if newPC[1] & ~(haveRVC()) then {
-    handle_mem_exception(newPC,  E_Fetch_Addr_Align);
+    handle_mem_exception(newPC,  E_Fetch_Addr_Align());
     RETIRE_FAIL
   } else {
     let (success, linkCap) = setCapAddr(PCC, nextPC); /* Note that nextPC accounts for compressed instrucitons */
@@ -912,7 +912,7 @@ function handle_load_data_via_cap(rd, cs, cap_val, vaddrBits, is_unsigned, width
     handle_cheri_cap_exception(CapEx_LengthViolation, cs);
     RETIRE_FAIL
   } else if check_misaligned(vaddrBits, width) then {
-    handle_mem_exception(vaddrBits, E_Load_Addr_Align);
+    handle_mem_exception(vaddrBits, E_Load_Addr_Align());
     RETIRE_FAIL
   } else match translateAddr(vaddrBits, Read(Data)) {
     TR_Failure(e) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
@@ -959,7 +959,7 @@ function handle_load_cap_via_cap(rd, cs, cap_val, vaddrBits) = {
     handle_cheri_cap_exception(CapEx_LengthViolation, cs);
     RETIRE_FAIL
   } else if not(is_aligned_addr(vaddrBits, cap_size)) then {
-    handle_mem_exception(vaddrBits, E_Load_Addr_Align);
+    handle_mem_exception(vaddrBits, E_Load_Addr_Align());
     RETIRE_FAIL
   } else match translateAddr(vaddrBits, Read(Cap)) {
     TR_Failure(e) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
@@ -1007,7 +1007,7 @@ function handle_store_data_via_cap(rs, cs, cap_val, vaddrBits, width) = {
     handle_cheri_cap_exception(CapEx_LengthViolation, cs);
     RETIRE_FAIL
   } else if check_misaligned(vaddrBits, width) then {
-    handle_mem_exception(vaddrBits, E_SAMO_Addr_Align);
+    handle_mem_exception(vaddrBits, E_SAMO_Addr_Align());
     RETIRE_FAIL
   } else match translateAddr(vaddrBits, Write(Data)) {
     TR_Failure(e) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
@@ -1074,7 +1074,7 @@ function handle_store_cap_via_cap(rs, cs, cap_val, vaddrBits) = {
     handle_cheri_cap_exception(CapEx_LengthViolation, cs);
     RETIRE_FAIL
   } else if not(is_aligned_addr(vaddrBits, cap_size)) then {
-    handle_mem_exception(vaddrBits, E_SAMO_Addr_Align);
+    handle_mem_exception(vaddrBits, E_SAMO_Addr_Align());
     RETIRE_FAIL
   } else match translateAddr(vaddrBits, Write(Cap)) {
     TR_Failure(e) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },

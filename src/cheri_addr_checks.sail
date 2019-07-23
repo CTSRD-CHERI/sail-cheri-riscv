@@ -9,7 +9,7 @@ function handle_cheri_cap_exception(capEx, regnum) =
         capEx   = capEx
     };
     let t : sync_exception = struct {
-      trap    = E_CHERI,
+      trap    = E_Extension(EXC_CHERI),
       excinfo = (None() : option(xlenbits)),
       ext     = Some(cause)
     };
