@@ -378,6 +378,8 @@ isail:
 cloc:
 	cloc --force-lang C,sail $(SAIL_SRCS)
 
+rvfi: c_emulator/cheri_riscv_rvfi_$(ARCH)
+
 opam-build: c_emulator/cheri_riscv_sim_RV64 c_emulator/cheri_riscv_sim_RV32
 
 clean:
