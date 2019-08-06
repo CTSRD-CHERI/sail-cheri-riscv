@@ -96,3 +96,14 @@ function min_instruction_bytes () -> CapAddrInt = {
 function haveXcheri () -> bool =
   /* This is a necessary but not sufficient condition, but should do for now. */
   misa.X() == true
+
+
+function legalize_tcc(o : Capability, v : Capability) -> Capability = {
+  new_tvec = getCapOffsetBits(v);
+  legalized_tvec = legalize_tvec(Mk_Mtvec(getCapOffsetBits(o)), new_tvec);
+  setCapOffsetOrNull(v, legalized_tvec.bits())
+}
+
+function legalize_epcc (v : Capability) -> Capability = {
+  setCapOffsetOrNull(v, legalize_xepc(getCapOffsetBits(v)))
+}
