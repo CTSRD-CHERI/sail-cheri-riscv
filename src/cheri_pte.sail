@@ -34,15 +34,15 @@ function isInvalidPTE(p : pteAttribs, ext : extPte) -> bool = {
 }
 
 union PTE_Check = {
-  PTE_Check_Success : unit,
-  PTE_Check_Failure : unit,
-  PTE_Check_Ext     : ext_pte_error
+  PTE_Check_Success : ext_ptw,
+  PTE_Check_Failure : ext_ptw
 }
 
-function to_pte_check(b : bool) -> PTE_Check =
-  if b then PTE_Check_Success() else PTE_Check_Failure(())
+function to_pte_check(b : bool) -> (bool, pte_check) =
+  (b, PTE_CAP_OK)
 
-function checkPTEPermission(ac : AccessType(ext_access_type), priv : Privilege, mxr : bool, do_sum : bool, p : PTE_Bits, ext : extPte) -> PTE_Check = {
+function checkPTEPermission(ac : AccessType(ext_access_type), priv : Privilege, mxr : bool, do_sum : bool, p : PTE_Bits, ext : extPte, ext_ptw : ext_ptw) -> PTE_Check = {
+  let (succ, pte_chk) : (bool, pte_check) =
   match (ac, priv) {
     (Read(Data),      User)       => to_pte_check(p.U() == true & (p.R() == true | (p.X() == true & mxr))),
     (Write(Data),     User)       => to_pte_check(p.U() == true & p.W() == true),
@@ -59,66 +59,81 @@ function checkPTEPermission(ac : AccessType(ext_access_type), priv : Privilege, 
                                        then {
                                          let  e = Mk_Ext_PTE_Bits(ext);
                                          if   e.LoadCap() == true
-                                         then PTE_Check_Success()
-                                         else PTE_Check_Ext(PTE_LOAD_CAP_ERR)
+                                         then (true, PTE_CAP_OK)
+                                         else {
+                                           /* Allow the address translation to proceed, but mark for tag stripping */
+                                           (true, PTE_LOAD_CAP_ERR)
+                                         }
                                        }
-                                       else PTE_Check_Failure()
+                                       else (false, PTE_CAP_OK)
                                      },
 
     (Write(Cap),      User)       => { if   p.U() == true & p.W() == true
                                        then {
                                          let  e = Mk_Ext_PTE_Bits(ext);
                                          if   e.StoreCap() == true
-                                         then PTE_Check_Success()
-                                         else PTE_Check_Ext(PTE_STORE_CAP_ERR)
+                                         then (true, PTE_CAP_OK)
+                                         else {
+                                           /* Do not allow the address translation to proceed */
+                                           (false, PTE_STORE_CAP_ERR)
+                                         }
                                        }
-                                       else PTE_Check_Failure()
+                                       else (false, PTE_CAP_OK)
                                      },
 
     (ReadWrite(Cap),  User)       => { if   p.U() == true & p.R() == true & p.W() == true
                                        then {
                                          let  e = Mk_Ext_PTE_Bits(ext);
                                          if   e.StoreCap() == true & e.LoadCap() == true
-                                         then PTE_Check_Success()
-                                         /* return the store error since we should cause an exception */
-                                         else PTE_Check_Ext(PTE_STORE_CAP_ERR)
+                                         then (true, PTE_CAP_OK)
+                                         else if e.StoreCap() == false
+                                         /* return a failure since we should cause an exception */
+                                         then (false, PTE_STORE_CAP_ERR)
+                                         /* return a success since the translation should proceed */
+                                         else (true, PTE_LOAD_CAP_ERR)
                                        }
-                                       else PTE_Check_Failure()
+                                       else (false, PTE_CAP_OK)
                                      },
 
     (Read(Cap),       Supervisor) => { if   (p.U() == false | do_sum) & p.R() == true
                                        then {
                                          let  e = Mk_Ext_PTE_Bits(ext);
                                          if   e.LoadCap() == true
-                                         then PTE_Check_Success()
-                                         else PTE_Check_Ext(PTE_LOAD_CAP_ERR)
+                                         then (true, PTE_CAP_OK)
+                                         else (true, PTE_LOAD_CAP_ERR)
                                        }
-                                       else PTE_Check_Failure()
+                                       else (false, PTE_CAP_OK)
                                      },
 
     (Write(Cap),      Supervisor) => { let e = Mk_Ext_PTE_Bits(ext);
                                        if   (p.U() == false | do_sum) & p.W() == true
                                        then {
                                          if   e.StoreCap() == true
-                                         then PTE_Check_Success()
-                                         else PTE_Check_Ext(PTE_STORE_CAP_ERR)
+                                         then (true,  PTE_CAP_OK)
+                                         else (false, PTE_STORE_CAP_ERR)
                                        }
-                                       else PTE_Check_Failure()
+                                       else (false, PTE_CAP_OK)
                                      },
 
     (ReadWrite(Cap),  Supervisor) => { let e = Mk_Ext_PTE_Bits(ext);
                                        if   (p.U() == false | do_sum) & p.R() == true & p.W() == true
                                        then {
                                          if   e.StoreCap() == true & e.LoadCap() == true
-                                         then PTE_Check_Success()
-                                         /* return the store error since we should cause an exception */
-                                         else PTE_Check_Ext(PTE_STORE_CAP_ERR)
+                                         then (true, PTE_CAP_OK)
+                                         else if e.StoreCap() == false
+                                         /* return a failure since we should cause an exception */
+                                         then (false, PTE_STORE_CAP_ERR)
+                                         /* return a success since the translation should proceed */
+                                         else (true, PTE_LOAD_CAP_ERR)
                                        }
-                                       else PTE_Check_Failure()
+                                       else (false, PTE_CAP_OK)
                                      },
 
     (_,               Machine)    => internal_error("m-mode mem perm check")
-  }
+  };
+
+  let ext_ptw = ext_accum_ptw_result(ext_ptw, pte_chk);
+  if succ then PTE_Check_Success(ext_ptw) else PTE_Check_Failure(ext_ptw)
 }
 
 function update_PTE_Bits(p : PTE_Bits, a : AccessType(ext_access_type), ext : extPte) -> option((PTE_Bits, extPte)) = {
