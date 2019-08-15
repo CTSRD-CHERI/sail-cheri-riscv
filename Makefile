@@ -324,7 +324,7 @@ riscv_hol: generated_definitions/hol4/$(ARCH)/riscvScript.sml
 riscv_hol_build: generated_definitions/hol4/$(ARCH)/riscvTheory.uo
 .PHONY: riscv_hol riscv_hol_build
 
-COQ_LIBS = -R $(BBV_DIR)/theories bbv -R $(SAIL_LIB_DIR)/coq Sail -R generated_definitions/coq/$(ARCH) '' -R $(SAIL_RISCV_DIR)/handwritten_support ''
+COQ_LIBS = -R $(BBV_DIR)/theories bbv -R $(SAIL_LIB_DIR)/coq Sail -R generated_definitions/coq/$(ARCH) '' -R $(SAIL_RISCV_DIR)/handwritten_support '' -R handwritten_support ''
 
 riscv_coq: $(addprefix generated_definitions/coq/$(ARCH)/,riscv.v riscv_types.v)
 riscv_coq_build: generated_definitions/coq/$(ARCH)/riscv.vo
@@ -332,7 +332,7 @@ riscv_coq_build: generated_definitions/coq/$(ARCH)/riscv.vo
 
 $(addprefix generated_definitions/coq/$(ARCH)/,riscv.v riscv_types.v): $(SAIL_COQ_SRCS) Makefile
 	mkdir -p generated_definitions/coq/$(ARCH)
-	$(SAIL) $(SAIL_FLAGS) -dcoq_undef_axioms -coq -coq_output_dir generated_definitions/coq/$(ARCH) -o riscv -coq_lib riscv_extras $(SAIL_COQ_SRCS)
+	$(SAIL) $(SAIL_FLAGS) -dcoq_undef_axioms -coq -coq_output_dir generated_definitions/coq/$(ARCH) -o riscv -coq_lib cheri_extras -coq_lib riscv_extras $(SAIL_COQ_SRCS)
 $(addprefix generated_definitions/coq/$(ARCH)/,riscv_duopod.v riscv_duopod_types.v): $(PRELUDE_SRCS) $(SAIL_RISCV_MODEL_DIR)/riscv_duopod.sail
 	mkdir -p generated_definitions/coq/$(ARCH)
 	$(SAIL) $(SAIL_FLAGS) -dcoq_undef_axioms -coq -coq_output_dir generated_definitions/coq/$(ARCH) -o riscv_duopod -coq_lib riscv_extras $^
@@ -346,8 +346,8 @@ ifeq ($(wildcard $(SAIL_LIB_DIR)/coq),)
 endif
 	coqc $(COQ_LIBS) $<
 
-generated_definitions/coq/$(ARCH)/riscv.vo: generated_definitions/coq/$(ARCH)/riscv_types.vo $(SAIL_RISCV_DIR)/handwritten_support/riscv_extras.vo
-generated_definitions/coq/$(ARCH)/riscv_duopod.vo: generated_definitions/coq/$(ARCH)/riscv_duopod_types.vo $(SAIL_RISCV_DIR)/handwritten_support/riscv_extras.vo
+generated_definitions/coq/$(ARCH)/riscv.vo: generated_definitions/coq/$(ARCH)/riscv_types.vo $(SAIL_RISCV_DIR)/handwritten_support/riscv_extras.vo handwritten_support/cheri_extras.vo
+generated_definitions/coq/$(ARCH)/riscv_duopod.vo: generated_definitions/coq/$(ARCH)/riscv_duopod_types.vo $(SAIL_RISCV_DIR)/handwritten_support/riscv_extras.vo handwritten_support/cheri_extras.vo
 
 riscv_rmem: generated_definitions/lem-for-rmem/riscv.lem
 .PHONY: riscv_rmem
