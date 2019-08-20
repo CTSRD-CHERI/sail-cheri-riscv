@@ -38,18 +38,18 @@ type CapAddrBits = bits(cap_addr_width)
 type CapLenBits  = bits(cap_len_width)
 
 function getCapHardPerms(cap) : Capability -> bits(12) =
-   (cap.permit_set_CID
-  @ cap.access_system_regs
-  @ cap.permit_unseal
-  @ cap.permit_ccall
-  @ cap.permit_seal
-  @ cap.permit_store_local_cap
-  @ cap.permit_store_cap
-  @ cap.permit_load_cap
-  @ cap.permit_store
-  @ cap.permit_load
-  @ cap.permit_execute
-  @ cap.global)
+   (bool_to_bits(cap.permit_set_CID)
+  @ bool_to_bits(cap.access_system_regs)
+  @ bool_to_bits(cap.permit_unseal)
+  @ bool_to_bits(cap.permit_ccall)
+  @ bool_to_bits(cap.permit_seal)
+  @ bool_to_bits(cap.permit_store_local_cap)
+  @ bool_to_bits(cap.permit_store_cap)
+  @ bool_to_bits(cap.permit_load_cap)
+  @ bool_to_bits(cap.permit_store)
+  @ bool_to_bits(cap.permit_load)
+  @ bool_to_bits(cap.permit_execute)
+  @ bool_to_bits(cap.global))
 
 /* Convert from capabilty struct to bits (no tag) */
 function capToBits(cap) : Capability -> CapBits = {
@@ -64,9 +64,9 @@ function capToBits(cap) : Capability -> CapBits = {
   return (cap.uperms
     @ getCapHardPerms(cap)
     @ cap.reserved
-    @ cap.flag_cap_mode
+    @ bool_to_bits(cap.flag_cap_mode)
     @ cap.otype
-    @ cap.internal_e
+    @ bool_to_bits(cap.internal_e)
     @ t_hi
     @ t_lo
     @ b_hi
@@ -135,7 +135,7 @@ function setCapBounds(cap, base, top) : (Capability, CapAddrBits, CapLenBits) ->
   let e = maxE - count_leading_zeros(length[cap_addr_width..mantissa_width - 1]);
   // Use use internal exponent if e is non-zero or if e is zero but
   // but the implied bit of length is not zero (denormal vs. normal case)
-  let ie = (e != 0) | length[mantissa_width - 2];
+  let ie = (e != 0) | length[mantissa_width - 2] == bitone;
 
   /* The non-ie e == 0 case is easy. It is exact so just extract relevant bits. */
   Bbits = truncate(base, mantissa_width);
@@ -167,13 +167,13 @@ function setCapBounds(cap, base, top) : (Capability, CapAddrBits, CapLenBits) ->
     /* Has the length overflowed? We chose e so that the top two bits of len would be 0b01,
        but either because of incrementing T or losing bits of base it might have grown. */
     len_ie = T_ie - B_ie;
-    if len_ie[mantissa_width - 4] then {
+    if len_ie[mantissa_width - 4] == bitone then {
       /* length overflow -- increment E by one and then recalculate
          T, B etc accordingly */
       incE = true;
 
-      lostSignificantBase = lostSignificantBase | B_ie[0];
-      lostSignificantTop  = lostSignificantTop | T_ie[0];
+      lostSignificantBase = lostSignificantBase | B_ie[0] == bitone;
+      lostSignificantTop  = lostSignificantTop | T_ie[0] == bitone;
 
       B_ie = truncate(base >> (e + 4), mantissa_width - 3);
       let incT : range(0,1) = if lostSignificantTop then 1 else 0;
@@ -196,31 +196,31 @@ function setCapPerms(cap, perms) : (Capability, bits(31)) -> Capability =
     { cap with
       uperms                 = truncate(perms[30..15], uperms_width),
       /* 14..12 reserved -- ignore */
-      permit_set_CID         = perms[11],
-      access_system_regs     = perms[10],
-      permit_unseal          = perms[9],
-      permit_ccall           = perms[8],
-      permit_seal            = perms[7],
-      permit_store_local_cap = perms[6],
-      permit_store_cap       = perms[5],
-      permit_load_cap        = perms[4],
-      permit_store           = perms[3],
-      permit_load            = perms[2],
-      permit_execute         = perms[1],
-      global                 = perms[0]
+      permit_set_CID         = bit_to_bool(perms[11]),
+      access_system_regs     = bit_to_bool(perms[10]),
+      permit_unseal          = bit_to_bool(perms[9]),
+      permit_ccall           = bit_to_bool(perms[8]),
+      permit_seal            = bit_to_bool(perms[7]),
+      permit_store_local_cap = bit_to_bool(perms[6]),
+      permit_store_cap       = bit_to_bool(perms[5]),
+      permit_load_cap        = bit_to_bool(perms[4]),
+      permit_store           = bit_to_bool(perms[3]),
+      permit_load            = bit_to_bool(perms[2]),
+      permit_execute         = bit_to_bool(perms[1]),
+      global                 = bit_to_bool(perms[0])
       }
 
 /*!
 Gets the architecture specific capability flags for given capability.
  */
 val getCapFlags : Capability -> CFlags
-function getCapFlags(cap) = cap.flag_cap_mode /* NB cast from bool to bits(1) */
+function getCapFlags(cap) = bool_to_bits(cap.flag_cap_mode)
 
 /*!
 THIS`(cap, flags)` sets the architecture specific capability flags on `cap` to `flags` and returns the result as new capability.
  */
 val setCapFlags : (Capability, CFlags) -> Capability
-function setCapFlags(cap, flags) = {cap with flag_cap_mode = flags[0]}
+function setCapFlags(cap, flags) = {cap with flag_cap_mode = bit_to_bool(flags[0])}
 
 function sealCap(cap, otyp) : (Capability, bits(24)) -> (bool, Capability) =
     (true, {cap with sealed=true, otype=truncate(otyp, otype_width)})

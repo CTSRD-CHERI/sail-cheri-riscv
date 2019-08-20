@@ -92,14 +92,14 @@ function clause execute (CGetLen(rd, cb)) =
 function clause execute (CGetTag(rd, cb)) =
 {
   let capVal = readCapReg(cb);
-  X(rd) = EXTZ(capVal.tag);
+  X(rd) = EXTZ(bool_to_bits(capVal.tag));
   RETIRE_SUCCESS
 }
 
 function clause execute (CGetSealed(rd, cb)) =
 {
   let capVal = readCapReg(cb);
-  X(rd) = EXTZ(capVal.sealed);
+  X(rd) = EXTZ(bool_to_bits(capVal.sealed));
   RETIRE_SUCCESS
 }
 
@@ -156,7 +156,7 @@ function clause execute (CSetCause(rt)) =
 union clause ast = CSpecialRW : (regidx, regidx, regidx)
 function clause execute (CSpecialRW(cd, cs, idx)) =
 {
-  let (specialExists, ro, priv, needASR) : (bool, bool, Privilege, bool) = match idx {
+  let (specialExists, ro, priv, needASR) : (bool, bool, Privilege, bool) = match unsigned(idx) {
     0  => (true, true,  User, false),
     1  => (true, false, User, false),
     4 if haveNExt() => (true, false, User, true),
@@ -176,16 +176,16 @@ function clause execute (CSpecialRW(cd, cs, idx)) =
   if (not(specialExists)) then {
     handle_illegal();
     RETIRE_FAIL
-  } else if (ro & cs != 0) |
-     (cur_privilege <_u priv) |
+  } else if (ro & cs != 0b00000) |
+     (privLevel_to_bits(cur_privilege) <_u privLevel_to_bits(priv)) |
      (needASR & not(pcc_access_system_regs())) then {
     handle_cheri_cap_exception(CapEx_AccessSystemRegsViolation, 0b1 @ idx);
     RETIRE_FAIL
   } else {
     let cs_val = readCapReg(cs);
-    if (cd != 0) then {
+    if (cd != 0b00000) then {
       // read special cap
-      let special_val : Capability = match idx {
+      let special_val : Capability = match unsigned(idx) {
         0  => {
           let (success, pcc) = setCapAddr(PCC, PC);
           assert (success, "PCC with offset PC should always be representable");
@@ -208,9 +208,9 @@ function clause execute (CSpecialRW(cd, cs, idx)) =
       };
       writeCapReg(cd, special_val);
     };
-    if (cs != 0) then {
+    if (cs != 0b00000) then {
       // write special cap
-      match idx {
+      match unsigned(idx) {
         1  => DDC = cs_val,
         4  => UTCC = legalize_tcc(UTCC, cs_val),
         5  => UTDC = cs_val,
@@ -465,7 +465,7 @@ function clause execute (ClearRegs(regset, q, m)) =
     checkCP2usable();
   */
   foreach (i from 0 to 7)
-    if (m[i]) then
+    if m[i] == bitone then
       match regset {
         GPRegs => X(8 * unsigned(q) + i) = zeros(),
         FPRegs => () /* XXX no F regs yet */
@@ -847,7 +847,7 @@ function clause execute (CCall(cs, cb, 0b00001)) = /* selector=1 */
   } else if not(inCapBounds(cs_val, newPC, min_instruction_bytes())) then {
     handle_cheri_reg_exception(CapEx_LengthViolation, cs);
     RETIRE_FAIL
-  } else if newPC[1] & ~(haveRVC()) then {
+  } else if newPC[1] == bitone & ~(haveRVC()) then {
     handle_mem_exception(newPC,  E_Fetch_Addr_Align);
     RETIRE_FAIL
   } else {
@@ -881,7 +881,7 @@ function clause execute(CJALR(cd, cb)) =
   } else if not(inCapBounds(cb_val, newPC, min_instruction_bytes())) then {
     handle_cheri_reg_exception(CapEx_LengthViolation, cb);
     RETIRE_FAIL
-  } else if newPC[1] & ~(haveRVC()) then {
+  } else if newPC[1] == bitone & ~(haveRVC()) then {
     handle_mem_exception(newPC,  E_Fetch_Addr_Align);
     RETIRE_FAIL
   } else {

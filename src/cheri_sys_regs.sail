@@ -95,7 +95,7 @@ function min_instruction_bytes () -> CapAddrInt = {
 
 function haveXcheri () -> bool =
   /* This is a necessary but not sufficient condition, but should do for now. */
-  misa.X() == true
+  misa.X() == 0b1
 
 
 function legalize_tcc(o : Capability, v : Capability) -> Capability = {
