@@ -3,9 +3,8 @@
 /* Capability control csr */
 
 bitfield ccsr : xlenbits = {
-  cap_idx : 13 .. 8,
-  cause   :  7 .. 3, /* cap cause */
-  m       :  2,      /* mode */
+  cap_idx : 15 .. 10,
+  cause   :  9 .. 5, /* cap cause */
   d       :  1,      /* dirty  */
   e       :  0       /* enable */
 }
@@ -24,9 +23,8 @@ function legalize_ccsr(c : ccsr, v : xlenbits) -> ccsr = {
   let v = Mk_ccsr(v);
   let c = update_cap_idx(c, v.cap_idx());
   let c = update_cause(c, v.cause());
-  let c = update_m(c, v.m());
-  let c = update_d(c, v.d());
-  let c = update_e(c, v.e());
+  let c = update_d(c, true);
+  let c = update_e(c, true);
   c
 }
 

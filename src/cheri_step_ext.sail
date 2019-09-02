@@ -1,8 +1,11 @@
 /* set misa.X to indicate the presence of a non-standard extension. */
 
 val ext_init : unit -> unit effect {wreg}
-function ext_init () =
-  misa->X() = 0b1
+function ext_init () = {
+  misa->X() = 0b1;
+  mccsr->d() = 0b1;
+  mccsr->e() = 0b1
+}
 
 /* other hooks are not currently used. */
 function ext_fetch_hook(f : FetchResult) -> FetchResult = f
