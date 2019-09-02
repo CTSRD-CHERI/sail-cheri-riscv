@@ -1204,9 +1204,9 @@ mapping clause encdec = CCSeal(cd, cs, ct)      if (haveXcheri()) <-> 0b0011111 
 mapping clause encdec = CToPtr(rd, cb, cs)      if (haveXcheri()) <-> 0b0010010 @ cs @ cb @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CFromPtr(cd, cb, rs)    if (haveXcheri()) <-> 0b0010011 @ rs @ cb @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CSub(rd, cb, ct)        if (haveXcheri()) <-> 0b0010100 @ ct @ cb @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
-mapping clause encdec = CCall(cs, cb, 0b00000)  if (haveXcheri()) <-> 0b1111110 @ 0b00000 @ cb @ 0b000 @ cs @ 0b1011011 /* CCall */ if (haveXcheri())
-mapping clause encdec = CCall(cs, cb, 0b00001)  if (haveXcheri()) <-> 0b1111110 @ 0b00001 @ cb @ 0b000 @ cs @ 0b1011011 /* CCallFast */ if (haveXcheri())
-mapping clause encdec = CCall(cs, cb, 0b11111)  if (haveXcheri()) <-> 0b1111110 @ 0b11111 @ cb @ 0b000 @ cs @ 0b1011011 /* CReturn */ if (haveXcheri())
+mapping clause encdec = CCall(cs, cb, 0b00000)  if (haveXcheri()) <-> 0b1111110 @ cb @ cs @ 0b000 @ 0b00000 @ 0b1011011 /* CCall */ if (haveXcheri())
+mapping clause encdec = CCall(cs, cb, 0b00001)  if (haveXcheri()) <-> 0b1111110 @ cb @ cs @ 0b000 @ 0b00001 @ 0b1011011 /* CCallFast */ if (haveXcheri())
+mapping clause encdec = CCall(cs, cb, 0b11111)  if (haveXcheri()) <-> 0b1111110 @ cb @ cs @ 0b000 @ 0b11111 @ 0b1011011 /* CReturn */ if (haveXcheri())
 
 mapping clause encdec = CTestSubset(rd, cb, ct) if (haveXcheri()) <-> 0b0100000 @ ct @ cb @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CSpecialRW(cd, cs, idx) if (haveXcheri()) <-> 0b0000001 @ idx @ cs @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
