@@ -851,7 +851,7 @@ function clause execute (CCall(cs, cb, 0b00001)) = /* selector=1 */
     handle_mem_exception(newPC,  E_Fetch_Addr_Align);
     RETIRE_FAIL
   } else {
-    C26 = unsealCap(cb_val);
+    writeCapReg(31, unsealCap(cb_val));
     nextPC = newPC;
     nextPCC = unsealCap(cs_val);
     RETIRE_SUCCESS
