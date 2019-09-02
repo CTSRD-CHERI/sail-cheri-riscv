@@ -33,7 +33,7 @@
 /*========================================================================*/
 
 
-let max_otype = MAX(otype_width)
+let max_otype = MAX(otype_width) - reserved_otypes
 type CapAddrBits = bits(cap_addr_width)
 type CapLenBits  = bits(cap_len_width)
 
