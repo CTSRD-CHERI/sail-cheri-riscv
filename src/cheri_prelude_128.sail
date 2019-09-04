@@ -140,7 +140,7 @@ let default_cap : Capability = struct {
 
 /* Convert from capabilty bits (128 bits with tag) to a more convenient struct. */
 function capBitsToCapability(t, c) : (bool, CapBits) -> Capability = {
-  internal_exponent : bool = c[90];
+  internal_exponent : bool = bit_to_bool(c[90]);
   otype : bits(18) = c[108..91];
   let sealed : bool = otype != ones();
   E : bits(6)  = zeros();
@@ -170,20 +170,20 @@ function capBitsToCapability(t, c) : (bool, CapBits) -> Capability = {
   return struct {
     tag                    = t,
     uperms                 = c[127..124],
-    permit_set_CID         = c[123],
-    access_system_regs     = c[122],
-    permit_unseal          = c[121],
-    permit_ccall           = c[120],
-    permit_seal            = c[119],
-    permit_store_local_cap = c[118],
-    permit_store_cap       = c[117],
-    permit_load_cap        = c[116],
-    permit_store           = c[115],
-    permit_load            = c[114],
-    permit_execute         = c[113],
-    global                 = c[112],
+    permit_set_CID         = bit_to_bool(c[123]),
+    access_system_regs     = bit_to_bool(c[122]),
+    permit_unseal          = bit_to_bool(c[121]),
+    permit_ccall           = bit_to_bool(c[120]),
+    permit_seal            = bit_to_bool(c[119]),
+    permit_store_local_cap = bit_to_bool(c[118]),
+    permit_store_cap       = bit_to_bool(c[117]),
+    permit_load_cap        = bit_to_bool(c[116]),
+    permit_store           = bit_to_bool(c[115]),
+    permit_load            = bit_to_bool(c[114]),
+    permit_execute         = bit_to_bool(c[113]),
+    global                 = bit_to_bool(c[112]),
     reserved               = c[111..110],
-    flag_cap_mode          = c[109],
+    flag_cap_mode          = bit_to_bool(c[109]),
     internal_e             = internal_exponent,
     E                      = E,
     sealed                 = sealed,

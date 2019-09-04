@@ -1,0 +1,35 @@
+diff --git a/sail-riscv b/sail-riscv
+--- a/sail-riscv
++++ b/sail-riscv
+@@ -1 +1 @@
+-Subproject commit e6cd25ff7e36e5134d1de2cdf8bb68dce97a567b
++Subproject commit e6cd25ff7e36e5134d1de2cdf8bb68dce97a567b-dirty
+diff --git a/src/cheri_cap_common.sail b/src/cheri_cap_common.sail
+index b0bcefe..6730bbe 100644
+--- a/src/cheri_cap_common.sail
++++ b/src/cheri_cap_common.sail
+@@ -135,7 +135,7 @@ function setCapBounds(cap, base, top) : (Capability, CapAddrBits, CapLenBits) ->
+   let e = maxE - count_leading_zeros(length[cap_addr_width..mantissa_width - 1]);
+   // Use use internal exponent if e is non-zero or if e is zero but
+   // but the implied bit of length is not zero (denormal vs. normal case)
+-  let ie = (e != 0) | length[mantissa_width - 2];
++  let ie = (e != 0) : bool | length[mantissa_width - 2];
+ 
+   /* The non-ie e == 0 case is easy. It is exact so just extract relevant bits. */
+   Bbits = truncate(base, mantissa_width);
+diff --git a/src/cheri_sys_regs.sail b/src/cheri_sys_regs.sail
+index 2602c1e..81976b6 100644
+--- a/src/cheri_sys_regs.sail
++++ b/src/cheri_sys_regs.sail
+@@ -93,9 +93,9 @@ function min_instruction_bytes () -> CapAddrInt = {
+ 
+ /* Checking whether the Xcheri extension is enabled */
+ 
+-function haveXcheri () -> bool =
++function haveXcheri () -> bool = true /* hardcoded temporarily to avoid register read */
+   /* This is a necessary but not sufficient condition, but should do for now. */
+-  misa.X() == true
++/*  misa.X() == true*/
+ 
+ 
+ function legalize_tcc(o : Capability, v : Capability) -> Capability = {

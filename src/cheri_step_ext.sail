@@ -2,7 +2,7 @@
 
 val ext_init : unit -> unit effect {wreg}
 function ext_init () =
-  misa->X() = true
+  misa->X() = 0b1
 
 /* other hooks are not currently used. */
 function ext_fetch_hook(f : FetchResult) -> FetchResult = f
