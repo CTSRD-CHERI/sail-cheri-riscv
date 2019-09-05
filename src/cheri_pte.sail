@@ -25,12 +25,12 @@ bitfield Ext_PTE_Bits : extPte = {
 
 function isPTEPtr(p : pteAttribs, ext : extPte) -> bool = {
   let a = Mk_PTE_Bits(p);
-  a.R() == false & a.W() == false & a.X() == false
+  a.R() == 0b0 & a.W() == 0b0 & a.X() == 0b0
 }
 
 function isInvalidPTE(p : pteAttribs, ext : extPte) -> bool = {
   let a = Mk_PTE_Bits(p);
-  a.V() == false | (a.W() == true & a.R() == false)
+  a.V() == 0b0 | (a.W() == 0b1 & a.R() == 0b0)
 }
 
 union PTE_Check = {
@@ -44,21 +44,21 @@ function to_pte_check(b : bool) -> (bool, pte_check) =
 function checkPTEPermission(ac : AccessType(ext_access_type), priv : Privilege, mxr : bool, do_sum : bool, p : PTE_Bits, ext : extPte, ext_ptw : ext_ptw) -> PTE_Check = {
   let (succ, pte_chk) : (bool, pte_check) =
   match (ac, priv) {
-    (Read(Data),      User)       => to_pte_check(p.U() == true & (p.R() == true | (p.X() == true & mxr))),
-    (Write(Data),     User)       => to_pte_check(p.U() == true & p.W() == true),
-    (ReadWrite(Data), User)       => to_pte_check(p.U() == true & p.W() == true & (p.R() == true | (p.X() == true & mxr))),
-    (Execute(),       User)       => to_pte_check(p.U() == true & p.X() == true),
+    (Read(Data),      User)       => to_pte_check(p.U() == 0b1 & (p.R() == 0b1 | (p.X() == 0b1 & mxr))),
+    (Write(Data),     User)       => to_pte_check(p.U() == 0b1 & p.W() == 0b1),
+    (ReadWrite(Data), User)       => to_pte_check(p.U() == 0b1 & p.W() == 0b1 & (p.R() == 0b1 | (p.X() == 0b1 & mxr))),
+    (Execute(),       User)       => to_pte_check(p.U() == 0b1 & p.X() == 0b1),
 
-    (Read(Data),      Supervisor) => to_pte_check((p.U() == false | do_sum) & (p.R() == true | (p.X() == true & mxr))),
-    (Write(Data),     Supervisor) => to_pte_check((p.U() == false | do_sum) & p.W() == true),
-    (ReadWrite(Data), Supervisor) => to_pte_check((p.U() == false | do_sum) & p.W() == true & (p.R() == true | (p.X() == true & mxr))),
-    (Execute(),       Supervisor) => to_pte_check(p.U() == false & p.X() == true),
+    (Read(Data),      Supervisor) => to_pte_check((p.U() == 0b0 | do_sum) & (p.R() == 0b1 | (p.X() == 0b1 & mxr))),
+    (Write(Data),     Supervisor) => to_pte_check((p.U() == 0b0 | do_sum) & p.W() == 0b1),
+    (ReadWrite(Data), Supervisor) => to_pte_check((p.U() == 0b0 | do_sum) & p.W() == 0b1 & (p.R() == 0b1 | (p.X() == 0b1 & mxr))),
+    (Execute(),       Supervisor) => to_pte_check(p.U() == 0b0 & p.X() == 0b1),
 
     (Read(Cap),       User)       => { /* load-cap should probably not be affected by mxr. */
-                                       if   p.U() == true & p.R() == true
+                                       if   p.U() == 0b1 & p.R() == 0b1
                                        then {
                                          let  e = Mk_Ext_PTE_Bits(ext);
-                                         if   e.LoadCap() == true
+                                         if   e.LoadCap() == 0b1
                                          then (true, PTE_CAP_OK)
                                          else {
                                            /* Allow the address translation to proceed, but mark for tag stripping */
@@ -68,10 +68,10 @@ function checkPTEPermission(ac : AccessType(ext_access_type), priv : Privilege, 
                                        else (false, PTE_CAP_OK)
                                      },
 
-    (Write(Cap),      User)       => { if   p.U() == true & p.W() == true
+    (Write(Cap),      User)       => { if   p.U() == 0b1 & p.W() == 0b1
                                        then {
                                          let  e = Mk_Ext_PTE_Bits(ext);
-                                         if   e.StoreCap() == true
+                                         if   e.StoreCap() == 0b1
                                          then (true, PTE_CAP_OK)
                                          else {
                                            /* Do not allow the address translation to proceed */
@@ -81,12 +81,12 @@ function checkPTEPermission(ac : AccessType(ext_access_type), priv : Privilege, 
                                        else (false, PTE_CAP_OK)
                                      },
 
-    (ReadWrite(Cap),  User)       => { if   p.U() == true & p.R() == true & p.W() == true
+    (ReadWrite(Cap),  User)       => { if   p.U() == 0b1 & p.R() == 0b1 & p.W() == 0b1
                                        then {
                                          let  e = Mk_Ext_PTE_Bits(ext);
-                                         if   e.StoreCap() == true & e.LoadCap() == true
+                                         if   e.StoreCap() == 0b1 & e.LoadCap() == 0b1
                                          then (true, PTE_CAP_OK)
-                                         else if e.StoreCap() == false
+                                         else if e.StoreCap() == 0b0
                                          /* return a failure since we should cause an exception */
                                          then (false, PTE_STORE_CAP_ERR)
                                          /* return a success since the translation should proceed */
@@ -95,10 +95,10 @@ function checkPTEPermission(ac : AccessType(ext_access_type), priv : Privilege, 
                                        else (false, PTE_CAP_OK)
                                      },
 
-    (Read(Cap),       Supervisor) => { if   (p.U() == false | do_sum) & p.R() == true
+    (Read(Cap),       Supervisor) => { if   (p.U() == 0b0 | do_sum) & p.R() == 0b1
                                        then {
                                          let  e = Mk_Ext_PTE_Bits(ext);
-                                         if   e.LoadCap() == true
+                                         if   e.LoadCap() == 0b1
                                          then (true, PTE_CAP_OK)
                                          else (true, PTE_LOAD_CAP_ERR)
                                        }
@@ -106,9 +106,9 @@ function checkPTEPermission(ac : AccessType(ext_access_type), priv : Privilege, 
                                      },
 
     (Write(Cap),      Supervisor) => { let e = Mk_Ext_PTE_Bits(ext);
-                                       if   (p.U() == false | do_sum) & p.W() == true
+                                       if   (p.U() == 0b0 | do_sum) & p.W() == 0b1
                                        then {
-                                         if   e.StoreCap() == true
+                                         if   e.StoreCap() == 0b1
                                          then (true,  PTE_CAP_OK)
                                          else (false, PTE_STORE_CAP_ERR)
                                        }
@@ -116,11 +116,11 @@ function checkPTEPermission(ac : AccessType(ext_access_type), priv : Privilege, 
                                      },
 
     (ReadWrite(Cap),  Supervisor) => { let e = Mk_Ext_PTE_Bits(ext);
-                                       if   (p.U() == false | do_sum) & p.R() == true & p.W() == true
+                                       if   (p.U() == 0b0 | do_sum) & p.R() == 0b1 & p.W() == 0b1
                                        then {
-                                         if   e.StoreCap() == true & e.LoadCap() == true
+                                         if   e.StoreCap() == 0b1 & e.LoadCap() == 0b1
                                          then (true, PTE_CAP_OK)
-                                         else if e.StoreCap() == false
+                                         else if e.StoreCap() == 0b0
                                          /* return a failure since we should cause an exception */
                                          then (false, PTE_STORE_CAP_ERR)
                                          /* return a success since the translation should proceed */
@@ -137,11 +137,11 @@ function checkPTEPermission(ac : AccessType(ext_access_type), priv : Privilege, 
 }
 
 function update_PTE_Bits(p : PTE_Bits, a : AccessType(ext_access_type), ext : extPte) -> option((PTE_Bits, extPte)) = {
-  let update_d = (a == Write(Data) | a == ReadWrite(Data)) & p.D() == false; // dirty-bit
-  let update_a = p.A() == false;                                             // accessed-bit
+  let update_d = (a == Write(Data) | a == ReadWrite(Data)) & p.D() == 0b0; // dirty-bit
+  let update_a = p.A() == 0b0;                                             // accessed-bit
   if update_d | update_a then {
-    let np = update_A(p, true);
-    let np = if update_d then update_D(np, true) else np;
+    let np = update_A(p, 0b1);
+    let np = if update_d then update_D(np, 0b1) else np;
     Some(np, ext)
   } else None()
 }

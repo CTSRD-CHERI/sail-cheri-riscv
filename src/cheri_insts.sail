@@ -848,7 +848,7 @@ function clause execute (CCall(cs, cb, 0b00001)) = /* selector=1 */
     handle_cheri_reg_exception(CapEx_LengthViolation, cs);
     RETIRE_FAIL
   } else if newPC[1] == bitone & ~(haveRVC()) then {
-    handle_mem_exception(newPC,  E_Fetch_Addr_Align);
+    handle_mem_exception(newPC,  E_Fetch_Addr_Align());
     RETIRE_FAIL
   } else {
     C26 = unsealCap(cb_val);
@@ -882,7 +882,7 @@ function clause execute(CJALR(cd, cb)) =
     handle_cheri_reg_exception(CapEx_LengthViolation, cb);
     RETIRE_FAIL
   } else if newPC[1] == bitone & ~(haveRVC()) then {
-    handle_mem_exception(newPC,  E_Fetch_Addr_Align);
+    handle_mem_exception(newPC,  E_Fetch_Addr_Align());
     RETIRE_FAIL
   } else {
     let (success, linkCap) = setCapAddr(PCC, nextPC); /* Note that nextPC accounts for compressed instrucitons */
