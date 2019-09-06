@@ -90,6 +90,7 @@ SAIL_ARCH_SRCS = $(PRELUDE) \
 SAIL_ARCH_RVFI_SRCS = \
                  $(PRELUDE) \
                  $(SAIL_RISCV_MODEL_DIR)/rvfi_dii.sail \
+                 $(SAIL_CHERI_MODEL_DIR)/cheri_riscv_types.sail \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_types.sail \
                  $(SAIL_REGS_SRCS) \
                  $(SAIL_SYS_SRCS) \
