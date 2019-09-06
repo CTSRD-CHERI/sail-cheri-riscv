@@ -9,7 +9,7 @@ function handle_cheri_cap_exception(capEx, regnum) =
         capEx   = capEx
     };
     let t : sync_exception = struct {
-      trap    = E_CHERI,
+      trap    = E_Extension(EXC_CHERI),
       excinfo = (None() : option(xlenbits)),
       ext     = Some(cause)
     };
@@ -110,22 +110,22 @@ function get_cheri_cap_addr (base_reg : regidx, offset : xlenbits) = {
     (ddc, ddc.address + X(base_reg) + offset, DDC_IDX);
 }
 
-function ext_data_get_addr(base_reg : regidx, offset : xlenbits, acc : AccessType, width : word_width)
+function ext_data_get_addr(base_reg : regidx, offset : xlenbits, acc : AccessType(ext_access_type), width : word_width)
          -> Ext_DataAddr_Check(ext_data_addr_error) = {
 
   let (cap_val, newAddr, cause_regno) = get_cheri_cap_addr(base_reg, offset);
 
   let have_rqd_load_perm : bool = match acc {
-    Read       => cap_val.permit_load,
-    Write      => true,
-    ReadWrite  => cap_val.permit_load,
-    Execute    => false /* should only be for load/store */
+    Read(Data)       => cap_val.permit_load,
+    Write(Data)      => true,
+    ReadWrite(Data)  => cap_val.permit_load,
+    Execute()        => false /* should only be for load/store */
   };
   let have_rqd_store_perm : bool = match acc {
-    Read       => true,
-    Write      => cap_val.permit_store,
-    ReadWrite  => cap_val.permit_store,
-    Execute    => false /* should only be for load/store */
+    Read(Data)       => true,
+    Write(Data)      => cap_val.permit_store,
+    ReadWrite(Data)  => cap_val.permit_store,
+    Execute()        => false /* should only be for load/store */
   };
 
   if not(cap_val.tag) then

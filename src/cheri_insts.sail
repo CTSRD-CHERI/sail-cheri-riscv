@@ -848,7 +848,7 @@ function clause execute (CCall(cs, cb, 0b00001)) = /* selector=1 */
     handle_cheri_reg_exception(CapEx_LengthViolation, cs);
     RETIRE_FAIL
   } else if newPC[1] == bitone & ~(haveRVC()) then {
-    handle_mem_exception(newPC,  E_Fetch_Addr_Align);
+    handle_mem_exception(newPC,  E_Fetch_Addr_Align());
     RETIRE_FAIL
   } else {
     writeCapReg(31, unsealCap(cb_val));
@@ -882,7 +882,7 @@ function clause execute(CJALR(cd, cb)) =
     handle_cheri_reg_exception(CapEx_LengthViolation, cb);
     RETIRE_FAIL
   } else if newPC[1] == bitone & ~(haveRVC()) then {
-    handle_mem_exception(newPC,  E_Fetch_Addr_Align);
+    handle_mem_exception(newPC,  E_Fetch_Addr_Align());
     RETIRE_FAIL
   } else {
     let (success, linkCap) = setCapAddr(PCC, nextPC); /* Note that nextPC accounts for compressed instrucitons */
@@ -912,16 +912,17 @@ function handle_load_data_via_cap(rd, cs, cap_val, vaddrBits, is_unsigned, width
     handle_cheri_cap_exception(CapEx_LengthViolation, cs);
     RETIRE_FAIL
   } else if check_misaligned(vaddrBits, width) then {
-    handle_mem_exception(vaddrBits, E_Load_Addr_Align);
+    handle_mem_exception(vaddrBits, E_Load_Addr_Align());
     RETIRE_FAIL
-  } else match translateAddr(vaddrBits, Read) {
-    TR_Failure(e) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
-    TR_Address(addr) =>
+  } else match translateAddr(vaddrBits, Read(Data)) {
+    TR_Failure(E_Extension(_), _) => { internal_error("unexpected cheri exception for data load") },
+    TR_Failure(e, _) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
+    TR_Address(addr, _) =>
       match (width, sizeof(xlen)) {
-        (BYTE, _)    => process_load(rd, vaddrBits, mem_read(Read, addr, 1, aq, rl, false), is_unsigned),
-        (HALF, _)    => process_load(rd, vaddrBits, mem_read(Read, addr, 2, aq, rl, false), is_unsigned),
-        (WORD, _)    => process_load(rd, vaddrBits, mem_read(Read, addr, 4, aq, rl, false), is_unsigned),
-        (DOUBLE, 64) => process_load(rd, vaddrBits, mem_read(Read, addr, 8, aq, rl, false), is_unsigned)
+        (BYTE, _)    => process_load(rd, vaddrBits, mem_read(Read(Data), addr, 1, aq, rl, false), is_unsigned),
+        (HALF, _)    => process_load(rd, vaddrBits, mem_read(Read(Data), addr, 2, aq, rl, false), is_unsigned),
+        (WORD, _)    => process_load(rd, vaddrBits, mem_read(Read(Data), addr, 4, aq, rl, false), is_unsigned),
+        (DOUBLE, 64) => process_load(rd, vaddrBits, mem_read(Read(Data), addr, 8, aq, rl, false), is_unsigned)
       }
   }
 }
@@ -959,14 +960,21 @@ function handle_load_cap_via_cap(rd, cs, cap_val, vaddrBits) = {
     handle_cheri_cap_exception(CapEx_LengthViolation, cs);
     RETIRE_FAIL
   } else if not(is_aligned_addr(vaddrBits, cap_size)) then {
-    handle_mem_exception(vaddrBits, E_Load_Addr_Align);
+    handle_mem_exception(vaddrBits, E_Load_Addr_Align());
     RETIRE_FAIL
-  } else match translateAddr(vaddrBits, Read) {
-    TR_Failure(e) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
-    TR_Address(addr) => {
+  } else match translateAddr(vaddrBits, Read(Cap)) {
+    TR_Failure(E_Extension(_), _) => { internal_error("unexpected cheri exception for cap load") },
+    TR_Failure(e, _) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
+    TR_Address(addr, ptw_info) => {
       let c = mem_read_cap(addr, aq, rl, false);
       match c {
-        MemValue(v) => {writeCapReg(rd, {v with tag = v.tag & cap_val.permit_load_cap}); RETIRE_SUCCESS},
+        MemValue(v) => {
+          let cr = if ptw_info == PTW_LOAD_CAP_ERR
+                   then {v with tag = false} /* strip the tag */
+                   else {v with tag = v.tag & cap_val.permit_load_cap};
+          writeCapReg(rd, cr);
+          RETIRE_SUCCESS
+        },
         MemException(e) => {handle_mem_exception(vaddrBits, e); RETIRE_FAIL }
       }
     }
@@ -1007,11 +1015,12 @@ function handle_store_data_via_cap(rs, cs, cap_val, vaddrBits, width) = {
     handle_cheri_cap_exception(CapEx_LengthViolation, cs);
     RETIRE_FAIL
   } else if check_misaligned(vaddrBits, width) then {
-    handle_mem_exception(vaddrBits, E_SAMO_Addr_Align);
+    handle_mem_exception(vaddrBits, E_SAMO_Addr_Align());
     RETIRE_FAIL
-  } else match translateAddr(vaddrBits, Write) {
-    TR_Failure(e) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
-    TR_Address(addr) => {
+  } else match translateAddr(vaddrBits, Write(Data)) {
+    TR_Failure(E_Extension(_), _) => { internal_error("unexpected cheri exception for data store") },
+    TR_Failure(e, _) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
+    TR_Address(addr, _) => {
       let eares : MemoryOpResult(unit) = mem_write_ea(addr, size, aq, rl, false);
       match (eares) {
         MemException(e) => { handle_mem_exception(addr, e); RETIRE_FAIL },
@@ -1074,11 +1083,16 @@ function handle_store_cap_via_cap(rs, cs, cap_val, vaddrBits) = {
     handle_cheri_cap_exception(CapEx_LengthViolation, cs);
     RETIRE_FAIL
   } else if not(is_aligned_addr(vaddrBits, cap_size)) then {
-    handle_mem_exception(vaddrBits, E_SAMO_Addr_Align);
+    handle_mem_exception(vaddrBits, E_SAMO_Addr_Align());
     RETIRE_FAIL
-  } else match translateAddr(vaddrBits, Write) {
-    TR_Failure(e) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
-    TR_Address(addr) => {
+  } else match translateAddr(vaddrBits, Write(Cap)) {
+    TR_Failure(E_Extension(EXC_CHERI_VMEM_STORE_CAP), _) => {
+      handle_cheri_cap_exception(CapEx_TLBNoStoreCap, cs);
+      RETIRE_FAIL
+    },
+    TR_Failure(E_Extension(_), _) => { internal_error("unexpected cheri exception for cap store") },
+    TR_Failure(e, _) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
+    TR_Address(addr, _) => {
       let eares : MemoryOpResult(unit) = mem_write_ea_cap(addr, aq, rl, false);
       match (eares) {
         MemException(e) => { handle_mem_exception(addr, e); RETIRE_FAIL },
