@@ -23,8 +23,9 @@ function legalize_ccsr(c : ccsr, v : xlenbits) -> ccsr = {
   let v = Mk_ccsr(v);
   let c = update_cap_idx(c, v.cap_idx());
   let c = update_cause(c, v.cause());
-  let c = update_d(c, true);
-  let c = update_e(c, true);
+  /* For now these bits are not really supported so hardwired to true */
+  let c = update_d(c, 0b1);
+  let c = update_e(c, 0b1);
   c
 }
 
