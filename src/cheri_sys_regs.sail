@@ -29,39 +29,22 @@ function legalize_ccsr(c : ccsr, v : xlenbits) -> ccsr = {
   c
 }
 
-function read_Xcheri_CSR(csr : csreg) -> option(xlenbits) = {
-  let res : option(xlenbits) =
-  match csr {
-    0x8C0 => Some(uccsr.bits()),
-    0x9C0 => Some(sccsr.bits()),
-    0xBC0 => Some(mccsr.bits()),
-    _     => None()
-  };
-  res
-}
+// XXX these are currently disabled due to sail bug when compiling C
+//mapping clause csr_name_map = 0x8c0 <-> "uccsr"
+//mapping clause csr_name_map = 0x9c0 <-> "sccsr"
+//mapping clause csr_name_map = 0xBc0 <-> "mccsr"
 
-function write_Xcheri_CSR(csr: csreg, value : xlenbits) -> bool = {
-  let res : option(xlenbits) =
-  match csr {
-    0x8C0 => { uccsr = legalize_ccsr(uccsr, value); Some(uccsr.bits()) },
-    0x9C0 => { sccsr = legalize_ccsr(sccsr, value); Some(sccsr.bits()) },
-    0xBC0 => { mccsr = legalize_ccsr(mccsr, value); Some(mccsr.bits()) },
-    _     => None()
-  };
-  match res {
-    Some(v) => { print_reg("CSR " ^ BitStr(csr) ^ " <- " ^ BitStr(v) ^ " (input: " ^ BitStr(value) ^ ")");
-                 true },
-    None()  => false
-  }
-}
+function clause ext_read_CSR (0x8C0) = Some(uccsr.bits())
+function clause ext_read_CSR (0x9C0) = Some(sccsr.bits())
+function clause ext_read_CSR (0xBC0) = Some(mccsr.bits())
 
-function is_XCheri_CSR_defined(csr : bits(12), p : Privilege) -> bool =
-  match csr {
-    0x8C0 => haveUsrMode(),                                    // uccsr
-    0x9C0 => haveSupMode() & (p == Machine | p == Supervisor), // sccsr
-    0xBC0 => p == Machine | p == Supervisor,                   // mccsr
-    _     => false
-  }
+function clause ext_write_CSR (0x8C0, value) = { uccsr = legalize_ccsr(uccsr, value); Some(uccsr.bits()) }
+function clause ext_write_CSR (0x9C0, value) = { sccsr = legalize_ccsr(sccsr, value); Some(sccsr.bits()) }
+function clause ext_write_CSR (0xBC0, value) = { mccsr = legalize_ccsr(mccsr, value); Some(mccsr.bits()) }
+
+function clause ext_is_CSR_defined (0x8C0, p) = haveUsrMode()  // uccsr
+function clause ext_is_CSR_defined (0x9C0, p) = haveSupMode() & (p == Machine | p == Supervisor) // sccsr
+function clause ext_is_CSR_defined (0xBC0, p) = p == Machine | p == Supervisor // mccsr
 
 /* Other architectural registers */
 

@@ -37,12 +37,11 @@ SAIL_SEQ_INST_SRCS  = $(SAIL_RISCV_MODEL_DIR)/riscv_insts_begin.sail $(SAIL_SEQ_
 SAIL_RMEM_INST_SRCS = $(SAIL_RISCV_MODEL_DIR)/riscv_insts_begin.sail $(SAIL_RMEM_INST) $(SAIL_RISCV_MODEL_DIR)/riscv_insts_end.sail
 
 # System and platform sources
-SAIL_SYS_SRCS =  $(SAIL_RISCV_MODEL_DIR)/riscv_csr_map.sail
 SAIL_SYS_SRCS += $(SAIL_RISCV_MODEL_DIR)/riscv_next_regs.sail
 SAIL_SYS_SRCS += $(SAIL_CHERI_MODEL_DIR)/cheri_sys_exceptions.sail
 SAIL_SYS_SRCS += $(SAIL_RISCV_MODEL_DIR)/riscv_sync_exception.sail
 SAIL_SYS_SRCS += $(SAIL_RISCV_MODEL_DIR)/riscv_next_control.sail
-SAIL_SYS_SRCS += $(SAIL_CHERI_MODEL_DIR)/cheri_csr_ext.sail
+SAIL_SYS_SRCS += $(SAIL_RISCV_MODEL_DIR)/riscv_csr_ext.sail
 SAIL_SYS_SRCS += $(SAIL_RISCV_MODEL_DIR)/riscv_sys_control.sail
 SAIL_SYS_SRCS += $(SAIL_CHECK_SRCS)
 
@@ -68,6 +67,7 @@ PRELUDE = $(SAIL_RISCV_MODEL_DIR)/prelude.sail \
           $(SAIL_CHERI_MODEL_DIR)/cheri_cap_common.sail
 
 SAIL_REGS_SRCS = $(SAIL_CHERI_MODEL_DIR)/cheri_reg_type.sail \
+                 $(SAIL_RISCV_MODEL_DIR)/riscv_csr_map.sail \
                  $(SAIL_CHERI_MODEL_DIR)/cheri_vmem_types.sail \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_regs.sail \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_sys_regs.sail \
