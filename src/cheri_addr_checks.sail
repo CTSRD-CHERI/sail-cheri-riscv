@@ -41,6 +41,7 @@ val ext_fetch_check_pc : (xlenbits, xlenbits) -> Ext_FetchAddr_Check(ext_fetch_a
 function ext_fetch_check_pc(start_pc, pc) = {
   if   start_pc == pc
   then {
+    pcc_base = getCapBaseBits(PCC);
     /* We need to perform the permission checks only for the first granule. */
     if      not(PCC.tag)
     then    Ext_FetchAddr_Error(CapEx_TagViolation)
@@ -50,6 +51,10 @@ function ext_fetch_check_pc(start_pc, pc) = {
     then    Ext_FetchAddr_Error(CapEx_PermitExecuteViolation)
     else if not(inCapBounds(PCC, pc, 2))
     then    Ext_FetchAddr_Error(CapEx_LengthViolation)
+    /* Require that PCC.base be as aligned as PC. This
+       is also enforced when setting PCC in most places. */
+    else if pcc_base[0] != bitzero | (pcc_base[1] != bitzero & ~(haveRVC()))
+    then    Ext_FetchAddr_Error(CapEx_UnalignedBase)
     else    Ext_FetchAddr_OK(pc)
   } else {
     /* Perform only the bounds checks on the current granule, i.e. pc. */

@@ -81,9 +81,16 @@ function haveXcheri () -> bool =
 
 
 function legalize_tcc(o : Capability, v : Capability) -> Capability = {
-  new_tvec = getCapOffsetBits(v);
-  legalized_tvec = legalize_tvec(Mk_Mtvec(getCapOffsetBits(o)), new_tvec);
-  setCapOffsetOrNull(v, legalized_tvec.bits())
+  new_base = getCapBaseBits(v);
+  /* Ignore writes that attempt to set unaligned TCC base */
+  if new_base[0] != bitzero | new_base[1] != bitzero then
+    o /* keep original TCC value */
+  else {
+    /* legalize new TCC offset (RISC-V tvec) */
+    new_tvec = v.address - new_base;
+    legalized_tvec = legalize_tvec(Mk_Mtvec(getCapOffsetBits(o)), new_tvec);
+    setCapOffsetOrNull(v, legalized_tvec.bits())
+  }
 }
 
 function legalize_epcc (v : Capability) -> Capability = {

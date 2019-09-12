@@ -817,6 +817,7 @@ function clause execute (CCall(cs, cb, 0b00001)) = /* selector=1 */
   let cs_val = readCapReg(cs);
   let cb_val = readCapReg(cb);
   let newPC = [cs_val.address with 0 = bitzero]; /* clear bit zero as for RISCV JALR */
+  let newPCCBase = getCapBaseBits(cs_val);
   if not (cs_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cs);
     RETIRE_FAIL
@@ -847,6 +848,9 @@ function clause execute (CCall(cs, cb, 0b00001)) = /* selector=1 */
   } else if not(inCapBounds(cs_val, newPC, min_instruction_bytes())) then {
     handle_cheri_reg_exception(CapEx_LengthViolation, cs);
     RETIRE_FAIL
+  } else if newPCCBase[0] == bitone | (newPCCBase[1] == bitone & ~(haveRVC())) then {
+    handle_cheri_reg_exception(CapEx_UnalignedBase, cb);
+    RETIRE_FAIL
   } else if newPC[1] == bitone & ~(haveRVC()) then {
     handle_mem_exception(newPC,  E_Fetch_Addr_Align());
     RETIRE_FAIL
@@ -869,6 +873,7 @@ function clause execute(CJALR(cd, cb)) =
 {
   let cb_val = readCapReg(cb);
   let newPC = [cb_val.address with 0 = bitzero]; /* clear bit zero as for RISCV JALR */
+  let newPCCBase = getCapBaseBits(cb_val);
   if not (cb_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cb);
     RETIRE_FAIL
@@ -880,6 +885,9 @@ function clause execute(CJALR(cd, cb)) =
     RETIRE_FAIL
   } else if not(inCapBounds(cb_val, newPC, min_instruction_bytes())) then {
     handle_cheri_reg_exception(CapEx_LengthViolation, cb);
+    RETIRE_FAIL
+  } else if newPCCBase[0] == bitone | (newPCCBase[1] == bitone & ~(haveRVC())) then {
+    handle_cheri_reg_exception(CapEx_UnalignedBase, cb);
     RETIRE_FAIL
   } else if newPC[1] == bitone & ~(haveRVC()) then {
     handle_mem_exception(newPC,  E_Fetch_Addr_Align());
