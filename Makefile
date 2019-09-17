@@ -23,7 +23,8 @@ CHERI_CAP_IMPL = $(CHERI_CAP_$(ARCH)_IMPL)
 
 # Instruction sources, depending on target
 SAIL_CHECK_SRCS = $(SAIL_RISCV_MODEL_DIR)/riscv_addr_checks_common.sail \
-                  $(SAIL_CHERI_MODEL_DIR)/cheri_addr_checks.sail
+                  $(SAIL_CHERI_MODEL_DIR)/cheri_addr_checks.sail \
+                  $(SAIL_CHERI_MODEL_DIR)/cheri_misa_ext.sail
 SAIL_DEFAULT_INST = $(SAIL_RISCV_MODEL_DIR)/riscv_insts_base.sail \
                     $(SAIL_RISCV_MODEL_DIR)/riscv_insts_aext.sail \
                     $(SAIL_RISCV_MODEL_DIR)/riscv_insts_cext.sail \
