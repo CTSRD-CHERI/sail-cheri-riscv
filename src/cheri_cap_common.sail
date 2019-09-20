@@ -272,6 +272,8 @@ function getCapCursor(cap) : Capability -> CapAddrInt = unsigned(cap.address)
 function int_to_cap (offset) : CapAddrBits -> Capability =
     {null_cap with address = offset}
 
+function invalidateCap(cap) : Capability -> Capability = {cap with tag=false}
+
 function capBoundsEqual (c1, c2) : (Capability, Capability) -> bool =
     let (base1, top1) = getCapBounds(c1) in
     let (base2, top2) = getCapBounds(c2) in
@@ -285,7 +287,7 @@ function setCapAddr(c, addr) =
 
 function setCapAddrOrNull (cap, addr) : (Capability, CapAddrBits) -> Capability =
   let (representable, newCap) = setCapAddr(cap, addr) in
-  if representable then newCap else int_to_cap(addr)
+  if representable & not(cap.sealed) then newCap else invalidateCap(newCap)
 
 function setCapOffset(c, offset) : (Capability, CapAddrBits) -> (bool, Capability) =
     let base = getCapBaseBits(c) in
@@ -297,7 +299,7 @@ function setCapOffset(c, offset) : (Capability, CapAddrBits) -> (bool, Capabilit
 
 function setCapOffsetOrNull (cap, offset) : (Capability, CapAddrBits) -> Capability =
     let (representable, newCap) = setCapOffset(cap, offset) in
-    if representable & not(cap.sealed) then newCap else int_to_cap(newCap.address)
+    if representable & not(cap.sealed) then newCap else invalidateCap(newCap)
 
 function incCapOffset(c, delta) : (Capability, CapAddrBits) -> (bool, Capability) =
     let newAddress : CapAddrBits = c.address + delta in

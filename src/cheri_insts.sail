@@ -309,7 +309,7 @@ function clause execute (CIncOffset(cd, cb, rt)) =
     if success then
         writeCapReg(cd, newCap)
     else
-        writeCapReg(cd, int_to_cap(cb_val.address + rt_val));
+        writeCapReg(cd, invalidateCap(newCap));
     RETIRE_SUCCESS
   }
 }
@@ -327,7 +327,7 @@ function clause execute (CIncOffsetImmediate(cd, cb, imm)) =
     if success then
         writeCapReg(cd, newCap)
     else
-        writeCapReg(cd, int_to_cap(cb_val.address + immBits));
+        writeCapReg(cd, invalidateCap(newCap));
     RETIRE_SUCCESS
   }
 }
@@ -345,7 +345,7 @@ function clause execute (CSetOffset(cd, cb, rt)) =
     if success then
         writeCapReg(cd, newCap)
     else
-        writeCapReg(cd, int_to_cap(getCapBaseBits(cb_val) + rt_val));
+        writeCapReg(cd, invalidateCap(newCap));
     RETIRE_SUCCESS
   }
 }
@@ -363,7 +363,7 @@ function clause execute (CSetAddr(cd, cb, rt)) =
     if representable then
         writeCapReg(cd, newCap)
     else
-        writeCapReg(cd, int_to_cap(rt_val));
+        writeCapReg(cd, invalidateCap(newCap));
     RETIRE_SUCCESS
   }
 }
@@ -492,7 +492,7 @@ function clause execute (CFromPtr(cd, cb, rt)) =
     if success then
         writeCapReg(cd, newCap)
     else
-        writeCapReg(cd, int_to_cap(getCapBaseBits(cb_val) + rt_val));
+        writeCapReg(cd, invalidateCap(newCap));
     RETIRE_SUCCESS
   }
 }
