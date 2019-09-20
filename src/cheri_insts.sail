@@ -195,15 +195,15 @@ function clause execute (CSpecialRW(cd, cs, idx)) =
         4  => UTCC,
         5  => UTDC,
         6  => UScratchC,
-        7  => UEPCC, /* XXX should mask offset as per uepc etc? */
+        7  => legalize_epcc(UEPCC),
         12 => STCC,
         13 => STDC,
         14 => SScratchC,
-        15 => SEPCC,
+        15 => legalize_epcc(SEPCC),
         28 => MTCC,
         29 => MTDC,
         30 => MScratchC,
-        31 => MEPCC,
+        31 => legalize_epcc(MEPCC),
         _  => {assert(false, "unreachable"); undefined}
       };
       writeCapReg(cd, special_val);
