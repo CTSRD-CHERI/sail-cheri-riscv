@@ -770,50 +770,9 @@ function clause execute (CUnseal(cd, cs, ct)) =
   }
 }
 
-union clause ast = CCall : (regidx, regidx, regidx)
-function clause execute (CCall(cs, cb, 0b00000)) = /* selector=0 */
+union clause ast = CCall : (regidx, regidx)
+function clause execute (CCall(cs, cb)) =
 {
-  /* Partial implementation of CCall with checks in hardware, but raising a trap to perform trusted stack manipulation */
-  let cs_val = readCapReg(cs);
-  let cb_val = readCapReg(cb);
-  let cs_cursor = getCapCursor(cs_val);
-  let (cs_base, cs_top) = getCapBounds(cs_val);
-  if not (cs_val.tag) then {
-    handle_cheri_reg_exception(CapEx_TagViolation, cs);
-    RETIRE_FAIL
-  } else if not (cb_val.tag) then {
-    handle_cheri_reg_exception(CapEx_TagViolation, cb);
-    RETIRE_FAIL
-  } else if not (cs_val.sealed) then {
-    handle_cheri_reg_exception(CapEx_SealViolation, cs);
-    RETIRE_FAIL
-  } else if not (cb_val.sealed) then {
-    handle_cheri_reg_exception(CapEx_SealViolation, cb);
-    RETIRE_FAIL
-  } else if cs_val.otype != cb_val.otype then {
-    handle_cheri_reg_exception(CapEx_TypeViolation, cs);
-    RETIRE_FAIL
-  } else if not (cs_val.permit_execute) then {
-    handle_cheri_reg_exception(CapEx_PermitExecuteViolation, cs);
-    RETIRE_FAIL
-  } else if cb_val.permit_execute then {
-    handle_cheri_reg_exception(CapEx_PermitExecuteViolation, cb);
-    RETIRE_FAIL
-  } else if cs_cursor < cs_base then {
-    handle_cheri_reg_exception(CapEx_LengthViolation, cs);
-    RETIRE_FAIL
-  } else if cs_cursor >= cs_top then {
-    handle_cheri_reg_exception(CapEx_LengthViolation, cs);
-    RETIRE_FAIL
-  } else {
-    handle_cheri_reg_exception(CapEx_CallTrap, cs);
-    RETIRE_FAIL
-  }
-}
-
-function clause execute (CCall(cs, cb, 0b00001)) = /* selector=1 */
-{
-  /* Jump-like implementation of CCall that unseals arguments */
   let cs_val = readCapReg(cs);
   let cb_val = readCapReg(cb);
   let newPC = [cs_val.address with 0 = bitzero]; /* clear bit zero as for RISCV JALR */
@@ -860,12 +819,6 @@ function clause execute (CCall(cs, cb, 0b00001)) = /* selector=1 */
     nextPCC = unsealCap(cs_val);
     RETIRE_SUCCESS
   }
-}
-
-function clause execute (CCall(_, _, 0b11111)) = /* CReturn */
-{
-  handle_cheri_reg_exception(CapEx_ReturnTrap, 0b11111); /* XXX what should correct reg number be? */
-  RETIRE_FAIL
 }
 
 union clause ast = CJALR : (regidx, regidx)
@@ -1226,9 +1179,7 @@ mapping clause encdec = CCSeal(cd, cs, ct)      if (haveXcheri()) <-> 0b0011111 
 mapping clause encdec = CToPtr(rd, cb, cs)      if (haveXcheri()) <-> 0b0010010 @ cs @ cb @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CFromPtr(cd, cb, rs)    if (haveXcheri()) <-> 0b0010011 @ rs @ cb @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CSub(rd, cb, ct)        if (haveXcheri()) <-> 0b0010100 @ ct @ cb @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
-mapping clause encdec = CCall(cs, cb, 0b00000)  if (haveXcheri()) <-> 0b1111110 @ cb @ cs @ 0b000 @ 0b00000 @ 0b1011011 /* CCall */ if (haveXcheri())
-mapping clause encdec = CCall(cs, cb, 0b00001)  if (haveXcheri()) <-> 0b1111110 @ cb @ cs @ 0b000 @ 0b00001 @ 0b1011011 /* CCallFast */ if (haveXcheri())
-mapping clause encdec = CCall(cs, cb, 0b11111)  if (haveXcheri()) <-> 0b1111110 @ cb @ cs @ 0b000 @ 0b11111 @ 0b1011011 /* CReturn */ if (haveXcheri())
+mapping clause encdec = CCall(cs, cb)           if (haveXcheri()) <-> 0b1111110 @ cb @ cs @ 0b000 @ 0b00001 @ 0b1011011 if (haveXcheri())
 
 mapping clause encdec = CTestSubset(rd, cb, ct) if (haveXcheri()) <-> 0b0100000 @ ct @ cb @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CSpecialRW(cd, cs, idx) if (haveXcheri()) <-> 0b0000001 @ idx @ cs @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
@@ -1252,9 +1203,7 @@ mapping clause assembly = CCSeal(cd, cs, ct)    <-> "CCSeal"      ^ spc() ^ reg_
 mapping clause assembly = CToPtr(rd, cb, cs)    <-> "CToPtr"      ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(cb) ^ sep() ^ reg_name(cs)
 mapping clause assembly = CFromPtr(cd, cb, rs)  <-> "CFromPtr"    ^ spc() ^ reg_name(cd) ^ sep() ^ reg_name(cb) ^ sep() ^ reg_name(rs)
 mapping clause assembly = CSub(rd, cb, ct)      <-> "CSub"        ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(cb) ^ sep() ^ reg_name(ct)
-mapping clause assembly = CCall(cs, cb, 0b00000) <-> "CCall"      ^ spc() ^ reg_name(cs) ^ sep() ^ reg_name(cb)
-mapping clause assembly = CCall(cs, cb, 0b00001) <-> "CCallFast"  ^ spc() ^ reg_name(cs) ^ sep() ^ reg_name(cb)
-mapping clause assembly = CCall(cs, cb, 0b11111) <-> "CCallReturn" ^ spc() ^ reg_name(cs) ^ sep() ^ reg_name(cb)
+mapping clause assembly = CCall(cs, cb)         <-> "CCall"       ^ spc() ^ reg_name(cs) ^ sep() ^ reg_name(cb)
 
 mapping clause assembly = CTestSubset(rd, cb, ct) <-> "CTestSubset" ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(cb) ^ sep() ^ reg_name(ct)
 mapping clause assembly = CSpecialRW(cd, cs, idx) <-> "CSpecialRW"  ^ spc() ^ reg_name(cd) ^ sep() ^ reg_name(cs) ^ sep() ^ hex_bits_5(idx)
