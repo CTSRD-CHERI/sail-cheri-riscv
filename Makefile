@@ -311,10 +311,11 @@ generated_definitions/hol4/$(ARCH)/Holmakefile: $(SAIL_RISCV_DIR)/handwritten_su
 	mkdir -p generated_definitions/hol4/$(ARCH)
 	cp $(SAIL_RISCV_DIR)/handwritten_support/Holmakefile generated_definitions/hol4/$(ARCH)
 
-generated_definitions/hol4/$(ARCH)/riscvScript.sml: generated_definitions/hol4/$(ARCH)/Holmakefile generated_definitions/lem/$(ARCH)/riscv.lem $(SAIL_RISCV_DIR)/handwritten_support/$(RISCV_EXTRAS_LEM)
+generated_definitions/hol4/$(ARCH)/riscvScript.sml: generated_definitions/hol4/$(ARCH)/Holmakefile generated_definitions/lem/$(ARCH)/riscv.lem $(SAIL_RISCV_DIR)/handwritten_support/$(RISCV_EXTRAS_LEM) handwritten_support/cheri_extras.lem
 	lem -hol -outdir generated_definitions/hol4/$(ARCH) -lib $(SAIL_LIB_DIR)/hol -i $(SAIL_LIB_DIR)/hol/sail2_prompt_monad.lem -i $(SAIL_LIB_DIR)/hol/sail2_prompt.lem \
 	    -lib $(SAIL_DIR)/src/lem_interp -lib $(SAIL_DIR)/src/gen_lib \
 		$(SAIL_RISCV_DIR)/handwritten_support/$(RISCV_EXTRAS_LEM) \
+		handwritten_support/cheri_extras.lem \
 		generated_definitions/lem/$(ARCH)/riscv_types.lem \
 		generated_definitions/lem/$(ARCH)/riscv.lem
 
@@ -339,7 +340,7 @@ riscv_coq_build: generated_definitions/coq/$(ARCH)/riscv.vo
 
 $(addprefix generated_definitions/coq/$(ARCH)/,riscv.v riscv_types.v): $(SAIL_COQ_SRCS) Makefile
 	mkdir -p generated_definitions/coq/$(ARCH)
-	$(SAIL) $(SAIL_FLAGS) -dcoq_undef_axioms -coq -coq_output_dir generated_definitions/coq/$(ARCH) -o riscv -coq_lib cheri_extras -coq_lib riscv_extras $(SAIL_COQ_SRCS)
+	$(SAIL) $(SAIL_FLAGS) -dcoq_undef_axioms -coq -coq_output_dir generated_definitions/coq/$(ARCH) -o riscv -coq_lib cheri_extras -coq_lib riscv_extras -no_effects $(SAIL_COQ_SRCS)
 $(addprefix generated_definitions/coq/$(ARCH)/,riscv_duopod.v riscv_duopod_types.v): $(PRELUDE_SRCS) $(SAIL_RISCV_MODEL_DIR)/riscv_duopod.sail
 	mkdir -p generated_definitions/coq/$(ARCH)
 	$(SAIL) $(SAIL_FLAGS) -dcoq_undef_axioms -coq -coq_output_dir generated_definitions/coq/$(ARCH) -o riscv_duopod -coq_lib riscv_extras $^
@@ -363,7 +364,7 @@ generated_definitions/lem-for-rmem/riscv.lem: SAIL_FLAGS += -lem_lib Riscv_extra
 generated_definitions/lem-for-rmem/riscv.lem: $(SAIL_RMEM_SRCS)
 	mkdir -p $(dir $@)
 #	We do not need the isabelle .thy files, but sail always generates them
-	$(SAIL) $(SAIL_FLAGS) -lem -lem_mwords -lem_output_dir $(dir $@) -isa_output_dir $(dir $@) -o $(notdir $(basename $@)) $^
+	$(SAIL) $(SAIL_FLAGS) -lem -lem_mwords -lem_output_dir $(dir $@) -isa_output_dir $(dir $@) -o $(notdir $(basename $@)) -no_effects $^
 
 SMT=cvc4
 SMT_FLAGS=--lang=smt2.6
