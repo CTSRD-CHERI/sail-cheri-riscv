@@ -151,3 +151,19 @@ function ext_handle_data_check_error(err : ext_data_addr_error) -> unit = {
   let (capEx, regnum) = err;
   handle_cheri_cap_exception(capEx, regnum)
 }
+
+
+/* Is XRET from given mode permitted by extension? */
+function ext_check_xret_priv (p : Privilege) : Privilege -> bool =
+  pcc_access_system_regs()
+
+/* Called if above check fails */
+function ext_fail_xret_priv () : unit -> unit = 
+  handle_cheri_pcc_exception(CapEx_AccessSystemRegsViolation)
+
+function ext_check_CSR (csrno : bits(12), p : Privilege, isWrite : bool) -> bool =
+  pcc_access_system_regs() /* XXX need to make this more granular e.g. a whitelist of allowed CSR
+  accesses */
+
+function ext_check_CSR_fail () -> unit =
+  handle_cheri_pcc_exception(CapEx_AccessSystemRegsViolation)
