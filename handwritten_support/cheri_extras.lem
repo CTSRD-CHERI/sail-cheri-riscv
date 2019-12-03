@@ -14,7 +14,7 @@ val read_ram : forall 'rv 'e 'n. Size 'n => read_kind -> mword ty64 -> integer -
 let read_ram rk addr width read_tag =
   if read_tag then
     read_memt rk addr width >>= (fun ((data : mword 'n), (tag : bitU)) ->
-    bool_of_bitU_nondet tag >>= (fun (tag : bool) ->
+    bool_of_bitU_fail tag >>= (fun (tag : bool) ->
     return (data, tag)))
   else
     read_mem rk () addr width >>= (fun (data : mword 'n) ->
@@ -28,4 +28,4 @@ let write_tag_bool addr tag =
 val read_tag_bool : forall 'rv 'e. mword ty64 -> monad 'rv bool 'e
 let read_tag_bool addr =
   read_memt Read_plain addr 16 >>= (fun ((cap : mword ty128), tag) ->
-  bool_of_bitU_nondet tag)
+  bool_of_bitU_fail tag)
