@@ -26,5 +26,9 @@ function mem_write_ea_cap(addr, aq, rl, con) = {
 val mem_write_cap : (xlenbits, Capability, bool, bool, bool) -> MemoryOpResult(bool) effect {wmv, rreg, wreg, escape, wmvt}
 function mem_write_cap (addr, cap, aq, rl, con) = {
   let cap_bits = capToMemBits(cap);
+  /* Assume that conversion to bits and back does not change the capability.
+     TODO: State closed-form normalised-ness criterion that implies this,
+     and prove it as an invariant of capabilities in the system. */
+  assert(memBitsToCapability(cap.tag, cap_bits) == cap);
   mem_write_value_meta(addr, cap_size, cap_bits, Cap, cap.tag, aq, rl, con)
 }
