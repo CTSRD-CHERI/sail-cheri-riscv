@@ -855,7 +855,7 @@ function clause execute(CJALR(cd, cb)) =
   };
 }
 
-val handle_load_data_via_cap : (regidx, capreg_idx, Capability, xlenbits, bool, word_width) -> Retired effect {escape, rmem, rreg, wmv, wmvt, wreg}
+val handle_load_data_via_cap : (regidx, capreg_idx, Capability, xlenbits, bool, word_width) -> Retired effect {escape, rmem, rmemt, rreg, wmv, wmvt, wreg}
 function handle_load_data_via_cap(rd, cs, cap_val, vaddrBits, is_unsigned, width) = {
   let size = word_width_bytes(width);
   let aq : bool = false;
@@ -958,7 +958,7 @@ function clause execute (CLoadCapCap(rd, cs)) =
   handle_load_cap_via_cap(rd, 0b0 @ cs, cap_val, vaddr)
 }
 
-val handle_store_data_via_cap : (regidx, capreg_idx, Capability, xlenbits, word_width) -> Retired effect {eamem, escape, rmem, rreg, wmv, wmvt, wreg}
+val handle_store_data_via_cap : (regidx, capreg_idx, Capability, xlenbits, word_width) -> Retired effect {eamem, escape, rmem, rmemt, rreg, wmv, wmvt, wreg}
 function handle_store_data_via_cap(rs, cs, cap_val, vaddrBits, width) = {
   let size = word_width_bytes(width);
   let aq : bool = false;
@@ -1020,7 +1020,7 @@ function clause execute (CStoreCap(rs, cs, width)) =
   handle_store_data_via_cap(rs, 0b0 @ cs, cap_val, vaddr, width)
 }
 
-val handle_store_cap_via_cap : (regidx, capreg_idx, Capability, xlenbits) -> Retired effect {eamem, escape, rmem, rreg, wmv, wreg, wmvt}
+val handle_store_cap_via_cap : (regidx, capreg_idx, Capability, xlenbits) -> Retired effect {eamem, escape, rmem, rmemt, rreg, wmv, wreg, wmvt}
 function handle_store_cap_via_cap(rs, cs, cap_val, vaddrBits) = {
   let rs_val = readCapReg(rs);
   let aq : bool = false;
