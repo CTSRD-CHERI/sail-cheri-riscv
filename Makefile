@@ -266,14 +266,14 @@ c_emulator/cheri_riscv_rvfi_%: generated_definitions/c/riscv_rvfi_model_%.c $(SA
 latex: $(SAIL_SRCS) Makefile
 	$(SAIL) -latex -latex_prefix sailRISCV -o sail_latex_riscv $(SAIL_SRCS)
 
-generated_definitions/isabelle/$(ARCH)/ROOT: $(SAIL_RISCV_DIR)/handwritten_support/ROOT
+generated_definitions/isabelle/$(ARCH)/ROOT: handwritten_support/ROOT
 	mkdir -p generated_definitions/isabelle/$(ARCH)
-	cp $(SAIL_RISCV_DIR)/handwritten_support/ROOT generated_definitions/isabelle/$(ARCH)/
+	cp handwritten_support/ROOT generated_definitions/isabelle/$(ARCH)/
 
 generated_definitions/lem/riscv_duopod.lem: $(PRELUDE_SRCS) $(SAIL_RISCV_MODEL_DIR)/riscv_duopod.sail
 	mkdir -p generated_definitions/lem
 	$(SAIL) $(SAIL_FLAGS) -lem -lem_output_dir generated_definitions/lem -isa_output_dir generated_definitions/isabelle -lem_mwords -lem_lib Riscv_extras -o riscv_duopod $^
-generated_definitions/isabelle/Riscv_duopod.thy: generated_definitions/isabelle/ROOT generated_definitions/lem/riscv_duopod.lem $(SAIL_RISCV_DIR)/handwritten_support/$(RISCV_EXTRAS_LEM)
+generated_definitions/isabelle/Riscv_duopod.thy: generated_definitions/isabelle/$(ARCH)/ROOT generated_definitions/lem/riscv_duopod.lem $(SAIL_RISCV_DIR)/handwritten_support/$(RISCV_EXTRAS_LEM)
 	lem -isa -outdir generated_definitions/isabelle -lib Sail=$(SAIL_SRC_DIR)/lem_interp -lib Sail=$(SAIL_SRC_DIR)/gen_lib \
 		$(SAIL_RISCV_DIR)/handwritten_support/$(RISCV_EXTRAS_LEM) \
 		generated_definitions/lem/riscv_duopod_types.lem \
@@ -289,7 +289,7 @@ endif
 ifeq ($(wildcard $(SAIL_LIB_DIR)/isabelle),)
 	$(error lib directory of Sail not found. Please set the SAIL_LIB_DIR environment variable)
 endif
-	isabelle build -b -d $(LEM_DIR)/isabelle-lib -d $(SAIL_LIB_DIR)/isabelle -d generated_definitions/isabelle/$(ARCH) Sail-RISC-V
+	isabelle build -b -d $(LEM_DIR)/isabelle-lib -d $(SAIL_LIB_DIR)/isabelle -d generated_definitions/isabelle/$(ARCH) Sail-CHERI-RISC-V
 
 .PHONY: riscv_isa riscv_isa_build
 
