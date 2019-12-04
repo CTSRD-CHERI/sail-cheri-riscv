@@ -266,14 +266,14 @@ c_emulator/cheri_riscv_rvfi_%: generated_definitions/c/riscv_rvfi_model_%.c $(SA
 latex: $(SAIL_SRCS) Makefile
 	$(SAIL) -latex -latex_prefix sailRISCV -o sail_latex_riscv $(SAIL_SRCS)
 
-generated_definitions/isabelle/$(ARCH)/ROOT: $(SAIL_RISCV_DIR)/handwritten_support/ROOT
+generated_definitions/isabelle/$(ARCH)/ROOT: handwritten_support/ROOT
 	mkdir -p generated_definitions/isabelle/$(ARCH)
-	cp $(SAIL_RISCV_DIR)/handwritten_support/ROOT generated_definitions/isabelle/$(ARCH)/
+	cp handwritten_support/ROOT generated_definitions/isabelle/$(ARCH)/
 
 generated_definitions/lem/riscv_duopod.lem: $(PRELUDE_SRCS) $(SAIL_RISCV_MODEL_DIR)/riscv_duopod.sail
 	mkdir -p generated_definitions/lem
 	$(SAIL) $(SAIL_FLAGS) -lem -lem_output_dir generated_definitions/lem -isa_output_dir generated_definitions/isabelle -lem_mwords -lem_lib Riscv_extras -o riscv_duopod $^
-generated_definitions/isabelle/Riscv_duopod.thy: generated_definitions/isabelle/ROOT generated_definitions/lem/riscv_duopod.lem $(SAIL_RISCV_DIR)/handwritten_support/$(RISCV_EXTRAS_LEM)
+generated_definitions/isabelle/Riscv_duopod.thy: generated_definitions/isabelle/$(ARCH)/ROOT generated_definitions/lem/riscv_duopod.lem $(SAIL_RISCV_DIR)/handwritten_support/$(RISCV_EXTRAS_LEM)
 	lem -isa -outdir generated_definitions/isabelle -lib Sail=$(SAIL_SRC_DIR)/lem_interp -lib Sail=$(SAIL_SRC_DIR)/gen_lib \
 		$(SAIL_RISCV_DIR)/handwritten_support/$(RISCV_EXTRAS_LEM) \
 		generated_definitions/lem/riscv_duopod_types.lem \
@@ -289,13 +289,13 @@ endif
 ifeq ($(wildcard $(SAIL_LIB_DIR)/isabelle),)
 	$(error lib directory of Sail not found. Please set the SAIL_LIB_DIR environment variable)
 endif
-	isabelle build -b -d $(LEM_DIR)/isabelle-lib -d $(SAIL_LIB_DIR)/isabelle -d generated_definitions/isabelle/$(ARCH) Sail-RISC-V
+	isabelle build -b -d $(LEM_DIR)/isabelle-lib -d $(SAIL_LIB_DIR)/isabelle -d generated_definitions/isabelle/$(ARCH) Sail-CHERI-RISC-V
 
 .PHONY: riscv_isa riscv_isa_build
 
-generated_definitions/lem/$(ARCH)/riscv.lem: $(SAIL_SRCS) Makefile
+generated_definitions/lem/$(ARCH)/riscv.lem: $(SAIL_SRCS) Makefile handwritten_support/dummy_assembly_mappings.sail
 	mkdir -p generated_definitions/lem/$(ARCH) generated_definitions/isabelle/$(ARCH)
-	$(SAIL) $(SAIL_FLAGS) -lem -lem_output_dir generated_definitions/lem/$(ARCH) -isa_output_dir generated_definitions/isabelle/$(ARCH) -o riscv -lem_mwords -lem_lib Riscv_extras -lem_lib Cheri_extras -no_effects -mono_rewrites $(SAIL_LIB_DIR)/mono_rewrites.sail $(SAIL_SRCS)
+	$(SAIL) $(SAIL_FLAGS) -lem -lem_output_dir generated_definitions/lem/$(ARCH) -isa_output_dir generated_definitions/isabelle/$(ARCH) -o riscv -lem_mwords -lem_lib Riscv_extras -lem_lib Cheri_extras -no_effects -mono_rewrites $(SAIL_LIB_DIR)/mono_rewrites.sail $(SAIL_SRCS) -splice handwritten_support/dummy_assembly_mappings.sail
 	echo "declare {isabelle} rename field sync_exception_ext = sync_exception_ext_exception" >> generated_definitions/lem/$(ARCH)/riscv_types.lem
 
 generated_definitions/isabelle/$(ARCH)/Riscv.thy: generated_definitions/isabelle/$(ARCH)/ROOT generated_definitions/lem/$(ARCH)/riscv.lem $(SAIL_RISCV_DIR)/handwritten_support/$(RISCV_EXTRAS_LEM) handwritten_support/cheri_extras.lem Makefile
@@ -338,9 +338,9 @@ riscv_coq: $(addprefix generated_definitions/coq/$(ARCH)/,riscv.v riscv_types.v)
 riscv_coq_build: generated_definitions/coq/$(ARCH)/riscv.vo
 .PHONY: riscv_coq riscv_coq_build
 
-$(addprefix generated_definitions/coq/$(ARCH)/,riscv.v riscv_types.v): $(SAIL_COQ_SRCS) Makefile
+$(addprefix generated_definitions/coq/$(ARCH)/,riscv.v riscv_types.v): $(SAIL_COQ_SRCS) Makefile handwritten_support/dummy_assembly_mappings.sail
 	mkdir -p generated_definitions/coq/$(ARCH)
-	$(SAIL) $(SAIL_FLAGS) -dcoq_undef_axioms -coq -coq_output_dir generated_definitions/coq/$(ARCH) -o riscv -coq_lib cheri_extras -coq_lib riscv_extras -no_effects $(SAIL_COQ_SRCS)
+	$(SAIL) $(SAIL_FLAGS) -dcoq_undef_axioms -coq -coq_output_dir generated_definitions/coq/$(ARCH) -o riscv -coq_lib cheri_extras -coq_lib riscv_extras -no_effects $(SAIL_COQ_SRCS) -splice handwritten_support/dummy_assembly_mappings.sail
 $(addprefix generated_definitions/coq/$(ARCH)/,riscv_duopod.v riscv_duopod_types.v): $(PRELUDE_SRCS) $(SAIL_RISCV_MODEL_DIR)/riscv_duopod.sail
 	mkdir -p generated_definitions/coq/$(ARCH)
 	$(SAIL) $(SAIL_FLAGS) -dcoq_undef_axioms -coq -coq_output_dir generated_definitions/coq/$(ARCH) -o riscv_duopod -coq_lib riscv_extras $^
