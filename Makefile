@@ -79,6 +79,7 @@ SAIL_REGS_SRCS = $(SAIL_CHERI_MODEL_DIR)/cheri_reg_type.sail \
                  $(SAIL_CHERI_MODEL_DIR)/cheri_pc_access.sail
 
 SAIL_ARCH_SRCS = $(PRELUDE) \
+                 $(SAIL_RISCV_MODEL_DIR)/riscv_types_common.sail \
                  $(SAIL_CHERI_MODEL_DIR)/cheri_riscv_types.sail \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_types.sail \
                  $(SAIL_REGS_SRCS) \
@@ -91,6 +92,7 @@ SAIL_ARCH_SRCS = $(PRELUDE) \
 SAIL_ARCH_RVFI_SRCS = \
                  $(PRELUDE) \
                  $(SAIL_RISCV_MODEL_DIR)/rvfi_dii.sail \
+                 $(SAIL_RISCV_MODEL_DIR)/riscv_types_common.sail \
                  $(SAIL_CHERI_MODEL_DIR)/cheri_riscv_types.sail \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_types.sail \
                  $(SAIL_REGS_SRCS) \
