@@ -1,4 +1,4 @@
-/* default exception model */
+/* CHERI exception model */
 
 type ext_exception = cheri_cause
 
