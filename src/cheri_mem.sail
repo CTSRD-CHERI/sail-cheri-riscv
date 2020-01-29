@@ -2,14 +2,7 @@
 
 val mem_read_cap : (xlenbits, bool, bool, bool) -> MemoryOpResult(Capability) effect {rmem, rmemt, rreg, escape}
 function mem_read_cap (addr, aq, rl, res) = {
-  let result : MemoryOpResult((CapBits, bool)) =
-    if   ~(is_aligned_addr(addr, cap_size))
-    then MemException(E_Load_Addr_Align())
-    else match (aq, rl, res) {
-           (false, true,  false) => throw(Error_not_implemented("load.rl")),
-           (false, true,  true)  => throw(Error_not_implemented("lr.rl")),
-           (_, _, _)             => checked_mem_read(Read(Data), addr, cap_size, aq, rl, res, true)
-    };
+  let result : MemoryOpResult((CapBits, bool)) = mem_read_meta(Read(Data), addr, cap_size, aq, rl, res, true);
   match result {
     MemValue(v, tag) => MemValue(memBitsToCapability(tag, v)),
     MemException(e)  => MemException(e) : MemoryOpResult(Capability)
