@@ -62,6 +62,15 @@ else
     red "Building 64-bit RISCV OCaml emulator" "fail"
 fi
 for test in $RISCVTESTDIR/riscv-tests/rv64*.elf; do
+    # skip F/D tests on OCaml for now
+    pat='rv64ud-.+elf'
+    if [[ $(basename $test) =~ $pat ]];
+    then continue
+    fi
+    pat='rv64uf-.+elf'
+    if [[ $(basename $test) =~ $pat ]];
+    then continue
+    fi
     if $RISCVDIR/ocaml_emulator/cheri_riscv_ocaml_sim_RV64 "$test" >"${test/.elf/.out}" 2>&1 && grep -q SUCCESS "${test/.elf/.out}"
     then
        green "OCaml-64 $(basename $test)" "ok"
