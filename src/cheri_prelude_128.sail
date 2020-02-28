@@ -193,29 +193,3 @@ function capBitsToCapability(t, c) : (bool, CapBits) -> Capability = {
     address                = c[63..0]
   }
 }
-
-/*
-function fastRepCheck(c, i) : (Capability, bits(64)) -> bool=
-    let 'E = unsigned(c.E) in
-    if (E >= maxE) then
-        true /* in this case representable region is whole address space */
-    else
-        let E'       = min(E, maxE) in
-        let i_top    = signed(i >>_s (E+23)) in
-        let i_mid : bits(23) = truncate(i >>_s E)in
-        let a_mid : bits(23) = truncate(c.address >> E) in
-        let R : bits(20)     = (c.B) - 0x01000 in
-        let diff : bits(20)  = R - a_mid in
-        let diff1 : bits(20) = diff - 1 in
-        /* i_top determines 1. whether the increment is inRange
-           i.e. less than the size of the representable region
-           (2**(E+20)) and 2. whether it is positive or negative. To
-           satisfy 1. all top bits must be the same so we are
-           interested in the cases i_top is 0 or -1 */
-        if (i_top == 0) then
-          i_mid <_u diff1
-        else if (i_top == -1) then
-          (i_mid >=_u diff) & (R != a_mid)
-        else
-          false
-*/

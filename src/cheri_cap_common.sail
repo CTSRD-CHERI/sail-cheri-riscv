@@ -289,12 +289,40 @@ function setCapAddrOrNull (cap, addr) : (Capability, CapAddrBits) -> Capability 
   let (representable, newCap) = setCapAddr(cap, addr) in
   if representable & not(cap.sealed) then newCap else invalidateCap(newCap)
 
+infix 1 >>_s
+val operator >>_s = "shift_bits_right_arith" : forall 'n 'm. (bits('n), bits('m)) -> bits('n) effect {undef}
+
+function fastRepCheck(c, i) : (Capability, CapAddrBits) -> bool=
+    if (c.E >=_u resetE) then
+        true /* in this case representable region is whole address space */
+    else
+        let E        = if c.E <=_u resetE then c.E else resetE in
+        let i_top    = signed(i >>_s (E + mantissa_width)) in
+        let i_mid    = truncate(i >> E, mantissa_width)in
+        let a_mid    = truncate(c.address >> E, mantissa_width) in
+        let B3 = truncateLSB(c.B, 3) in
+        let R3 = B3 - 0b001 in
+        let R  = R3 @ zeros(mantissa_width - 3) in
+        let diff  = R - a_mid in
+        let diff1 = diff - 1 in
+        /* i_top determines 1. whether the increment is inRange
+           i.e. less than the size of the representable region
+           (2**(E+MW)) and 2. whether it is positive or negative. To
+           satisfy 1. all top bits must be the same so we are
+           interested in the cases i_top is 0 or -1 */
+        if (i_top == 0) then
+          i_mid <_u diff1
+        else if (i_top == -1) then
+          (i_mid >=_u diff) & (R != a_mid)
+        else
+          false
+
 function setCapOffset(c, offset) : (Capability, CapAddrBits) -> (bool, Capability) =
     let base = getCapBaseBits(c) in
     let newAddress = base + offset in
     let newCap     = { c with address = newAddress } in
-    let representable = capBoundsEqual(c, newCap) in
-/*  let representable = fastRepCheck(c, (newAddress - c.address)) in */
+    /* let representable = capBoundsEqual(c, newCap) in */
+    let representable = fastRepCheck(c, (newAddress - c.address)) in
     (representable, newCap)
 
 function setCapOffsetOrNull (cap, offset) : (Capability, CapAddrBits) -> Capability =
@@ -304,8 +332,8 @@ function setCapOffsetOrNull (cap, offset) : (Capability, CapAddrBits) -> Capabil
 function incCapOffset(c, delta) : (Capability, CapAddrBits) -> (bool, Capability) =
     let newAddress : CapAddrBits = c.address + delta in
     let newCap     = { c with address = newAddress } in
-    let representable = capBoundsEqual(c, newCap) in
-/*  let representable = fastRepCheck(c, delta) in */
+    /* let representable = capBoundsEqual(c, newCap) in */
+    let representable = fastRepCheck(c, delta) in
     (representable, newCap)
 
 
