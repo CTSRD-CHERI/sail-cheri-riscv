@@ -1132,7 +1132,7 @@ mapping clause assembly = CClearTag(cd, cs)  <-> "CClearTag"  ^ spc() ^ reg_name
 mapping clause assembly = CJALR(0b00000, cb) <-> "CJR"        ^ spc() ^ reg_name(cb)
 mapping clause assembly = CJALR(cd, cb)      <-> "CJALR"      ^ spc() ^ reg_name(cd) ^ sep() ^ reg_name(cb)
 
-mapping clause assembly = CRLL(rd, rs) <-> "CRRL" ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs)
+mapping clause assembly = CRRL(rd, rs) <-> "CRRL" ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs)
 mapping clause assembly = CRAM(rd, rs) <-> "CRAM" ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs)
 
 mapping clause assembly = ClearRegs(GPRegs, q, m8) <-> "Clearq"   ^ spc() ^ hex_bits_2(q) ^ sep() ^ hex_bits_8(m8)
