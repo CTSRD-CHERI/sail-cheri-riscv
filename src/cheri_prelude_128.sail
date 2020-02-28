@@ -83,6 +83,7 @@ struct Capability = {
 
 /* Reset E and T calculated to make top 2**64. */
 let maxE = 52
+let internal_exponent_take_bits = 3
 let resetE = to_bits(6, maxE)
 let resetT = 0b01 @ 0x000 /* bit 12 set */
 
