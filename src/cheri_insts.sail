@@ -571,44 +571,21 @@ function clause execute (CCopyType(cd, cb, ct)) =
   }
 }
 
-union clause ast = CCheckPerm : (regidx, regidx)
-function clause execute (CCheckPerm(cs, rt)) =
+
+union clause ast = CRRL : (regidx, regidx)
+function clause execute(CRRL(rd, rs)) =
 {
-  let cs_val = readCapReg(cs);
-  let cs_perms : xlenbits = EXTZ(getCapPerms(cs_val));
-  let rt_perms = X(rt);
-  if not (cs_val.tag) then {
-    handle_cheri_reg_exception(CapEx_TagViolation, cs);
-    RETIRE_FAIL
-  } else if (cs_perms & rt_perms) != rt_perms then {
-    handle_cheri_reg_exception(CapEx_UserDefViolation, cs);
-    RETIRE_FAIL
-  } else
-    RETIRE_SUCCESS
+  let len = X(rs);
+  X(rd) = getRepresentableLength(len);
+  RETIRE_SUCCESS
 }
 
-union clause ast = CCheckType : (regidx, regidx)
-function clause execute (CCheckType(cs, cb)) =
+union clause ast = CRAM : (regidx, regidx)
+function clause execute(CRAM(rd, rs)) =
 {
-  let cs_val = readCapReg(cs);
-  let cb_val = readCapReg(cb);
-  if not (cs_val.tag) then {
-    handle_cheri_reg_exception(CapEx_TagViolation, cs);
-    RETIRE_FAIL
-  } else if not (cb_val.tag) then {
-    handle_cheri_reg_exception(CapEx_TagViolation, cb);
-    RETIRE_FAIL
-  } else if not (cs_val.sealed) then {
-    handle_cheri_reg_exception(CapEx_SealViolation, cs);
-    RETIRE_FAIL
-  } else if not (cb_val.sealed) then {
-    handle_cheri_reg_exception(CapEx_SealViolation, cb);
-    RETIRE_FAIL
-  } else if cs_val.otype != cb_val.otype then {
-    handle_cheri_reg_exception(CapEx_TypeViolation, cs);
-    RETIRE_FAIL
-  } else
-    RETIRE_SUCCESS
+  let len = X(rs);
+  X(rd) = getRepresentableAlignmentMask(len);
+  RETIRE_SUCCESS
 }
 
 union clause ast = CCheckTag : (regidx)
@@ -1134,8 +1111,8 @@ mapping clause encdec = CMove(cd, cs)      if (haveXcheri()) <-> 0b1111111 @ 0b0
 mapping clause encdec = CClearTag(cd, cs)  if (haveXcheri()) <-> 0b1111111 @ 0b01011 @ cs @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CJALR(cd, cb)      if (haveXcheri()) <-> 0b1111111 @ 0b01100 @ cb @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
 
-mapping clause encdec = CCheckPerm(cs, rt) if (haveXcheri()) <-> 0b1111111 @ 0b01000 @ rt @ 0b000 @ cs @ 0b1011011 if (haveXcheri())
-mapping clause encdec = CCheckType(cs, cb) if (haveXcheri()) <-> 0b1111111 @ 0b01001 @ cb @ 0b000 @ cs @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CRRL(cs, rt) if (haveXcheri()) <-> 0b1111111 @ 0b01000 @ rt @ 0b000 @ cs @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CRAM(cs, cb) if (haveXcheri()) <-> 0b1111111 @ 0b01001 @ cb @ 0b000 @ cs @ 0b1011011 if (haveXcheri())
 
 mapping clause encdec = ClearRegs(GPRegs, q, m3 @ m5) if (haveXcheri()) <-> 0b1111111 @ 0b01101 @ q : bits(2) @ m3 : bits(3) @ 0b000 @ m5 : regidx @ 0b1011011 if (haveXcheri())
 mapping clause encdec = ClearRegs(FPRegs, q, m3 @ m5) if (haveXcheri()) <-> 0b1111111 @ 0b10000 @ q : bits(2) @ m3 : bits(3) @ 0b000 @ m5 : regidx @ 0b1011011 if (haveXcheri())
@@ -1155,8 +1132,8 @@ mapping clause assembly = CClearTag(cd, cs)  <-> "CClearTag"  ^ spc() ^ reg_name
 mapping clause assembly = CJALR(0b00000, cb) <-> "CJR"        ^ spc() ^ reg_name(cb)
 mapping clause assembly = CJALR(cd, cb)      <-> "CJALR"      ^ spc() ^ reg_name(cd) ^ sep() ^ reg_name(cb)
 
-mapping clause assembly = CCheckPerm(cs, rt) <-> "CCheckPerm" ^ spc() ^ reg_name(cs) ^ sep() ^ reg_name(rt)
-mapping clause assembly = CCheckType(cs, cb) <-> "CCheckType" ^ spc() ^ reg_name(cs) ^ sep() ^ reg_name(cb)
+mapping clause assembly = CRRL(rd, rs) <-> "CRRL" ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs)
+mapping clause assembly = CRAM(rd, rs) <-> "CRAM" ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs)
 
 mapping clause assembly = ClearRegs(GPRegs, q, m8) <-> "Clearq"   ^ spc() ^ hex_bits_2(q) ^ sep() ^ hex_bits_8(m8)
 mapping clause assembly = ClearRegs(FPRegs, q, m8) <-> "FPClearq" ^ spc() ^ hex_bits_2(q) ^ sep() ^ hex_bits_8(m8)
