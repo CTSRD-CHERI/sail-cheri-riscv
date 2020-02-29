@@ -217,10 +217,6 @@ RISCV_EXTRAS_LEM_FILES = riscv_extras.lem riscv_extras_fdext.lem
 endif
 RISCV_EXTRAS_LEM = $(addprefix $(SAIL_RISCV_DIR)/handwritten_support/,$(RISCV_EXTRAS_LEM_FILES))
 
-
-ocaml_emulator/cheri_riscv_ocaml_sim_RV32 c_emulator/cheri_riscv_sim_RV32 c_emulator/cheri_riscv_rvfi_RV32: override ARCH := RV32
-ocaml_emulator/cheri_riscv_ocaml_sim_RV64 c_emulator/cheri_riscv_sim_RV64 c_emulator/cheri_riscv_rvfi_RV64: override ARCH := RV64
-
 all: ocaml_emulator/cheri_riscv_ocaml_sim_$(ARCH) c_emulator/cheri_riscv_sim_$(ARCH) riscv_isa riscv_coq riscv_hol riscv_rmem
 .PHONY: all
 
@@ -417,7 +413,9 @@ cloc:
 
 rvfi: c_emulator/cheri_riscv_rvfi_$(ARCH)
 
-opam-build: c_emulator/cheri_riscv_sim_RV64 c_emulator/cheri_riscv_sim_RV32
+opam-build:
+	$(MAKE) ARCH=64 c_emulator/cheri_riscv_sim_RV64
+	$(MAKE) ARCH=32 c_emulator/cheri_riscv_sim_RV32
 
 clean:
 	-rm -rf generated_definitions/ocaml/* generated_definitions/c/* generated_definitions/latex/* sail_riscv_latex
