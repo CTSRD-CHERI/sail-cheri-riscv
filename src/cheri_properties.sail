@@ -17,7 +17,7 @@ function propCapDecodeEncode(capBits) : CapBits -> bool  = {
 }
 */
 
-/* passes  
+/* passes   */
 $counterexample
 function propSetBounds(capBits, reqBase, reqTop) : (CapBits, CapAddrBits, CapLenBits) -> bool = {
   let c = capBitsToCapability(true, capBits);
@@ -43,7 +43,18 @@ function propSetBounds(capBits, reqBase, reqTop) : (CapBits, CapAddrBits, CapLen
   not(sensibleCap) | not(sensibleBounds) | not(requestMonotonic) | (requestSatisfied & monotonic & exactCorrect) 
 }
 
+$counterexample
+function propSetOffset(capBits, offset) : (CapBits, CapAddrBits) -> bool = {
+  let c = capBitsToCapability(true, capBits);
+  let (origBase, origTop) = getCapBounds(c);
+  let (representable, c') = setCapOffset(c, offset);
+  let (newBase, newTop) = getCapBounds(c');
+  // exclude invalid initial caps
+  let sensibleCap = origBase <= origTop & origTop <= pow2(cap_addr_width);
+  not(sensibleCap) | not(representable) | (newBase == origBase & newTop == origTop)
+}
 
+/*
 let test_setOffset (bounds, offset) =
   (* pair each bit list with Big_int for easy comparison etc. *)
   let zippedBounds = List.combine bounds (List.map Sail_lib.uint bounds) in
@@ -67,6 +78,7 @@ let test_setOffset (bounds, offset) =
   end
 */
 
+/*
 $counterexample
 function propSetOffset(base, top, offset) : (CapAddrBits, CapLenBits, CapAddrBits) -> bool = {
   let (exact, cap) = setCapBounds(default_cap, base, top);
@@ -82,6 +94,7 @@ function propSetOffset(base, top, offset) : (CapAddrBits, CapLenBits, CapAddrBit
   let representableCorrect = ((origBase == newBase) & (origTop == newTop)) == representable;
   not(sensibleCap) | (representableCorrect & (inRepBounds == representable))
 }
+*/
 
 /* passes -- trivial 
 $counterexample

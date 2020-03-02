@@ -400,7 +400,7 @@ smt_auto:
 	$(SAIL) -smt_auto $(PRELUDE_SRCS) src/cheri_properties.sail
 
 isail:
-	$(SAIL) -i $(PRELUDE_SRCS)
+	$(SAIL) -i $(PRELUDE_SRCS) src/cheri_properties.sail
 
 #$(SMT) $(SMT_FLAGS) *.smt2
 

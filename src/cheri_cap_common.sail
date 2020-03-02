@@ -290,13 +290,15 @@ function setCapAddrOrNull (cap, addr) : (Capability, CapAddrBits) -> Capability 
   if representable & not(cap.sealed) then newCap else invalidateCap(newCap)
 
 infix 1 >>_s
-val operator >>_s = "shift_bits_right_arith" : forall 'n 'm. (bits('n), bits('m)) -> bits('n) effect {undef}
+overload operator >> = {sail_shiftright}
+overload operator << = {sail_shiftleft}
+overload operator >>_s = {sail_arith_shiftright}
 
 function fastRepCheck(c, i) : (Capability, CapAddrBits) -> bool=
-    if (c.E >=_u resetE) then
+    let E = unsigned(c.E) in
+    if (E >= maxE) then
         true /* in this case representable region is whole address space */
     else
-        let E        = if c.E <=_u resetE then c.E else resetE in
         let i_top    = signed(i >>_s (E + mantissa_width)) in
         let i_mid    = truncate(i >> E, mantissa_width)in
         let a_mid    = truncate(c.address >> E, mantissa_width) in
