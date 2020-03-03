@@ -108,14 +108,20 @@ function getCapBoundsBits(c) : Capability -> (CapAddrBits, CapLenBits) =
   let a_top = (a >> (E + mantissa_width)) in {
     base : CapLenBits = truncate((a_top + correction_base) @ c.B @ zeros(E), cap_len_width);
     top  : CapLenBits = truncate((a_top + correction_top)  @ c.T @ zeros(E), cap_len_width);
+    /* If the base and top are more than an address space away from each other,
+       invert the MSB of top.  This corrects for errors that happen when the
+       representable space wraps the address space. */
+    let base2 : bits(2) = 0b0 @ [base[cap_addr_width - 1]];
+    let top2  : bits(2) = top[cap_addr_width .. cap_addr_width - 1];
+    if (E < (maxE - 1)) & (unsigned(top2 - base2) > 1) then {
+      top[cap_addr_width] = ~(top[cap_addr_width]);
+    };
+    /* TODO The following top MSB correction was thought to be equivalent
+       to the one above, but differs at least in some cases where E >= maxE - 1
     if (base[cap_addr_width] == bitone) then {
-      /* If base[64] is set this indicates under or overflow i.e. a has
-       * wrapped around the address space and been corrected. In this case
-       * we need to correct top[64] because top is not quite modulo 2**64 due
-       * to having max top == 2**64 in one particular case:
-       */
        top[cap_addr_width] = if (aHi == 1) & (tHi == 1) then bitone else bitzero;
     };
+    */
     (base[(cap_addr_width - 1)..0], top)
   }
 
@@ -296,7 +302,7 @@ overload operator >>_s = {sail_arith_shiftright}
 
 function fastRepCheck(c, i) : (Capability, CapAddrBits) -> bool=
     let E = unsigned(c.E) in
-    if (E >= maxE) then
+    if (E >= maxE - 2) then
         true /* in this case representable region is whole address space */
     else
         let i_top    = signed(i >>_s (E + mantissa_width)) in
