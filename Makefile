@@ -394,13 +394,13 @@ generated_definitions/lem-for-rmem/riscv.lem: $(SAIL_RMEM_SRCS)
 SMT=cvc4
 SMT_FLAGS=--lang=smt2.6
 smt:
-	$(SAIL) -smt $(PRELUDE_SRCS) src/cheri_properties.sail
+	$(SAIL) $(SAIL_FLAGS) -smt $(PRELUDE_SRCS) src/cheri_properties.sail
 
 smt_auto:
-	$(SAIL) -smt_auto $(PRELUDE_SRCS) src/cheri_properties.sail
+	$(SAIL) $(SAIL_FLAGS) -smt_auto $(PRELUDE_SRCS) src/cheri_properties.sail
 
 isail:
-	$(SAIL) -i $(PRELUDE_SRCS) src/cheri_properties.sail
+	$(SAIL) $(SAIL_FLAGS) -i $(PRELUDE_SRCS) src/cheri_properties.sail
 
 #$(SMT) $(SMT_FLAGS) *.smt2
 
