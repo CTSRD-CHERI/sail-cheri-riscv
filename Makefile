@@ -417,7 +417,9 @@ cloc:
 
 rvfi: c_emulator/cheri_riscv_rvfi_$(ARCH)
 
-opam-build: c_emulator/cheri_riscv_sim_RV64 c_emulator/cheri_riscv_sim_RV32
+opam-build:
+	$(MAKE) ARCH=64 c_emulator/cheri_riscv_sim_RV64
+	$(MAKE) ARCH=32 c_emulator/cheri_riscv_sim_RV32
 
 clean:
 	-rm -rf generated_definitions/ocaml/* generated_definitions/c/* generated_definitions/latex/* sail_riscv_latex
