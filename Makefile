@@ -29,11 +29,11 @@ SAIL_CHECK_SRCS = $(SAIL_RISCV_MODEL_DIR)/riscv_addr_checks_common.sail \
                   $(SAIL_CHERI_MODEL_DIR)/cheri_addr_checks.sail \
                   $(SAIL_CHERI_MODEL_DIR)/cheri_misa_ext.sail
 
+SAIL_RV64_FD_INST = $(SAIL_RISCV_MODEL_DIR)/riscv_insts_dext.sail
+
 SAIL_FD_INST =  $(SAIL_RISCV_MODEL_DIR)/riscv_softfloat_interface.sail \
                 $(SAIL_RISCV_MODEL_DIR)/riscv_insts_fext.sail
-ifeq ($(ARCH),RV64)
-SAIL_FD_INST += $(SAIL_RISCV_MODEL_DIR)/riscv_insts_dext.sail
-endif
+SAIL_FD_INST += $(SAIL_$(ARCH)_FD_INST)
 
 SAIL_DEFAULT_INST = $(SAIL_RISCV_MODEL_DIR)/riscv_insts_base.sail \
                     $(SAIL_RISCV_MODEL_DIR)/riscv_insts_aext.sail \
