@@ -31,8 +31,7 @@ SAIL_CHECK_SRCS = $(SAIL_RISCV_MODEL_DIR)/riscv_addr_checks_common.sail \
 
 SAIL_RV64_FD_INST = $(SAIL_RISCV_MODEL_DIR)/riscv_insts_dext.sail
 
-SAIL_FD_INST =  $(SAIL_RISCV_MODEL_DIR)/riscv_softfloat_interface.sail \
-                $(SAIL_RISCV_MODEL_DIR)/riscv_insts_fext.sail
+SAIL_FD_INST =  $(SAIL_RISCV_MODEL_DIR)/riscv_insts_fext.sail
 SAIL_FD_INST += $(SAIL_$(ARCH)_FD_INST)
 
 SAIL_DEFAULT_INST = $(SAIL_RISCV_MODEL_DIR)/riscv_insts_base.sail \
@@ -53,6 +52,7 @@ SAIL_SYS_SRCS += $(SAIL_RISCV_MODEL_DIR)/riscv_next_regs.sail
 SAIL_SYS_SRCS += $(SAIL_CHERI_MODEL_DIR)/cheri_sys_exceptions.sail
 SAIL_SYS_SRCS += $(SAIL_RISCV_MODEL_DIR)/riscv_sync_exception.sail
 SAIL_SYS_SRCS += $(SAIL_RISCV_MODEL_DIR)/riscv_next_control.sail
+SAIL_SYS_SRCS += $(SAIL_RISCV_MODEL_DIR)/riscv_softfloat_interface.sail
 SAIL_SYS_SRCS += $(SAIL_RISCV_MODEL_DIR)/riscv_fdext_regs.sail
 SAIL_SYS_SRCS += $(SAIL_RISCV_MODEL_DIR)/riscv_fdext_control.sail
 SAIL_SYS_SRCS += $(SAIL_RISCV_MODEL_DIR)/riscv_csr_ext.sail
