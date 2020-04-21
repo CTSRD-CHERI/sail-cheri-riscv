@@ -971,9 +971,9 @@ function handle_loadres_data_via_cap(rd, cs, cap_val, vaddrBits, width) = {
     TR_Address(addr, _) =>
       match (width, sizeof(xlen)) {
         (BYTE, _)    => process_loadres(rd, vaddrBits, mem_read(Read(Data), addr, 1, aq, rl, false), is_unsigned),
-        (HALF, _)    => process_load(rd, vaddrBits, mem_read(Read(Data), addr, 2, aq, rl, false), is_unsigned),
-        (WORD, _)    => process_load(rd, vaddrBits, mem_read(Read(Data), addr, 4, aq, rl, false), is_unsigned),
-        (DOUBLE, 64) => process_load(rd, vaddrBits, mem_read(Read(Data), addr, 8, aq, rl, false), is_unsigned)
+        (HALF, _)    => process_loadres(rd, vaddrBits, mem_read(Read(Data), addr, 2, aq, rl, false), is_unsigned),
+        (WORD, _)    => process_loadres(rd, vaddrBits, mem_read(Read(Data), addr, 4, aq, rl, false), is_unsigned),
+        (DOUBLE, 64) => process_loadres(rd, vaddrBits, mem_read(Read(Data), addr, 8, aq, rl, false), is_unsigned)
       }
   }
 }
