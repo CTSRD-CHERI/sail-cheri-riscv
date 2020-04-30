@@ -61,9 +61,9 @@ function clause execute (CGetFlags(rd, cb)) =
 function clause execute (CGetType(rd, cb)) =
 {
   let capVal = readCapReg(cb);
-  X(rd) = if   capVal.sealed
-          then EXTZ(capVal.otype)
-          else ones();
+  X(rd) = if   hasReservedOType(capVal)
+          then EXTS(capVal.otype)
+          else EXTZ(capVal.otype);
   RETIRE_SUCCESS
 }
 
@@ -552,21 +552,19 @@ function clause execute (CCopyType(cd, cb, ct)) =
   } else if cb_val.sealed then {
     handle_cheri_reg_exception(CapEx_SealViolation, cb);
     RETIRE_FAIL
-  } else if ct_val.sealed then {
-    if ct_otype < cb_base then {
-      handle_cheri_reg_exception(CapEx_LengthViolation, cb);
-      RETIRE_FAIL
-    } else if ct_otype >= cb_top then {
-      handle_cheri_reg_exception(CapEx_LengthViolation, cb);
-      RETIRE_FAIL
-    } else {
-      let (success, cap) = setCapOffset(cb_val, to_bits(cap_addr_width, ct_otype - cb_base));
-      assert(success, "CopyType: offset is in bounds so should be representable");
-      writeCapReg(cd, cap);
-      RETIRE_SUCCESS
-    }
+  } else if hasReservedOType(ct_val) then {
+    writeCapReg(cd, int_to_cap(EXTS(ct_val.otype)));
+    RETIRE_SUCCESS
+  } else if ct_otype < cb_base then {
+    handle_cheri_reg_exception(CapEx_LengthViolation, cb);
+    RETIRE_FAIL
+  } else if ct_otype >= cb_top then {
+    handle_cheri_reg_exception(CapEx_LengthViolation, cb);
+    RETIRE_FAIL
   } else {
-    writeCapReg(cd, int_to_cap(ones()));
+    let (success, cap) = setCapOffset(cb_val, to_bits(cap_addr_width, ct_otype - cb_base));
+    assert(success, "CopyType: offset is in bounds so should be representable");
+    writeCapReg(cd, cap);
     RETIRE_SUCCESS
   }
 }
@@ -727,6 +725,9 @@ function clause execute (CUnseal(cd, cs, ct)) =
   } else if ct_val.sealed then {
     handle_cheri_reg_exception(CapEx_SealViolation, ct);
     RETIRE_FAIL
+  } else if hasReservedOType(cs_val) then {
+    handle_cheri_reg_exception(CapEx_TypeViolation, ct);
+    RETIRE_FAIL
   } else if ct_cursor != unsigned(cs_val.otype) then {
     handle_cheri_reg_exception(CapEx_TypeViolation, ct);
     RETIRE_FAIL
@@ -760,10 +761,10 @@ function clause execute (CCall(cs, cb)) =
   } else if not (cb_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cb);
     RETIRE_FAIL
-  } else if not (cs_val.sealed) then {
+  } else if hasReservedOType(cs_val) then {
     handle_cheri_reg_exception(CapEx_SealViolation, cs);
     RETIRE_FAIL
-  } else if not (cb_val.sealed) then {
+  } else if hasReservedOType(cb_val) then {
     handle_cheri_reg_exception(CapEx_SealViolation, cb);
     RETIRE_FAIL
   } else if cs_val.otype != cb_val.otype then {

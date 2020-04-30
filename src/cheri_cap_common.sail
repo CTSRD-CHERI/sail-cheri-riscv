@@ -228,6 +228,12 @@ THIS`(cap, flags)` sets the architecture specific capability flags on `cap` to `
 val setCapFlags : (Capability, CFlags) -> Capability
 function setCapFlags(cap, flags) = {cap with flag_cap_mode = bit_to_bool(flags[0])}
 
+/*! Tests whether the capability has a reserved otype (larger than max_otype).
+    Note that this includes both sealed (e.g. sentry) and unsealed (all ones)
+    otypes. */
+val hasReservedOType : Capability -> bool
+function hasReservedOType(cap) = unsigned(cap.otype) > max_otype
+
 function sealCap(cap, otyp) : (Capability, bits(otype_width)) -> (bool, Capability) =
     (true, {cap with sealed=true, otype=otyp})
 
@@ -350,7 +356,7 @@ function capToString (cap) = {
   let len = getCapLength(cap);
   let len_str = BitStr(to_bits(cap_len_width + 3, len));
   /* Print architectural type which is -1 for unsealed caps */
-  let otype64 : CapAddrBits = if cap.sealed then EXTZ(cap.otype) else ones();
+  let otype64 : CapAddrBits = if hasReservedOType(cap) then EXTS(cap.otype) else EXTZ(cap.otype);
   concat_str(" t:",
   concat_str(if cap.tag then "1" else "0",
   concat_str(" s:",
