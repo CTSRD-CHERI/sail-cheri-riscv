@@ -654,7 +654,7 @@ function clause execute (CSeal(cd, cs, ct)) =
     handle_cheri_reg_exception(CapEx_LengthViolation, ct);
     RETIRE_FAIL
   } else {
-    let (success, newCap) = sealCap(cs_val, to_bits(24, ct_cursor));
+    let (success, newCap) = sealCap(cs_val, to_bits(otype_width, ct_cursor));
     if not (success) then {
       handle_cheri_reg_exception(CapEx_InexactBounds, cs);
       RETIRE_FAIL
@@ -697,7 +697,7 @@ function clause execute (CCSeal(cd, cs, ct)) =
     handle_cheri_reg_exception(CapEx_LengthViolation, ct);
     RETIRE_FAIL
   } else {
-    let (success, newCap) = sealCap(cs_val, to_bits(24, ct_cursor));
+    let (success, newCap) = sealCap(cs_val, to_bits(otype_width, ct_cursor));
     if not (success) then {
       handle_cheri_reg_exception(CapEx_InexactBounds, cs);
       RETIRE_FAIL

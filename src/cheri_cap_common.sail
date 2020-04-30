@@ -228,8 +228,8 @@ THIS`(cap, flags)` sets the architecture specific capability flags on `cap` to `
 val setCapFlags : (Capability, CFlags) -> Capability
 function setCapFlags(cap, flags) = {cap with flag_cap_mode = bit_to_bool(flags[0])}
 
-function sealCap(cap, otyp) : (Capability, bits(24)) -> (bool, Capability) =
-    (true, {cap with sealed=true, otype=truncate(otyp, otype_width)})
+function sealCap(cap, otyp) : (Capability, bits(otype_width)) -> (bool, Capability) =
+    (true, {cap with sealed=true, otype=otyp})
 
 function unsealCap(cap) : Capability -> Capability =
     {cap with sealed=false, otype=ones()}
