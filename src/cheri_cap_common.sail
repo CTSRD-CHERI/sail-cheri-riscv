@@ -238,7 +238,7 @@ function sealCap(cap, otyp) : (Capability, bits(otype_width)) -> (bool, Capabili
     (true, {cap with sealed=true, otype=otyp})
 
 function unsealCap(cap) : Capability -> Capability =
-    {cap with sealed=false, otype=ones()}
+    {cap with sealed=false, otype=to_bits(otype_width, otype_unsealed)}
 
 function getCapBaseBits(c) : Capability -> CapAddrBits =
     let (base, _) = getCapBoundsBits(c) in

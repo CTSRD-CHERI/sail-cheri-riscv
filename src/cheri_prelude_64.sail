@@ -111,7 +111,7 @@ let null_cap : Capability = struct {
   sealed                 = false,
   B                      = zeros(),
   T                      = resetT,
-  otype                  = ones(),
+  otype                  = to_bits(otype_width, otype_unsealed),
   address                = zeros()
 }
 
@@ -137,7 +137,7 @@ let default_cap : Capability = struct {
   sealed                 = false,
   B                      = zeros(),
   T                      = resetT,
-  otype                  = ones(),
+  otype                  = to_bits(otype_width, otype_unsealed),
   address                = zeros()
 }
 
@@ -145,7 +145,7 @@ let default_cap : Capability = struct {
 function capBitsToCapability(t, c) : (bool, CapBits) -> Capability = {
   internal_exponent : bool = bit_to_bool(c[46]);
   otype : bits(4) = c[50..47];
-  let sealed : bool = otype != ones();
+  let sealed : bool = otype != to_bits(otype_width, otype_unsealed);
   E : bits(6)  = zeros();
   Bs : bits(8) = zeros();
   T : bits(6) = zeros();

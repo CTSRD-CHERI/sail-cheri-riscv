@@ -53,7 +53,7 @@ function encodableCap(c) : Capability -> bool =
   let Tie = truncate(c.T, internal_exponent_take_bits) in
   let Zie = zeros(internal_exponent_take_bits) in
   let bot_correct = (if c.internal_e then Bie == Zie & Tie == Zie else true) in
-  let sealed_correct = (c.sealed == (c.otype != ones())) in
+  let sealed_correct = (c.sealed == (c.otype != to_bits(otype_width, otype_unsealed))) in
   top_correct & bot_correct & ie_correct & sealed_correct
 
 /* A Capability is encodable iff the back-and-forth conversion to and
