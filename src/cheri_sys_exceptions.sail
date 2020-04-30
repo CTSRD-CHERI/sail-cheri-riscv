@@ -13,8 +13,7 @@ function handle_trap_extension(p : Privilege, pc : xlenbits, ccause : option(che
       /* XXX should legalize pc here? */
       let (representable, mepcc) = setCapAddr(PCC, pc);
       assert(representable, "mepcc should always be representable");
-      MEPCC   = mepcc;
-      nextPCC = MTCC
+      MEPCC   = mepcc
     },
     Supervisor => {
       match ccause {
@@ -25,8 +24,7 @@ function handle_trap_extension(p : Privilege, pc : xlenbits, ccause : option(che
       /* XXX should legalize pc here? */
       let (representable, sepcc) = setCapAddr(PCC, pc);
       assert(representable, "sepcc should always be representable");
-      SEPCC   = sepcc;
-      nextPCC = STCC
+      SEPCC   = sepcc
     },
     User => {
       match ccause {
@@ -37,8 +35,7 @@ function handle_trap_extension(p : Privilege, pc : xlenbits, ccause : option(che
       /* XXX should legalize pc here? */
       let (representable, uepcc) = setCapAddr(PCC, pc);
       assert(representable, "uepcc should always be representable");
-      UEPCC   = uepcc;
-      nextPCC = UTCC
+      UEPCC   = uepcc
     }
   }
 }
