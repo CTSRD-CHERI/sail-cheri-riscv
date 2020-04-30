@@ -46,11 +46,12 @@ type cap_addr_width : Int = xlen
 let  cap_addr_width = sizeof(cap_addr_width)
 type cap_len_width : Int = xlen + 1
 let  cap_len_width  = sizeof(cap_len_width)
+type mantissa_width : Int = 8
+let mantissa_width = sizeof(mantissa_width)
+
 let MAX_ADDR = MAX(cap_addr_width)
 type CapAddrInt = range(0, (2 ^ cap_addr_width) - 1)
 type CapLen = range(0, 2 ^ 33) /* XXX sail can't handle if this is expressed as cap_len_width */
-type mantissa_width : Int = 8
-let mantissa_width = sizeof(mantissa_width)
 
 /* A partially decompressed version of a capability -- E, B, T,
  * lenMSB, sealed and otype fields are not present in all formats and are
