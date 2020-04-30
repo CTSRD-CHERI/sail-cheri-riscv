@@ -80,11 +80,13 @@ val prepare_xret_target : (Privilege) -> xlenbits effect {rreg, wreg}
 function prepare_xret_target(p) = {
   /* Similar to prepare_trap_vector above we need to return the absolute address
      destined for PC, rather than the offset (architecutral PC) */
-  match p {
-    Machine    => {nextPCC = MEPCC; MEPCC.address},
-    Supervisor => {nextPCC = SEPCC; SEPCC.address},
-    User       => {nextPCC = UEPCC; UEPCC.address}
-  }
+  let epcc : Capability = match p {
+                            Machine    => MEPCC,
+                            Supervisor => SEPCC,
+                            User       => UEPCC
+                          };
+  nextPCC = epcc;
+  epcc.address
 }
 
 /* other trap-related CSRs */
