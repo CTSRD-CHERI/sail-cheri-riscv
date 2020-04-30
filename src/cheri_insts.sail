@@ -830,7 +830,7 @@ function clause execute(CJALR(cd, cb)) =
     nextPC  = newPC;
     nextPCC = cb_val;
     RETIRE_SUCCESS
-  };
+  }
 }
 
 val handle_load_data_via_cap : (regidx, capreg_idx, Capability, xlenbits, bool, word_width) -> Retired effect {escape, rmem, rmemt, rreg, wmv, wmvt, wreg}
