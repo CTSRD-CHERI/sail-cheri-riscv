@@ -92,7 +92,3 @@ function legalize_tcc(o : Capability, v : Capability) -> Capability = {
     setCapOffsetOrNull(v, legalized_tvec.bits())
   }
 }
-
-function legalize_epcc (v : Capability) -> Capability = {
-  setCapOffsetOrNull(v, legalize_xepc(getCapOffsetBits(v)))
-}
