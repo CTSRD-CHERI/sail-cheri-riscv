@@ -53,7 +53,7 @@ function encodableCap(c) : Capability -> bool =
   let Tie = truncate(c.T, internal_exponent_take_bits) in
   let Zie = zeros(internal_exponent_take_bits) in
   let bot_correct = (if c.internal_e then Bie == Zie & Tie == Zie else true) in
-  let sealed_correct = (c.sealed == (c.otype != ones())) in
+  let sealed_correct = (c.sealed == (c.otype != to_bits(otype_width, otype_unsealed))) in
   top_correct & bot_correct & ie_correct & sealed_correct
 
 /* A Capability is encodable iff the back-and-forth conversion to and
@@ -78,7 +78,7 @@ function propSetBoundsEncodable(c, reqBase, reqTop) : (Capability, CapAddrBits, 
 
 /* Sealing with a valid object type preserves encodability */
 $property
-function propSealEncodable(c, otype) : (Capability, bits(24)) -> bool =
+function propSealEncodable(c, otype) : (Capability, bits(otype_width)) -> bool =
   let (_, c') = sealCap(c, otype) in
   let validType = (unsigned(otype) <= max_otype) in
   (encodableCap(c) & validType) --> encodableCap(c')

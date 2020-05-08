@@ -13,8 +13,7 @@ function handle_trap_extension(p : Privilege, pc : xlenbits, ccause : option(che
       /* XXX should legalize pc here? */
       let (representable, mepcc) = setCapAddr(PCC, pc);
       assert(representable, "mepcc should always be representable");
-      MEPCC   = mepcc;
-      nextPCC = MTCC
+      MEPCC   = mepcc
     },
     Supervisor => {
       match ccause {
@@ -25,8 +24,7 @@ function handle_trap_extension(p : Privilege, pc : xlenbits, ccause : option(che
       /* XXX should legalize pc here? */
       let (representable, sepcc) = setCapAddr(PCC, pc);
       assert(representable, "sepcc should always be representable");
-      SEPCC   = sepcc;
-      nextPCC = STCC
+      SEPCC   = sepcc
     },
     User => {
       match ccause {
@@ -37,8 +35,7 @@ function handle_trap_extension(p : Privilege, pc : xlenbits, ccause : option(che
       /* XXX should legalize pc here? */
       let (representable, uepcc) = setCapAddr(PCC, pc);
       assert(representable, "uepcc should always be representable");
-      UEPCC   = uepcc;
-      nextPCC = UTCC
+      UEPCC   = uepcc
     }
   }
 }
@@ -54,8 +51,8 @@ function prepare_trap_vector(p : Privilege, c : Mcause) -> xlenbits = {
      we want the absolute address to insert in PC. The bottom two bits (mode) should 
      be the same because we enforce aligned tcc base. */
   match tvec_addr(Mk_Mtvec(tcc.address), c) { 
-    Some(epc) => { nextPCC = tcc; epc },
-    None()    => internal_error("Invalid tvec mode")
+    Some(addr) => { nextPCC = tcc; addr },
+    None()     => internal_error("Invalid tvec mode")
   }
 }
 
@@ -83,11 +80,13 @@ val prepare_xret_target : (Privilege) -> xlenbits effect {rreg, wreg}
 function prepare_xret_target(p) = {
   /* Similar to prepare_trap_vector above we need to return the absolute address
      destined for PC, rather than the offset (architecutral PC) */
-  match p {
-    Machine    => {nextPCC = MEPCC; MEPCC.address},
-    Supervisor => {nextPCC = SEPCC; SEPCC.address},
-    User       => {nextPCC = UEPCC; UEPCC.address}
-  }
+  let epcc : Capability = match p {
+                            Machine    => MEPCC,
+                            Supervisor => SEPCC,
+                            User       => UEPCC
+                          };
+  nextPCC = epcc;
+  epcc.address
 }
 
 /* other trap-related CSRs */

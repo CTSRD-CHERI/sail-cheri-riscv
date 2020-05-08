@@ -61,9 +61,9 @@ function clause execute (CGetFlags(rd, cb)) =
 function clause execute (CGetType(rd, cb)) =
 {
   let capVal = readCapReg(cb);
-  X(rd) = if   capVal.sealed
-          then EXTZ(capVal.otype)
-          else ones();
+  X(rd) = if   hasReservedOType(capVal)
+          then EXTS(capVal.otype)
+          else EXTZ(capVal.otype);
   RETIRE_SUCCESS
 }
 
@@ -552,21 +552,19 @@ function clause execute (CCopyType(cd, cb, ct)) =
   } else if cb_val.sealed then {
     handle_cheri_reg_exception(CapEx_SealViolation, cb);
     RETIRE_FAIL
-  } else if ct_val.sealed then {
-    if ct_otype < cb_base then {
-      handle_cheri_reg_exception(CapEx_LengthViolation, cb);
-      RETIRE_FAIL
-    } else if ct_otype >= cb_top then {
-      handle_cheri_reg_exception(CapEx_LengthViolation, cb);
-      RETIRE_FAIL
-    } else {
-      let (success, cap) = setCapOffset(cb_val, to_bits(cap_addr_width, ct_otype - cb_base));
-      assert(success, "CopyType: offset is in bounds so should be representable");
-      writeCapReg(cd, cap);
-      RETIRE_SUCCESS
-    }
+  } else if hasReservedOType(ct_val) then {
+    writeCapReg(cd, int_to_cap(EXTS(ct_val.otype)));
+    RETIRE_SUCCESS
+  } else if ct_otype < cb_base then {
+    handle_cheri_reg_exception(CapEx_LengthViolation, cb);
+    RETIRE_FAIL
+  } else if ct_otype >= cb_top then {
+    handle_cheri_reg_exception(CapEx_LengthViolation, cb);
+    RETIRE_FAIL
   } else {
-    writeCapReg(cd, int_to_cap(ones()));
+    let (success, cap) = setCapOffset(cb_val, to_bits(cap_addr_width, ct_otype - cb_base));
+    assert(success, "CopyType: offset is in bounds so should be representable");
+    writeCapReg(cd, cap);
     RETIRE_SUCCESS
   }
 }
@@ -654,7 +652,7 @@ function clause execute (CSeal(cd, cs, ct)) =
     handle_cheri_reg_exception(CapEx_LengthViolation, ct);
     RETIRE_FAIL
   } else {
-    let (success, newCap) = sealCap(cs_val, to_bits(24, ct_cursor));
+    let (success, newCap) = sealCap(cs_val, to_bits(otype_width, ct_cursor));
     if not (success) then {
       handle_cheri_reg_exception(CapEx_InexactBounds, cs);
       RETIRE_FAIL
@@ -675,7 +673,7 @@ function clause execute (CCSeal(cd, cs, ct)) =
   if not (cs_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cs);
     RETIRE_FAIL
-  } else if not (ct_val.tag) | (getCapCursor(ct_val) == MAX_ADDR) then {
+  } else if not (ct_val.tag) | (getCapCursor(ct_val) == otype_unsealed) then {
     writeCapReg(cd, cs_val);
     RETIRE_SUCCESS
   } else if cs_val.sealed then {
@@ -697,7 +695,7 @@ function clause execute (CCSeal(cd, cs, ct)) =
     handle_cheri_reg_exception(CapEx_LengthViolation, ct);
     RETIRE_FAIL
   } else {
-    let (success, newCap) = sealCap(cs_val, to_bits(24, ct_cursor));
+    let (success, newCap) = sealCap(cs_val, to_bits(otype_width, ct_cursor));
     if not (success) then {
       handle_cheri_reg_exception(CapEx_InexactBounds, cs);
       RETIRE_FAIL
@@ -726,6 +724,9 @@ function clause execute (CUnseal(cd, cs, ct)) =
     RETIRE_FAIL
   } else if ct_val.sealed then {
     handle_cheri_reg_exception(CapEx_SealViolation, ct);
+    RETIRE_FAIL
+  } else if hasReservedOType(cs_val) then {
+    handle_cheri_reg_exception(CapEx_TypeViolation, ct);
     RETIRE_FAIL
   } else if ct_cursor != unsigned(cs_val.otype) then {
     handle_cheri_reg_exception(CapEx_TypeViolation, ct);
@@ -760,10 +761,10 @@ function clause execute (CCall(cs, cb)) =
   } else if not (cb_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cb);
     RETIRE_FAIL
-  } else if not (cs_val.sealed) then {
+  } else if hasReservedOType(cs_val) then {
     handle_cheri_reg_exception(CapEx_SealViolation, cs);
     RETIRE_FAIL
-  } else if not (cb_val.sealed) then {
+  } else if hasReservedOType(cb_val) then {
     handle_cheri_reg_exception(CapEx_SealViolation, cb);
     RETIRE_FAIL
   } else if cs_val.otype != cb_val.otype then {
@@ -829,7 +830,7 @@ function clause execute(CJALR(cd, cb)) =
     nextPC  = newPC;
     nextPCC = cb_val;
     RETIRE_SUCCESS
-  };
+  }
 }
 
 val handle_load_data_via_cap : (regidx, capreg_idx, Capability, xlenbits, bool, word_width) -> Retired effect {escape, rmem, rmemt, rreg, wmv, wmvt, wreg}

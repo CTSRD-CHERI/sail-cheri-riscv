@@ -36,10 +36,12 @@
 type cap_size : Int = 16
 let cap_size = sizeof(cap_size)
 let log2_cap_size = 4
-type CapBits = bits(8*cap_size)
+type CapBits = bits(8 * cap_size)
 /* width of otype field in bits */
-let otype_width = 18
-let uperms_width = 4
+type otype_width : Int = 18
+let otype_width = sizeof(otype_width)
+type uperms_width : Int = 4
+let uperms_width = sizeof(uperms_width)
 type cap_addr_width : Int = xlen
 let  cap_addr_width = sizeof(cap_addr_width)
 type cap_len_width : Int = cap_addr_width + 1
@@ -57,7 +59,7 @@ type CapLen = range(0, 2 ^ 65) /* XXX sail can't handle if this is expressed as 
  */
 struct Capability = {
   tag                    : bool    ,
-  uperms                 : bits(4) ,
+  uperms                 : bits(uperms_width) ,
   permit_set_CID         : bool    ,
   access_system_regs     : bool    ,
   permit_unseal          : bool    ,
@@ -75,10 +77,10 @@ struct Capability = {
   internal_e             : bool    ,
   E                      : bits(6) ,
   sealed                 : bool    ,
-  B                      : bits(14),
-  T                      : bits(14),
-  otype                  : bits(18),
-  address                : bits(64)
+  B                      : bits(mantissa_width),
+  T                      : bits(mantissa_width),
+  otype                  : bits(otype_width),
+  address                : bits(cap_addr_width)
 }
 
 /* Reset E and T calculated to make top 2**64. */
@@ -109,7 +111,7 @@ let null_cap : Capability = struct {
   sealed                 = false,
   B                      = zeros(),
   T                      = resetT,
-  otype                  = ones(),
+  otype                  = to_bits(otype_width, otype_unsealed),
   address                = zeros()
 }
 
@@ -135,7 +137,7 @@ let default_cap : Capability = struct {
   sealed                 = false,
   B                      = zeros(),
   T                      = resetT,
-  otype                  = ones(),
+  otype                  = to_bits(otype_width, otype_unsealed),
   address                = zeros()
 }
 
@@ -143,7 +145,7 @@ let default_cap : Capability = struct {
 function capBitsToCapability(t, c) : (bool, CapBits) -> Capability = {
   internal_exponent : bool = bit_to_bool(c[90]);
   otype : bits(18) = c[108..91];
-  let sealed : bool = otype != ones();
+  let sealed : bool = otype != to_bits(otype_width, otype_unsealed);
   E : bits(6)  = zeros();
   Bs : bits(14) = zeros();
   T : bits(12) = zeros();
