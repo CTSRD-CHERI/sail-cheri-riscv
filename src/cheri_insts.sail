@@ -1344,7 +1344,7 @@ function handle_load_cap_via_cap(cd, auth_idx, auth_val, vaddrBits) = {
       let c = mem_read_cap(addr, aq, rl, false);
       match c {
         MemValue(v) => {
-          let cr = if ptw_info == PTW_LOAD_CAP_ERR
+          let cr = if ptw_info.ptw_lc == PTW_LC_CLEAR
                    then {v with tag = false} /* strip the tag */
                    else {v with tag = v.tag & auth_val.permit_load_cap};
           C(cd) = cr;
@@ -1440,7 +1440,7 @@ if not(auth_val.tag) then {
       let c = mem_read_cap(addr, aq, rl, false);
       match c {
         MemValue(v) => {
-          let cr = if   ptw_info == PTW_LOAD_CAP_ERR
+          let cr = if ptw_info.ptw_lc == PTW_LC_CLEAR
                    then {v with tag = false} /* strip the tag */
                    else {
                      /* the Sail model currently reserves virtual addresses */

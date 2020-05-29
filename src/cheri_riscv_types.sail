@@ -1,27 +1,52 @@
-/* Extension for CHERI PTE checks */
-enum pte_check = {PTE_CAP_OK, PTE_LOAD_CAP_ERR, PTE_STORE_CAP_ERR}
+/*
+ * Extension for CHERI page table walker
+ *
+ * We are going to carry around a summary of the PTW walk for data-dependent
+ * (well, tag-dependent) behaviors by the instructions.
+ */
 
-/* Extension for CHERI page-table-walks */
+enum ext_ptw_lc = {
+  /* Tags flow as might be expected */
+  PTW_LC_OK,
 
-enum ext_ptw = {PTW_CAP_OK, PTW_LOAD_CAP_ERR, PTW_STORE_CAP_ERR}
+  /* PTE settings require clearing tags */
+  PTW_LC_CLEAR
+}
 
-let init_ext_ptw : ext_ptw = PTW_CAP_OK /* initial value of the PTW accumulator */
+enum ext_ptw_sc = {
+  /* Tag stores are permitted */
+  PTW_SC_OK,
 
-/* Default accumulation of PTE check extensions into PTW accumulator */
-function ext_accum_ptw_result(ptw : ext_ptw, pte : pte_check) -> ext_ptw =
-  match (ptw, pte) {
-    (PTW_CAP_OK, PTE_CAP_OK)        => PTW_CAP_OK,
-    (PTW_CAP_OK, PTE_LOAD_CAP_ERR)  => PTW_LOAD_CAP_ERR,
-    (PTW_CAP_OK, PTE_STORE_CAP_ERR) => PTW_STORE_CAP_ERR,
+  /* Tag-asserting stores trap */
+  PTW_SC_TRAP
+}
 
-    /* CHECK ME: The below prioritizes store exceptions over load tag stripping. */
+struct ext_ptw = {
+  ptw_lc : ext_ptw_lc,
+  ptw_sc : ext_ptw_sc
+}
 
-    (PTW_LOAD_CAP_ERR, PTE_CAP_OK)        => PTW_LOAD_CAP_ERR,
-    (PTW_LOAD_CAP_ERR, PTE_LOAD_CAP_ERR)  => PTW_LOAD_CAP_ERR,
-    (PTW_LOAD_CAP_ERR, PTE_STORE_CAP_ERR) => PTW_STORE_CAP_ERR,
-
-    (PTW_STORE_CAP_ERR, _ )               => PTW_STORE_CAP_ERR
+function ext_ptw_lc_join(e : ext_ptw, l : ext_ptw_lc) -> ext_ptw =
+  { e with ptw_lc =
+      match l {
+        PTW_LC_OK => e.ptw_lc,
+        PTW_LC_CLEAR => l
+      }
   }
+
+function ext_ptw_sc_join(e : ext_ptw, s : ext_ptw_sc) -> ext_ptw =
+  { e with ptw_sc =
+      match s {
+        PTW_SC_OK => e.ptw_sc,
+        PTW_SC_TRAP => s
+      }
+  }
+
+/* initial value of the PTW accumulator */
+let init_ext_ptw : ext_ptw = struct {
+  ptw_lc = PTW_LC_OK,
+  ptw_sc = PTW_SC_OK
+}
 
 /* Address translation errors */
 enum ext_ptw_error = {AT_CAP_ERR}

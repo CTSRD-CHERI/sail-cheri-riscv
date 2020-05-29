@@ -25,20 +25,32 @@ function ptw_error_to_str(e) =
 overload to_str = {ptw_error_to_str}
 
 function ext_get_ptw_error(ext_ptw : ext_ptw) -> PTW_Error =
-  match (ext_ptw) {
-    PTW_CAP_OK        => PTW_No_Permission(),
-    PTW_LOAD_CAP_ERR  => PTW_Ext_Error(AT_CAP_ERR),
-    PTW_STORE_CAP_ERR => PTW_Ext_Error(AT_CAP_ERR)
+  match (ext_ptw.ptw_sc) {
+    PTW_SCM_TRAP => PTW_Ext_Error(AT_CAP_ERR),
+    PTW_SCM_OK   => PTW_No_Permission()
   }
 
 /* conversion of these translation/PTW failures into architectural exceptions */
 function translationException(a : AccessType(ext_access_type), f : PTW_Error) -> ExceptionType = {
   let e : ExceptionType =
   match (a, f) {
-    /* First handle the vmem extension errors */
-    (ReadWrite(Cap), PTW_Ext_Error(AT_CAP_ERR)) => E_Extension(EXC_SAMO_CAP_PAGE_FAULT),
-    (Read(Cap), PTW_Ext_Error(AT_CAP_ERR))      => E_Extension(EXC_LOAD_CAP_PAGE_FAULT),
+    /* Tag-asserting stores can raise CHERI page faults. */
     (Write(Cap), PTW_Ext_Error(AT_CAP_ERR))     => E_Extension(EXC_SAMO_CAP_PAGE_FAULT),
+
+    /*
+     * XXX ReadWrite(Cap) does not provide enough information to distinguish
+     * between a tag-clearing store and tag-asserting store in the presence of
+     * a tag-capable load, or a tag-asserting store in the case of a
+     * tag-incapable load.  (That is, it only clearly distinguishes a
+     * tag-incapable load with a tag-clearing store from every other option.)
+     * Groundwork for fixing this exists in the sail RISC-V model, but we have
+     * not yet caught up to that point.  Fortunately, we don't actually have
+     * amoswap.c yet, so this is not observably wrong.
+     */
+    (ReadWrite(Cap), PTW_Ext_Error(AT_CAP_ERR)) => E_Extension(EXC_SAMO_CAP_PAGE_FAULT),
+
+    /* No other operations should raise CHERI-specific page faults */
+    (_, PTW_Ext_Error(_)) => internal_error("Unexpected PTW Extension Error"),
 
     /* For other exceptions, Cap accesses fault similar to Data accesses below. */
     (ReadWrite(Cap), PTW_Access())  => E_SAMO_Access_Fault(),
