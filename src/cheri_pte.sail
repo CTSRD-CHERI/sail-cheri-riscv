@@ -71,37 +71,24 @@ function checkPTEPermission(ac : AccessType(ext_access_type), priv : Privilege, 
   };
 
   let e = Mk_Ext_PTE_Bits(ext);
-  let (succ, pte_chk) : (bool, pte_check) =
+  let lcav = if e.LoadCap()  == 0b1 then PTW_LCM_OK else PTW_LCM_CLR;
+  let scav = if e.StoreCap() == 0b1 then PTW_SCM_OK else PTW_SCM_TRAP;
+  let (succ, ext_ptw') : (bool, ext_ptw) =
   match (base_succ, ac) {
     /* Base translation exceptions take priority over CHERI exceptions */
-    (false, _)               => (false, PTE_CAP_OK),
+    (false, _)               => (false, init_ext_ptw),
 
-    (true,  Read(Cap))       => if   e.LoadCap() == 0b1
-                                then (true, PTE_CAP_OK)
-                                /* Allow the address translation to proceed, but mark for tag stripping */
-                                else (true, PTE_LOAD_CAP_ERR),
+    (true,  Read(Cap))       => (true, ext_ptw_join_lcm(ext_ptw, lcav)),
+    (true,  Write(Cap))      => (true, ext_ptw_join_scm(ext_ptw, scav)),
+    (true,  ReadWrite(Cap))  => (true, ext_ptw_join_scm(ext_ptw_join_lcm(ext_ptw, lcav), scav)),
 
-    (true,  Write(Cap))      => if   e.StoreCap() == 0b1
-                                then (true, PTE_CAP_OK)
-                                /* Do not allow the address translation to proceed */
-                                else (false, PTE_STORE_CAP_ERR),
-
-    (true,  ReadWrite(Cap))  => if   e.StoreCap() == 0b1 & e.LoadCap() == 0b1
-                                then (true, PTE_CAP_OK)
-                                else if e.StoreCap() == 0b0
-                                /* Do not allow the address translation to proceed */
-                                then (false, PTE_STORE_CAP_ERR)
-                                /* Allow the address translation to proceed, but mark for tag stripping */
-                                else (true, PTE_LOAD_CAP_ERR),
-
-    (true,  Read(Data))      => (true, PTE_CAP_OK),
-    (true,  Write(Data))     => (true, PTE_CAP_OK),
-    (true,  ReadWrite(Data)) => (true, PTE_CAP_OK),
-    (true,  Execute())       => (true, PTE_CAP_OK)
+    (true,  Read(Data))      => (true, ext_ptw),
+    (true,  Write(Data))     => (true, ext_ptw),
+    (true,  ReadWrite(Data)) => (true, ext_ptw),
+    (true,  Execute())       => (true, ext_ptw)
   };
 
-  let ext_ptw = ext_accum_ptw_result(ext_ptw, pte_chk);
-  if succ then PTE_Check_Success(ext_ptw) else PTE_Check_Failure(ext_ptw)
+  if succ then PTE_Check_Success(ext_ptw') else PTE_Check_Failure(ext_ptw')
 }
 
 function update_PTE_Bits(p : PTE_Bits, a : AccessType(ext_access_type), ext : extPte) -> option((PTE_Bits, extPte)) = {

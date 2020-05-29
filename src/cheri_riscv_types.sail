@@ -1,27 +1,55 @@
-/* Extension for CHERI PTE checks */
-enum pte_check = {PTE_CAP_OK, PTE_LOAD_CAP_ERR, PTE_STORE_CAP_ERR}
+/*
+ * Extension for CHERI page table walker
+ *
+ * We are going to carry around a summary of the PTW walk for data-dependent
+ * (well, tag-dependent) behaviors by the instructions.  The elimination of
+ * ext_ptw values is, sadly, diffuse, across the PTW logic itself
+ * (ext_get_ptw_error) and the various instructions' analysis of load-side
+ * caveats (since the PTW does not have visibility into the data path).
+ */
 
-/* Extension for CHERI page-table-walks */
+enum ext_ptw_lcm = {
+  /* Tags flow as might be expected */
+  PTW_LCM_OK,
 
-enum ext_ptw = {PTW_CAP_OK, PTW_LOAD_CAP_ERR, PTW_STORE_CAP_ERR}
+  /* PTE settings require clearing tags */
+  PTW_LCM_CLR
+}
 
-let init_ext_ptw : ext_ptw = PTW_CAP_OK /* initial value of the PTW accumulator */
+enum ext_ptw_scm = {
+  /* Tag stores are permitted */
+  PTW_SCM_OK,
 
-/* Default accumulation of PTE check extensions into PTW accumulator */
-function ext_accum_ptw_result(ptw : ext_ptw, pte : pte_check) -> ext_ptw =
-  match (ptw, pte) {
-    (PTW_CAP_OK, PTE_CAP_OK)        => PTW_CAP_OK,
-    (PTW_CAP_OK, PTE_LOAD_CAP_ERR)  => PTW_LOAD_CAP_ERR,
-    (PTW_CAP_OK, PTE_STORE_CAP_ERR) => PTW_STORE_CAP_ERR,
+  /* Tag-asserting stores trap */
+  PTW_SCM_TRAP
+}
 
-    /* CHECK ME: The below prioritizes store exceptions over load tag stripping. */
+struct ext_ptw = {
+  ptw_lc_mod : ext_ptw_lcm,
+  ptw_sc_mod : ext_ptw_scm
+}
 
-    (PTW_LOAD_CAP_ERR, PTE_CAP_OK)        => PTW_LOAD_CAP_ERR,
-    (PTW_LOAD_CAP_ERR, PTE_LOAD_CAP_ERR)  => PTW_LOAD_CAP_ERR,
-    (PTW_LOAD_CAP_ERR, PTE_STORE_CAP_ERR) => PTW_STORE_CAP_ERR,
-
-    (PTW_STORE_CAP_ERR, _ )               => PTW_STORE_CAP_ERR
+function ext_ptw_join_lcm(e : ext_ptw, l : ext_ptw_lcm) -> ext_ptw =
+  { e with ptw_lc_mod =
+      match l {
+        PTW_LCM_OK => e.ptw_lc_mod,
+        PTW_LCM_CLR => l
+      }
   }
+
+function ext_ptw_join_scm(e : ext_ptw, s : ext_ptw_scm) -> ext_ptw =
+  { e with ptw_sc_mod =
+      match s {
+        PTW_SCM_OK => e.ptw_sc_mod,
+        PTW_SCM_TRAP => s
+      }
+  }
+
+/* initial value of the PTW accumulator */
+let init_ext_ptw : ext_ptw = struct {
+  ptw_lc_mod = PTW_LCM_OK,
+  ptw_sc_mod = PTW_SCM_OK
+}
 
 /* Address translation errors */
 enum ext_ptw_error = {AT_CAP_ERR}
