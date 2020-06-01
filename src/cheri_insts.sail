@@ -673,7 +673,7 @@ function clause execute (CCSeal(cd, cs, ct)) =
   if not (cs_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cs);
     RETIRE_FAIL
-  } else if (not (ct_val.tag)) | (to_bits(sizeof(xlen), getCapCursor(ct_val)) == to_bits(sizeof(xlen), otype_unsealed)) then {
+  } else if not (ct_val.tag) | ct_val.address == to_bits(sizeof(xlen), otype_unsealed) then {
     writeCapReg(cd, cs_val);
     RETIRE_SUCCESS
   } else if cs_val.sealed then {
