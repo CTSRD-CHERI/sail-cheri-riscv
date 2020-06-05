@@ -105,8 +105,17 @@ function checkPTEPermission(ac : AccessType(ext_access_type), priv : Privilege, 
 }
 
 function update_PTE_Bits(p : PTE_Bits, a : AccessType(ext_access_type), ext : extPte) -> option((PTE_Bits, extPte)) = {
-  let update_d = (a == Write(Data) | a == ReadWrite(Data)) & p.D() == 0b0; // dirty-bit
-  let update_a = p.A() == 0b0;                                             // accessed-bit
+  // dirty bit
+  let update_d = p.D() == 0b0 & (match a {
+                                  Execute()    => false,
+                                  Read(_)      => false,
+                                  Write(_)     => true,
+                                  ReadWrite(_) => true
+                                });
+
+  // accessed bit
+  let update_a = p.A() == 0b0;
+
   if update_d | update_a then {
     let np = update_A(p, 0b1);
     let np = if update_d then update_D(np, 0b1) else np;
