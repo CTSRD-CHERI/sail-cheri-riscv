@@ -553,6 +553,12 @@ function clause execute (CCopyType(cd, cb, ct)) =
     handle_cheri_reg_exception(CapEx_SealViolation, cb);
     RETIRE_FAIL
   } else if hasReservedOType(ct_val) then {
+    /*
+     * Reserved otypes always get turned into derived-from-NULL capabilities,
+     * regardless of the authority given in cb, as, at the moment, all reserved
+     * otypes are constructed using ambiently-available actions.
+     * CCSeal knows how to work with these.
+     */
     writeCapReg(cd, int_to_cap(EXTS(ct_val.otype)));
     RETIRE_SUCCESS
   } else if ct_otype < cb_base then {
@@ -620,23 +626,16 @@ function clause execute (CTestSubset(rd, cb, ct)) =
   RETIRE_SUCCESS
 }
 
-union clause ast = CSeal : (regidx, regidx, regidx)
-function clause execute (CSeal(cd, cs, ct)) =
+  /*
+   * Common suffix of CSeal and CCSeal
+   */
+val CSeal_core : (regidx, regidx, Capability, regidx, Capability) -> Retired effect { rreg, wreg, escape }
+function CSeal_core (cd, cs, cs_val, ct, ct_val) =
 {
-  let cs_val = readCapReg(cs);
-  let ct_val = readCapReg(ct);
   let ct_cursor = getCapCursor(ct_val);
   let (ct_base, ct_top) = getCapBounds(ct_val);
-  if not (cs_val.tag) then {
-    handle_cheri_reg_exception(CapEx_TagViolation, cs);
-    RETIRE_FAIL
-  } else if not (ct_val.tag) then {
-    handle_cheri_reg_exception(CapEx_TagViolation, ct);
-    RETIRE_FAIL
-  } else if cs_val.sealed then {
-    handle_cheri_reg_exception(CapEx_SealViolation, cs);
-    RETIRE_FAIL
-  } else if ct_val.sealed then {
+
+  if ct_val.sealed then {
     handle_cheri_reg_exception(CapEx_SealViolation, ct);
     RETIRE_FAIL
   } else if not (ct_val.permit_seal) then {
@@ -663,47 +662,72 @@ function clause execute (CSeal(cd, cs, ct)) =
   }
 }
 
-union clause ast = CCSeal : (regidx, regidx, regidx)
-function clause execute (CCSeal(cd, cs, ct)) =
+union clause ast = CSeal : (regidx, regidx, regidx)
+function clause execute (CSeal(cd, cs, ct)) =
 {
   let cs_val = readCapReg(cs);
   let ct_val = readCapReg(ct);
-  let ct_cursor = getCapCursor(ct_val);
-  let (ct_base, ct_top) = getCapBounds(ct_val);
   if not (cs_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cs);
     RETIRE_FAIL
-  } else if not (ct_val.tag) | ct_val.address == to_bits(sizeof(xlen), otype_unsealed) then {
-    writeCapReg(cd, cs_val);
-    RETIRE_SUCCESS
+  } else if not (ct_val.tag) then {
+    handle_cheri_reg_exception(CapEx_TagViolation, ct);
+    RETIRE_FAIL
   } else if cs_val.sealed then {
     handle_cheri_reg_exception(CapEx_SealViolation, cs);
     RETIRE_FAIL
-  } else if ct_val.sealed then {
-    handle_cheri_reg_exception(CapEx_SealViolation, ct);
+  } else CSeal_core (cd, cs, cs_val, ct, ct_val)
+}
+
+union clause ast = CCSeal : (regidx, regidx, regidx)
+function clause execute (CCSeal(cd, cs, ct)) =
+{
+  let cs_val = readCapReg(cs); /* Tagged but unsealed cap */
+  let ct_val = readCapReg(ct); /* Authority */
+  let ct_cursor = getCapCursor(ct_val);
+
+    /*
+     * The "conditional" aspects of CCSeal mean that we do some tests on the
+     * thing to be sealed before we actually check the authority.
+     */
+  if not (cs_val.tag) then {
+    handle_cheri_reg_exception(CapEx_TagViolation, cs);
     RETIRE_FAIL
-  } else if not (ct_val.permit_seal) then {
-    handle_cheri_reg_exception(CapEx_PermitSealViolation, ct);
-    RETIRE_FAIL
-  } else if ct_cursor < ct_base then {
-    handle_cheri_reg_exception(CapEx_LengthViolation, ct);
-    RETIRE_FAIL
-  } else if ct_cursor >= ct_top then {
-    handle_cheri_reg_exception(CapEx_LengthViolation, ct);
-    RETIRE_FAIL
-  } else if ct_cursor > max_otype then {
-    handle_cheri_reg_exception(CapEx_LengthViolation, ct);
-    RETIRE_FAIL
-  } else {
-    let (success, newCap) = sealCap(cs_val, to_bits(otype_width, ct_cursor));
-    if not (success) then {
-      handle_cheri_reg_exception(CapEx_InexactBounds, cs);
-      RETIRE_FAIL
-    } else {
-      writeCapReg(cd, newCap);
-      RETIRE_SUCCESS
-    }
-  }
+  } else if cs_val.sealed then {
+    /*
+     * If the input to be conditionally sealed is already sealed, just pass it
+     * through before any other checks are made.  This allows multiple CCSeal-s
+     * in a chain, any of which can be the one to seal the initial input.  The
+     * intent is that all of these CCSeal-s' authority caps will have been
+     * produced by CCopyType of the same input (i.e., they will all attempt to
+     * seal to the same type), but that's not, strictly, required.
+     */
+     writeCapReg(cd, cs_val);
+     RETIRE_SUCCESS
+
+    /*
+     * And now some special cases on the authority, before we get to checking
+     * the conditions from CSeal
+     */
+  } else if ct_val.address == to_bits(sizeof(xlen), otype_unsealed) then {
+    /*
+     * If the request is to seal to the unsealed type, just pass the result
+     * through, without checking ct_val's tag.  The authority is probably
+     * the result of CCopyType from an unsealed capability and so cs_val is
+     * probably unsealed.
+     */
+    writeCapReg(cd, cs_val);
+    RETIRE_SUCCESS
+  } else if not (ct_val.tag) then {
+    /*
+     * An untagged authority can't seal anything, but likely represents an
+     * authority taken so far out of bounds by CCopyType as to be
+     * unrepresentable.  In that case, the caller may hold another authority
+     * they wish to try, so just pass the result through.
+     */
+    writeCapReg(cd, cs_val);
+    RETIRE_SUCCESS
+  } else CSeal_core (cd, cs, cs_val, ct, ct_val)
 }
 
 union clause ast = CUnseal : (regidx, regidx, regidx)
