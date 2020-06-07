@@ -2,6 +2,10 @@
 
 type ext_exception = cheri_cause
 
+/*
+ * On traps, EPCC comes to hold PCC verbatim.  Notably, PCC is not sealed under
+ * otype_sentry (contrast, for example, CJALR).
+ */
 function handle_trap_extension(p : Privilege, pc : xlenbits, ccause : option(cheri_cause)) -> unit = {
   match p {
     Machine => {
@@ -47,6 +51,7 @@ function prepare_trap_vector(p : Privilege, c : Mcause) -> xlenbits = {
                            Supervisor => STCC,
                            User       => UTCC
                          };
+
   /* NB we use address, not offset here because even though tvec is the offset
      we want the absolute address to insert in PC. The bottom two bits (mode) should 
      be the same because we enforce aligned tcc base. */
@@ -85,6 +90,15 @@ function prepare_xret_target(p) = {
                             Supervisor => SEPCC,
                             User       => UEPCC
                           };
+
+  /*
+   * Sentries unseal on transfer into nextPCC; other sealed types will trap
+   * with a seal violation later, when we go to do a fetch from nextPCC.
+   */
+  let epcc = if epcc.sealed & epcc.otype == to_bits(otype_width, otype_sentry)
+             then unsealCap(epcc)
+             else epcc;
+
   nextPCC = epcc;
   epcc.address
 }

@@ -748,6 +748,32 @@ function clause execute (CUnseal(cd, cs, ct)) =
   }
 }
 
+union clause ast = CSealEntry : (regidx, regidx)
+function clause execute (CSealEntry(cd, cs)) =
+{
+  let cs_val = readCapReg(cs);
+
+  if not (cs_val.tag) then {
+    handle_cheri_reg_exception(CapEx_TagViolation, cs);
+    RETIRE_FAIL
+  } else if (cs_val.sealed) then {
+    handle_cheri_reg_exception(CapEx_SealViolation, cs);
+    RETIRE_FAIL
+  } else if not (cs_val.permit_execute) then {
+    handle_cheri_reg_exception(CapEx_PermitExecuteViolation, cs);
+    RETIRE_FAIL
+  } else {
+    let (success, newCap) = sealCap(cs_val, to_bits(otype_width, otype_sentry));
+    if not (success) then {
+      handle_cheri_reg_exception(CapEx_InexactBounds, cs);
+      RETIRE_FAIL
+    } else {
+      writeCapReg(cd, newCap);
+      RETIRE_SUCCESS
+    }
+  }
+}
+
 union clause ast = CCall : (regidx, regidx)
 function clause execute (CCall(cs, cb)) =
 {
@@ -808,7 +834,7 @@ function clause execute(CJALR(cd, cb)) =
   if not (cb_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cb);
     RETIRE_FAIL
-  } else if (cb_val.sealed) then {
+  } else if (cb_val.sealed & cb_val.otype != to_bits(otype_width, otype_sentry)) then {
     handle_cheri_reg_exception(CapEx_SealViolation, cb);
     RETIRE_FAIL
   } else if not (cb_val.permit_execute) then {
@@ -826,9 +852,12 @@ function clause execute(CJALR(cd, cb)) =
   } else {
     let (success, linkCap) = setCapAddr(PCC, nextPC); /* Note that nextPC accounts for compressed instrucitons */
     assert(success, "Link cap should always be representable.");
-    writeCapReg(cd, linkCap);
+    assert(not (linkCap.sealed), "Link cap should always be unsealed");
+    let (success, sentryLinkCap) = sealCap(linkCap, to_bits(otype_width, otype_sentry));
+    assert(success, "Sealing a link cap as a sentry should always succeed");
+    writeCapReg(cd, sentryLinkCap);
     nextPC  = newPC;
-    nextPCC = cb_val;
+    nextPCC = unsealCap(cb_val);
     RETIRE_SUCCESS
   }
 }
@@ -1441,6 +1470,7 @@ mapping clause encdec = CGetSealed(rd, cb) if (haveXcheri()) <-> 0b1111111 @ 0b0
 mapping clause encdec = CGetOffset(rd, cb) if (haveXcheri()) <-> 0b1111111 @ 0b00110 @ cb @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CGetFlags(rd, cb)  if (haveXcheri()) <-> 0b1111111 @ 0b00111 @ cb @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CGetAddr(rd, cb)   if (haveXcheri()) <-> 0b1111111 @ 0b01111 @ cb @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CSealEntry(rd, cb) if (haveXcheri()) <-> 0b1111111 @ 0b10001 @ cb @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 
 mapping clause encdec = CMove(cd, cs)      if (haveXcheri()) <-> 0b1111111 @ 0b01010 @ cs @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CClearTag(cd, cs)  if (haveXcheri()) <-> 0b1111111 @ 0b01011 @ cs @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
