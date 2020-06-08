@@ -14,7 +14,6 @@ function handle_trap_extension(p : Privilege, pc : xlenbits, ccause : option(che
                      mccsr->cause()   = CapExCode(c.capEx) },
         _       => ()
       };
-      /* XXX should legalize pc here? */
       let (representable, mepcc) = setCapAddr(PCC, pc);
       assert(representable, "mepcc should always be representable");
       MEPCC   = mepcc
@@ -25,7 +24,6 @@ function handle_trap_extension(p : Privilege, pc : xlenbits, ccause : option(che
                      sccsr->cause()   = CapExCode(c.capEx) },
         _       => ()
       };
-      /* XXX should legalize pc here? */
       let (representable, sepcc) = setCapAddr(PCC, pc);
       assert(representable, "sepcc should always be representable");
       SEPCC   = sepcc
@@ -36,7 +34,6 @@ function handle_trap_extension(p : Privilege, pc : xlenbits, ccause : option(che
                      uccsr->cause()   = CapExCode(c.capEx) },
         _       => ()
       };
-      /* XXX should legalize pc here? */
       let (representable, uepcc) = setCapAddr(PCC, pc);
       assert(representable, "uepcc should always be representable");
       UEPCC   = uepcc
@@ -61,24 +58,40 @@ function prepare_trap_vector(p : Privilege, c : Mcause) -> xlenbits = {
   }
 }
 
-/* used for xRET */
+/*
+ * Get the user-visible ?EPC from ?EPCC.  This is not used for control flow,
+ * just for reads from (integer) CSRs.
+ *
+ * See legalize_epcc for a discussion of felicity of readback and note that
+ * updating EPC with a sentry installed in EPCC is expected to fail, even if
+ * the update does not change the offset.  (However, it would be very unusual
+ * for software to ever bring the core into such a state except in testing.)
+ */
 val get_xret_target : Privilege -> xlenbits effect {rreg}
-function get_xret_target(p) =
-  match p {
-    Machine    => getCapOffsetBits(MEPCC),
-    Supervisor => getCapOffsetBits(SEPCC),
-    User       => getCapOffsetBits(UEPCC)
-  }
+function get_xret_target(p) = {
+  let cap : Capability = match p {
+    Machine    => MEPCC,
+    Supervisor => SEPCC,
+    User       => UEPCC
+  };
+  legalize_xepc(getCapOffsetBits(cap))
+}
 
+/*
+ * Upon setting any of the ?EPCC values using the (integer) CSRs, derive the
+ * result using the current contents of EPCC.  If that's sealed (esp., a
+ * sentry) this will de-tag, which won't work out very well.
+ *
+ * Legalization is deferred until read.
+ */
 val set_xret_target : (Privilege, xlenbits) -> xlenbits effect {rreg, wreg}
 function set_xret_target(p, value) = {
-  let target = legalize_xepc(value);
   match p {
-    Machine    => MEPCC = setCapOffsetOrNull(MEPCC, target),
-    Supervisor => SEPCC = setCapOffsetOrNull(SEPCC, target),
-    User       => UEPCC = setCapOffsetOrNull(UEPCC, target)
+    Machine    => MEPCC = setCapOffsetOrNull(MEPCC, value),
+    Supervisor => SEPCC = setCapOffsetOrNull(SEPCC, value),
+    User       => UEPCC = setCapOffsetOrNull(UEPCC, value)
   };
-  target
+  value
 }
 
 val prepare_xret_target : (Privilege) -> xlenbits effect {rreg, wreg}

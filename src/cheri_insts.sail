@@ -215,15 +215,15 @@ function clause execute (CSpecialRW(cd, cs, idx)) =
         4  => UTCC = legalize_tcc(UTCC, cs_val),
         5  => UTDC = cs_val,
         6  => UScratchC = cs_val,
-        7  => UEPCC = legalize_epcc(cs_val),
+        7  => UEPCC = cs_val,
         12 => STCC = legalize_tcc(STCC, cs_val),
         13 => STDC = cs_val,
         14 => SScratchC = cs_val,
-        15 => SEPCC = legalize_epcc(cs_val),
+        15 => SEPCC = cs_val,
         28 => MTCC = legalize_tcc(MTCC, cs_val),
         29 => MTDC = cs_val,
         30 => MScratchC = cs_val,
-        31 => MEPCC = legalize_epcc(cs_val),
+        31 => MEPCC = cs_val,
         _  => assert(false, "unreachable")
       }
     };

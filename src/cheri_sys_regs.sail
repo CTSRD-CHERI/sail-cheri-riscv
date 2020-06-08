@@ -93,6 +93,30 @@ function legalize_tcc(o : Capability, v : Capability) -> Capability = {
   }
 }
 
+/*
+ * Used during readout (but not assignment!) of ?EPCC registers (CSpecialRW,
+ * handle_trap_extension) and not during control transfer
+ * (prepare_xret_target).
+ *
+ * The result is that it is only possible to faithfully read out ?EPCC if
+ * either
+ *  - misa.C is enabled or
+ *  - misa.C is disabled and the EPCC offset is sufficiently aligned
+ *
+ * If misa.C is held constant, as it almost always will be, between fault and
+ * readback, ?EPCC will be faithfully read back, because the alignment will
+ * adhere to the requirements of the architecture, which is what legalization
+ * is intending to enforce.
+ *
+ * If neither of those conditions hold, the resulting readout will be a lie; if
+ * ?EPCC has additionally been set to be a sentry, then the result will be an
+ * untagged lie.
+ */
 function legalize_epcc (v : Capability) -> Capability = {
-  setCapOffsetOrNull(v, legalize_xepc(getCapOffsetBits(v)))
+  let voffset = getCapOffsetBits(v);
+  let legalized = legalize_xepc(voffset);
+
+  if   legalized == voffset
+  then v /* avoid possibly attempting to set the offset of a sentry */
+  else setCapOffsetOrNull(v, legalized)
 }
