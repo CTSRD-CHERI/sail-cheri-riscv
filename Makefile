@@ -187,8 +187,9 @@ C_FLAGS = -I $(SAIL_LIB_DIR) -I $(SAIL_RISCV_DIR)/c_emulator $(SOFTFLOAT_FLAGS)
 C_LIBS  = -lgmp -lz $(SOFTFLOAT_LIBS)
 
 ifneq (,$(SAILCOV))
+ALL_BRANCHES = generated_definitions/c/all_branches
 C_FLAGS += -DSAILCOV
-SAIL_FLAGS += -c_coverage -c_include sail_coverage.h
+SAIL_FLAGS += -c_coverage $(ALL_BRANCHES) -c_include sail_coverage.h
 C_LIBS += $(SAIL_LIB_DIR)/coverage/libsail_coverage.a -lpthread -ldl
 endif
 
@@ -281,7 +282,7 @@ generated_definitions/c/riscv.c: $(SAIL_SRCS) $(SAIL_RISCV_MODEL_DIR)/main.sail 
 
 generated_definitions/c/riscv_model_%.c: $(SAIL_SRCS) $(SAIL_RISCV_MODEL_DIR)/main.sail Makefile
 	mkdir -p generated_definitions/c
-	$(SAIL) $(SAIL_FLAGS) -O -Oconstant_fold -memo_z3 -c -c_include riscv_prelude.h -c_include riscv_platform.h -c_no_main $(SAIL_SRCS) $(SAIL_RISCV_MODEL_DIR)/main.sail -o $(basename $@) > generated_definitions/c/all_branches
+	$(SAIL) $(SAIL_FLAGS) -O -Oconstant_fold -memo_z3 -c -c_include riscv_prelude.h -c_include riscv_platform.h -c_no_main $(SAIL_SRCS) $(SAIL_RISCV_MODEL_DIR)/main.sail -o $(basename $@)
 
 $(SOFTFLOAT_LIBS):
 	make SPECIALIZE_TYPE=$(SOFTFLOAT_SPECIALIZE_TYPE) -C $(SOFTFLOAT_LIBDIR)
@@ -292,7 +293,7 @@ c_emulator/cheri_riscv_sim_%: generated_definitions/c/riscv_model_%.c $(SAIL_RIS
 
 generated_definitions/c/riscv_rvfi_model_%.c: $(SAIL_RVFI_SRCS) $(SAIL_RISCV_MODEL_DIR)/main.sail Makefile
 	mkdir -p generated_definitions/c
-	$(SAIL) $(SAIL_FLAGS) -O -Oconstant_fold -memo_z3 -c -c_include riscv_prelude.h -c_include riscv_platform.h -c_no_main $(SAIL_RVFI_SRCS) $(SAIL_RISCV_MODEL_DIR)/main.sail -o $(basename $@) > generated_definitions/c/all_branches
+	$(SAIL) $(SAIL_FLAGS) -O -Oconstant_fold -memo_z3 -c -c_include riscv_prelude.h -c_include riscv_platform.h -c_no_main $(SAIL_RVFI_SRCS) $(SAIL_RISCV_MODEL_DIR)/main.sail -o $(basename $@)
 
 c_emulator/cheri_riscv_rvfi_%: generated_definitions/c/riscv_rvfi_model_%.c $(SAIL_RISCV_DIR)/c_emulator/riscv_sim.c $(C_INCS) $(C_SRCS) $(SOFTFLOAT_LIBS) Makefile
 	mkdir -p c_emulator
