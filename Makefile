@@ -186,6 +186,12 @@ SOFTFLOAT_SPECIALIZE_TYPE = RISCV
 C_FLAGS = -I $(SAIL_LIB_DIR) -I $(SAIL_RISCV_DIR)/c_emulator $(SOFTFLOAT_FLAGS)
 C_LIBS  = -lgmp -lz $(SOFTFLOAT_LIBS)
 
+ifneq (,$(SAILCOV))
+C_FLAGS += -DSAILCOV
+SAIL_FLAGS += -c_coverage -c_include sail_coverage.h
+C_LIBS += $(SAIL_LIB_DIR)/coverage/libsail_coverage.a -lpthread -ldl
+endif
+
 # The C simulator can be built to be linked against Spike for tandem-verification.
 # This needs the C bindings to Spike from https://github.com/SRI-CSL/l3riscv
 # TV_SPIKE_DIR in the environment should point to the top-level dir of the L3
@@ -275,7 +281,7 @@ generated_definitions/c/riscv.c: $(SAIL_SRCS) $(SAIL_RISCV_MODEL_DIR)/main.sail 
 
 generated_definitions/c/riscv_model_%.c: $(SAIL_SRCS) $(SAIL_RISCV_MODEL_DIR)/main.sail Makefile
 	mkdir -p generated_definitions/c
-	$(SAIL) $(SAIL_FLAGS) -O -Oconstant_fold -memo_z3 -c -c_include riscv_prelude.h -c_include riscv_platform.h -c_no_main $(SAIL_SRCS) $(SAIL_RISCV_MODEL_DIR)/main.sail -o $(basename $@)
+	$(SAIL) $(SAIL_FLAGS) -O -Oconstant_fold -memo_z3 -c -c_include riscv_prelude.h -c_include riscv_platform.h -c_no_main $(SAIL_SRCS) $(SAIL_RISCV_MODEL_DIR)/main.sail -o $(basename $@) > generated_definitions/c/all_branches
 
 $(SOFTFLOAT_LIBS):
 	make SPECIALIZE_TYPE=$(SOFTFLOAT_SPECIALIZE_TYPE) -C $(SOFTFLOAT_LIBDIR)
