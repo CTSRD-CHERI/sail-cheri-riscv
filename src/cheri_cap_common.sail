@@ -372,7 +372,7 @@ function capToString (cap) = {
   concat_str(" length:", len_str)))))))))))))
 }
 function getRepresentableAlignmentMask(len) : xlenbits -> xlenbits = {
-  let (exact, c) = setCapBounds(default_cap,  ones() - len, 0b0 @ ones(sizeof(xlen)));
+  let (exact, c) = setCapBounds(default_cap, to_bits(sizeof(xlen), 0), 0b0 @ len);
   let e = min(unsigned(c.E), maxE);
   let e' = if c.internal_e then e + internal_exponent_take_bits else 0;
   ones(sizeof(xlen)-e') @ zeros(e')
