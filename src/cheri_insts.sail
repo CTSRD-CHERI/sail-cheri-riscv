@@ -1494,11 +1494,11 @@ mapping clause encdec = CGetSealed(rd, cb) if (haveXcheri()) <-> 0b1111111 @ 0b0
 mapping clause encdec = CGetOffset(rd, cb) if (haveXcheri()) <-> 0b1111111 @ 0b00110 @ cb @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CGetFlags(rd, cb)  if (haveXcheri()) <-> 0b1111111 @ 0b00111 @ cb @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CGetAddr(rd, cb)   if (haveXcheri()) <-> 0b1111111 @ 0b01111 @ cb @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
-mapping clause encdec = CSealEntry(rd, cb) if (haveXcheri()) <-> 0b1111111 @ 0b10001 @ cb @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 
 mapping clause encdec = CMove(cd, cs)      if (haveXcheri()) <-> 0b1111111 @ 0b01010 @ cs @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CClearTag(cd, cs)  if (haveXcheri()) <-> 0b1111111 @ 0b01011 @ cs @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CJALR(cd, cb)      if (haveXcheri()) <-> 0b1111111 @ 0b01100 @ cb @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CSealEntry(cd, cb) if (haveXcheri()) <-> 0b1111111 @ 0b10001 @ cb @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
 
 mapping clause encdec = CRRL(cs, rt) if (haveXcheri()) <-> 0b1111111 @ 0b01000 @ rt @ 0b000 @ cs @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CRAM(cs, cb) if (haveXcheri()) <-> 0b1111111 @ 0b01001 @ cb @ 0b000 @ cs @ 0b1011011 if (haveXcheri())
@@ -1520,6 +1520,7 @@ mapping clause assembly = CMove(cd, cs)      <-> "CMove"      ^ spc() ^ reg_name
 mapping clause assembly = CClearTag(cd, cs)  <-> "CClearTag"  ^ spc() ^ reg_name(cd) ^ sep() ^ reg_name(cs)
 mapping clause assembly = CJALR(0b00000, cb) <-> "CJR"        ^ spc() ^ reg_name(cb)
 mapping clause assembly = CJALR(cd, cb)      <-> "CJALR"      ^ spc() ^ reg_name(cd) ^ sep() ^ reg_name(cb)
+mapping clause assembly = CSealEntry(cd, cb) <-> "CSealEntry" ^ spc() ^ reg_name(cd) ^ sep() ^ reg_name(cb)
 
 mapping clause assembly = CRRL(rd, rs) <-> "CRRL" ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs)
 mapping clause assembly = CRAM(rd, rs) <-> "CRAM" ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs)
