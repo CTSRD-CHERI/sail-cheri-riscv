@@ -104,6 +104,8 @@ function prepare_xret_target(p) = {
                             User       => UEPCC
                           };
 
+  let epcc = legalize_epcc(epcc);
+
   /*
    * Sentries unseal on transfer into nextPCC; other sealed types will trap
    * with a seal violation later, when we go to do a fetch from nextPCC.
