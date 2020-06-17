@@ -530,10 +530,12 @@ function clause execute (CBuildCap(cd, cb, ct)) =
     let (representable, cd2) = setCapOffset(cd1, getCapOffsetBits(ct_val));
     let cd3 = setCapPerms(cd2, ct_perms);
     let cd4 = setCapFlags(cd3, ct_flags);
+    let (success, cd5) = if ct_val.otype == to_bits(otype_width, otype_sentry) then sealCap(cd4, to_bits(otype_width, otype_sentry)) else (true, cd4);
     {
       assert(exact, "CBuildCap: setCapBounds was not exact"); /* base and top came from ct originally so will be exact */
       assert(representable, "CBuildCap: offset was not representable"); /* similarly offset should be representable XXX except for fastRepCheck */
-      writeCapReg(cd, cd4);
+      assert(success, "CBuildCap: seal to sentry was unsuccessful"); /* Should be unreachable now that otypes are orthogonal */
+      writeCapReg(cd, cd5);
       RETIRE_SUCCESS
     }
   }
