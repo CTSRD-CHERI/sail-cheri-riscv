@@ -13,14 +13,18 @@ bitfield PTE_Bits : pteAttribs = {
   V : 0
 }
 
-/* Reserved PTE bits could be used by extensions on RV64.  There are
- * no such available bits on RV32, so these bits will be zeros on RV32.
+/*
+ * Reserved PTE bits used by extensions on RV64.
+ *
+ * There are no such bits on RV32/SV32, so we hard-code both StoreCap=1
+ * and LoadCap=1 (i.e., there is no ability to disable capability loads
+ * from or stores to pages in the SV32 MMU).
  */
 type extPte = bits(10)
 
 bitfield Ext_PTE_Bits : extPte = {
-  LoadCap  : 9,
-  StoreCap : 8,
+  StoreCap     : 9, /* Permit capability stores */
+  LoadCap      : 8, /* Permit capability loads */
 }
 
 function isPTEPtr(p : pteAttribs, ext : extPte) -> bool = {
