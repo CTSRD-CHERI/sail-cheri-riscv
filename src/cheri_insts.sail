@@ -594,17 +594,6 @@ function clause execute(CRAM(rd, rs)) =
   RETIRE_SUCCESS
 }
 
-union clause ast = CCheckTag : (regidx)
-function clause execute (CCheckTag (cs)) =
-{
-  let cs_val = readCapReg(cs);
-  if not(cs_val.tag) then {
-    handle_cheri_reg_exception(CapEx_TagViolation, cs);
-    RETIRE_FAIL
-  } else
-    RETIRE_SUCCESS
-}
-
 union clause ast = CTestSubset : (regidx, regidx, regidx)
 function clause execute (CTestSubset(rd, cb, ct)) =
 {

@@ -959,7 +959,6 @@ Inductive ast  :=
   | CCopyType : (regidx * regidx * regidx) -> ast
   | CCheckPerm : (regidx * regidx) -> ast
   | CCheckType : (regidx * regidx) -> ast
-  | CCheckTag : regidx -> ast
   | CTestSubset : (regidx * regidx * regidx) -> ast
   | CSeal : (regidx * regidx * regidx) -> ast
   | CCSeal : (regidx * regidx * regidx) -> ast
