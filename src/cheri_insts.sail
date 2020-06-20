@@ -1206,7 +1206,7 @@ function handle_store_cap_via_cap(rs, cs, cap_val, vaddrBits) = {
   } else if not(is_aligned_addr(vaddrBits, cap_size)) then {
     handle_mem_exception(vaddrBits, E_SAMO_Addr_Align());
     RETIRE_FAIL
-  } else match translateAddr(vaddrBits, Write(Cap)) {
+  } else match translateAddr(vaddrBits, Write(if rs_val.tag then Cap else Data)) {
     TR_Failure(E_Extension(EXC_CHERI_VMEM_STORE_CAP), _) => {
       handle_cheri_cap_exception(CapEx_TLBNoStoreCap, cs);
       RETIRE_FAIL
@@ -1354,7 +1354,7 @@ function handle_store_cond_cap_via_cap(cs2, cs, cap_val, vaddrBits) = {
     cancel_reservation();
     RETIRE_SUCCESS
   } else {
-    match translateAddr(vaddrBits, Write(Cap)) {
+    match translateAddr(vaddrBits, Write(if cs2_val.tag then Cap else Data)) {
       TR_Failure(E_Extension(EXC_CHERI_VMEM_STORE_CAP), _) => {
         handle_cheri_cap_exception(CapEx_TLBNoStoreCap, cs);
         RETIRE_FAIL
