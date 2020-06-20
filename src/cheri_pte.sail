@@ -42,98 +42,62 @@ union PTE_Check = {
   PTE_Check_Failure : ext_ptw
 }
 
-function to_pte_check(b : bool) -> (bool, pte_check) =
-  (b, PTE_CAP_OK)
-
 function checkPTEPermission(ac : AccessType(ext_access_type), priv : Privilege, mxr : bool, do_sum : bool, p : PTE_Bits, ext : extPte, ext_ptw : ext_ptw) -> PTE_Check = {
-  let (succ, pte_chk) : (bool, pte_check) =
+  /*
+   * Although in many cases MXR doesn't make sense for capabilities, we honour
+   * it for three reasons:
+   *
+   * 1. It provides uniformity rather than giving strange and surprising edge cases.
+   *
+   * 2. The tag-dependence of stores is achieved by passing Data in for untagged
+   *    capabilities. Thus, not honouring MXR for capabilities would result in
+   *    differences in whether MXR had an effect based on the tag.
+   *
+   * 3. It's simpler to implement yet still safe (LC is unaffected by MXR).
+   */
+  let base_succ : bool =
   match (ac, priv) {
-    (Read(Data),      User)       => to_pte_check(p.U() == 0b1 & (p.R() == 0b1 | (p.X() == 0b1 & mxr))),
-    (Write(Data),     User)       => to_pte_check(p.U() == 0b1 & p.W() == 0b1),
-    (ReadWrite(Data), User)       => to_pte_check(p.U() == 0b1 & p.W() == 0b1 & (p.R() == 0b1 | (p.X() == 0b1 & mxr))),
-    (Execute(),       User)       => to_pte_check(p.U() == 0b1 & p.X() == 0b1),
+    (Read(_),      User)       => p.U() == 0b1 & (p.R() == 0b1 | (p.X() == 0b1 & mxr)),
+    (Write(_),     User)       => p.U() == 0b1 & p.W() == 0b1,
+    (ReadWrite(_), User)       => p.U() == 0b1 & p.W() == 0b1 & (p.R() == 0b1 | (p.X() == 0b1 & mxr)),
+    (Execute(),    User)       => p.U() == 0b1 & p.X() == 0b1,
 
-    (Read(Data),      Supervisor) => to_pte_check((p.U() == 0b0 | do_sum) & (p.R() == 0b1 | (p.X() == 0b1 & mxr))),
-    (Write(Data),     Supervisor) => to_pte_check((p.U() == 0b0 | do_sum) & p.W() == 0b1),
-    (ReadWrite(Data), Supervisor) => to_pte_check((p.U() == 0b0 | do_sum) & p.W() == 0b1 & (p.R() == 0b1 | (p.X() == 0b1 & mxr))),
-    (Execute(),       Supervisor) => to_pte_check(p.U() == 0b0 & p.X() == 0b1),
+    (Read(_),      Supervisor) => (p.U() == 0b0 | do_sum) & (p.R() == 0b1 | (p.X() == 0b1 & mxr)),
+    (Write(_),     Supervisor) => (p.U() == 0b0 | do_sum) & p.W() == 0b1,
+    (ReadWrite(_), Supervisor) => (p.U() == 0b0 | do_sum) & p.W() == 0b1 & (p.R() == 0b1 | (p.X() == 0b1 & mxr)),
+    (Execute(),    Supervisor) => p.U() == 0b0 & p.X() == 0b1,
 
-    (Read(Cap),       User)       => { /* load-cap should probably not be affected by mxr. */
-                                       if   p.U() == 0b1 & p.R() == 0b1
-                                       then {
-                                         let  e = Mk_Ext_PTE_Bits(ext);
-                                         if   e.LoadCap() == 0b1
-                                         then (true, PTE_CAP_OK)
-                                         else {
-                                           /* Allow the address translation to proceed, but mark for tag stripping */
-                                           (true, PTE_LOAD_CAP_ERR)
-                                         }
-                                       }
-                                       else (false, PTE_CAP_OK)
-                                     },
+    (_,            Machine)    => internal_error("m-mode mem perm check")
+  };
 
-    (Write(Cap),      User)       => { if   p.U() == 0b1 & p.W() == 0b1
-                                       then {
-                                         let  e = Mk_Ext_PTE_Bits(ext);
-                                         if   e.StoreCap() == 0b1
-                                         then (true, PTE_CAP_OK)
-                                         else {
-                                           /* Do not allow the address translation to proceed */
-                                           (false, PTE_STORE_CAP_ERR)
-                                         }
-                                       }
-                                       else (false, PTE_CAP_OK)
-                                     },
+  let e = Mk_Ext_PTE_Bits(ext);
+  let (succ, pte_chk) : (bool, pte_check) =
+  match (base_succ, ac) {
+    /* Base translation exceptions take priority over CHERI exceptions */
+    (false, _)               => (false, PTE_CAP_OK),
 
-    (ReadWrite(Cap),  User)       => { if   p.U() == 0b1 & p.R() == 0b1 & p.W() == 0b1
-                                       then {
-                                         let  e = Mk_Ext_PTE_Bits(ext);
-                                         if   e.StoreCap() == 0b1 & e.LoadCap() == 0b1
-                                         then (true, PTE_CAP_OK)
-                                         else if e.StoreCap() == 0b0
-                                         /* return a failure since we should cause an exception */
-                                         then (false, PTE_STORE_CAP_ERR)
-                                         /* return a success since the translation should proceed */
-                                         else (true, PTE_LOAD_CAP_ERR)
-                                       }
-                                       else (false, PTE_CAP_OK)
-                                     },
+    (true,  Read(Cap))       => if   e.LoadCap() == 0b1
+                                then (true, PTE_CAP_OK)
+                                /* Allow the address translation to proceed, but mark for tag stripping */
+                                else (true, PTE_LOAD_CAP_ERR),
 
-    (Read(Cap),       Supervisor) => { if   (p.U() == 0b0 | do_sum) & p.R() == 0b1
-                                       then {
-                                         let  e = Mk_Ext_PTE_Bits(ext);
-                                         if   e.LoadCap() == 0b1
-                                         then (true, PTE_CAP_OK)
-                                         else (true, PTE_LOAD_CAP_ERR)
-                                       }
-                                       else (false, PTE_CAP_OK)
-                                     },
+    (true,  Write(Cap))      => if   e.StoreCap() == 0b1
+                                then (true, PTE_CAP_OK)
+                                /* Do not allow the address translation to proceed */
+                                else (false, PTE_STORE_CAP_ERR),
 
-    (Write(Cap),      Supervisor) => { let e = Mk_Ext_PTE_Bits(ext);
-                                       if   (p.U() == 0b0 | do_sum) & p.W() == 0b1
-                                       then {
-                                         if   e.StoreCap() == 0b1
-                                         then (true,  PTE_CAP_OK)
-                                         else (false, PTE_STORE_CAP_ERR)
-                                       }
-                                       else (false, PTE_CAP_OK)
-                                     },
+    (true,  ReadWrite(Cap))  => if   e.StoreCap() == 0b1 & e.LoadCap() == 0b1
+                                then (true, PTE_CAP_OK)
+                                else if e.StoreCap() == 0b0
+                                /* Do not allow the address translation to proceed */
+                                then (false, PTE_STORE_CAP_ERR)
+                                /* Allow the address translation to proceed, but mark for tag stripping */
+                                else (true, PTE_LOAD_CAP_ERR),
 
-    (ReadWrite(Cap),  Supervisor) => { let e = Mk_Ext_PTE_Bits(ext);
-                                       if   (p.U() == 0b0 | do_sum) & p.R() == 0b1 & p.W() == 0b1
-                                       then {
-                                         if   e.StoreCap() == 0b1 & e.LoadCap() == 0b1
-                                         then (true, PTE_CAP_OK)
-                                         else if e.StoreCap() == 0b0
-                                         /* return a failure since we should cause an exception */
-                                         then (false, PTE_STORE_CAP_ERR)
-                                         /* return a success since the translation should proceed */
-                                         else (true, PTE_LOAD_CAP_ERR)
-                                       }
-                                       else (false, PTE_CAP_OK)
-                                     },
-
-    (_,               Machine)    => internal_error("m-mode mem perm check")
+    (true,  Read(Data))      => (true, PTE_CAP_OK),
+    (true,  Write(Data))     => (true, PTE_CAP_OK),
+    (true,  ReadWrite(Data)) => (true, PTE_CAP_OK),
+    (true,  Execute())       => (true, PTE_CAP_OK)
   };
 
   let ext_ptw = ext_accum_ptw_result(ext_ptw, pte_chk);
