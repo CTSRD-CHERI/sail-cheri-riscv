@@ -1207,11 +1207,6 @@ function handle_store_cap_via_cap(rs, cs, cap_val, vaddrBits) = {
     handle_mem_exception(vaddrBits, E_SAMO_Addr_Align());
     RETIRE_FAIL
   } else match translateAddr(vaddrBits, Write(if rs_val.tag then Cap else Data)) {
-    TR_Failure(E_Extension(EXC_CHERI_VMEM_STORE_CAP), _) => {
-      handle_cheri_cap_exception(CapEx_TLBNoStoreCap, cs);
-      RETIRE_FAIL
-    },
-    TR_Failure(E_Extension(_), _) => { internal_error("unexpected cheri exception for cap store") },
     TR_Failure(e, _) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
     TR_Address(addr, _) => {
       let eares : MemoryOpResult(unit) = mem_write_ea_cap(addr, aq, rl, false);
@@ -1355,11 +1350,6 @@ function handle_store_cond_cap_via_cap(cs2, cs, cap_val, vaddrBits) = {
     RETIRE_SUCCESS
   } else {
     match translateAddr(vaddrBits, Write(if cs2_val.tag then Cap else Data)) {
-      TR_Failure(E_Extension(EXC_CHERI_VMEM_STORE_CAP), _) => {
-        handle_cheri_cap_exception(CapEx_TLBNoStoreCap, cs);
-        RETIRE_FAIL
-      },
-      TR_Failure(E_Extension(_), _) => { internal_error("unexpected cheri exception for cap store") },
       TR_Failure(e, _) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
       TR_Address(addr, _) => {
         let eares : MemoryOpResult(unit) = mem_write_ea_cap(addr, aq, rl, false);
