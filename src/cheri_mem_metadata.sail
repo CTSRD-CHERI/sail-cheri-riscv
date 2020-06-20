@@ -32,7 +32,7 @@ function __WriteRAM_Meta(addr, width, tag) = {
 val __ReadRAM_Meta  : forall 'n. (xlenbits, atom('n)) -> mem_meta effect {rmemt}
 function __ReadRAM_Meta(addr, width) = {
   let tag_addr = tag_align_addr(addr);
-  let tag = MEMr_tag(EXTZ(addr));
+  let tag = MEMr_tag(EXTZ(tag_addr));
   if get_config_print_mem() then
     print_mem("tag[R," ^ BitStr(tag_addr) ^ "] -> " ^ (if tag then "1" else "0"));
   tag
