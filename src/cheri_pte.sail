@@ -27,6 +27,13 @@ bitfield Ext_PTE_Bits : extPte = {
   CapRead      : 8, /* Permit capability loads */
 }
 
+/*
+ * CapWrite     = 1,
+ * CapRead      = 1,
+ * bits 0 .. 7  = 0
+ */
+let default_sv32_ext_pte : extPte = 0b1100000000
+
 function isPTEPtr(p : pteAttribs, ext : extPte) -> bool = {
   let a = Mk_PTE_Bits(p);
   a.R() == 0b0 & a.W() == 0b0 & a.X() == 0b0
@@ -39,7 +46,7 @@ function isInvalidPTE(p : pteAttribs, ext : extPte) -> bool = {
 
 union PTE_Check = {
   PTE_Check_Success : ext_ptw,
-  PTE_Check_Failure : ext_ptw
+  PTE_Check_Failure : (ext_ptw, ext_ptw_fail)
 }
 
 function checkPTEPermission(ac : AccessType(ext_access_type), priv : Privilege, mxr : bool, do_sum : bool, p : PTE_Bits, ext : extPte, ext_ptw : ext_ptw) -> PTE_Check = {
@@ -76,28 +83,32 @@ function checkPTEPermission(ac : AccessType(ext_access_type), priv : Privilege, 
   let (succ, ext_ptw') : (bool, ext_ptw) =
   match (base_succ, ac) {
     /* Base translation exceptions take priority over CHERI exceptions */
-    (false, _)               => (false, init_ext_ptw),
+    (false, _)                     => (false, init_ext_ptw),
 
-    (true,  Read(Cap))       => (true, ext_ptw_lc_join(ext_ptw, ptw_lc)),
-    (true,  Write(Cap))      => (true, ext_ptw_sc_join(ext_ptw, ptw_sc)),
-    (true,  ReadWrite(Cap))  => (true, ext_ptw_sc_join(ext_ptw_lc_join(ext_ptw, ptw_lc), ptw_sc)),
+    (true,  Read(Cap))             => (true, ext_ptw_lc_join(ext_ptw, ptw_lc)),
+    (true,  Write(Cap))            => (true, ext_ptw_sc_join(ext_ptw, ptw_sc)),
+    (true,  ReadWrite(Data, Cap))  => (true, ext_ptw_sc_join(ext_ptw, ptw_sc)),
+    (true,  ReadWrite(Cap, Data))  => (true, ext_ptw_lc_join(ext_ptw, ptw_lc)),
+    (true,  ReadWrite(Cap, Cap))   => (true, ext_ptw_sc_join(ext_ptw_lc_join(ext_ptw, ptw_lc), ptw_sc)),
 
-    (true,  Read(Data))      => (true, ext_ptw),
-    (true,  Write(Data))     => (true, ext_ptw),
-    (true,  ReadWrite(Data)) => (true, ext_ptw),
-    (true,  Execute())       => (true, ext_ptw)
+    (true,  Read(Data))            => (true, ext_ptw),
+    (true,  Write(Data))           => (true, ext_ptw),
+    (true,  ReadWrite(Data, Data)) => (true, ext_ptw),
+    (true,  Execute())             => (true, ext_ptw)
   };
 
-  if succ then PTE_Check_Success(ext_ptw') else PTE_Check_Failure(ext_ptw')
+  if succ
+  then PTE_Check_Success(ext_ptw')
+  else PTE_Check_Failure(ext_ptw', if ext_ptw'.ptw_sc == PTW_SC_TRAP then EPTWF_CAP_ERR else EPTWF_NO_PERM)
 }
 
 function update_PTE_Bits(p : PTE_Bits, a : AccessType(ext_access_type), ext : extPte) -> option((PTE_Bits, extPte)) = {
   // dirty bit
   let update_d = p.D() == 0b0 & (match a {
-                                  Execute()    => false,
-                                  Read(_)      => false,
-                                  Write(_)     => true,
-                                  ReadWrite(_) => true
+                                  Execute()       => false,
+                                  Read(_)         => false,
+                                  Write(_)        => true,
+                                  ReadWrite(_, _) => true
                                 });
 
   // accessed bit
