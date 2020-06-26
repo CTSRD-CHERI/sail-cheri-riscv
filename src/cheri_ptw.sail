@@ -24,10 +24,10 @@ function ptw_error_to_str(e) =
 
 overload to_str = {ptw_error_to_str}
 
-function ext_get_ptw_error(ext_ptw : ext_ptw) -> PTW_Error =
-  match (ext_ptw.ptw_sc) {
-    PTW_SCM_TRAP => PTW_Ext_Error(AT_CAP_ERR),
-    PTW_SCM_OK   => PTW_No_Permission()
+function ext_get_ptw_error(eptwf : ext_ptw_fail) -> PTW_Error =
+  match (eptwf) {
+    EPTWF_NO_PERM  => PTW_No_Permission(),
+    EPTWF_CAP_ERR  => PTW_Ext_Error(AT_CAP_ERR)
   }
 
 /* conversion of these translation/PTW failures into architectural exceptions */
@@ -35,40 +35,23 @@ function translationException(a : AccessType(ext_access_type), f : PTW_Error) ->
   let e : ExceptionType =
   match (a, f) {
     /* Tag-asserting stores can raise CHERI page faults. */
-    (Write(Cap), PTW_Ext_Error(AT_CAP_ERR))     => E_Extension(EXC_SAMO_CAP_PAGE_FAULT),
-
-    /*
-     * XXX ReadWrite(Cap) does not provide enough information to distinguish
-     * between a tag-clearing store and tag-asserting store in the presence of
-     * a tag-capable load, or a tag-asserting store in the case of a
-     * tag-incapable load.  (That is, it only clearly distinguishes a
-     * tag-incapable load with a tag-clearing store from every other option.)
-     * Groundwork for fixing this exists in the sail RISC-V model, but we have
-     * not yet caught up to that point.  Fortunately, we don't actually have
-     * amoswap.c yet, so this is not observably wrong.
-     */
-    (ReadWrite(Cap), PTW_Ext_Error(AT_CAP_ERR)) => E_Extension(EXC_SAMO_CAP_PAGE_FAULT),
+    (Write(Cap), PTW_Ext_Error(AT_CAP_ERR))        => E_Extension(EXC_SAMO_CAP_PAGE_FAULT),
+    (ReadWrite(Cap, _), PTW_Ext_Error(AT_CAP_ERR)) => E_Extension(EXC_SAMO_CAP_PAGE_FAULT),
+    (ReadWrite(_, Cap), PTW_Ext_Error(AT_CAP_ERR)) => E_Extension(EXC_SAMO_CAP_PAGE_FAULT),
 
     /* No other operations should raise CHERI-specific page faults */
-    (_, PTW_Ext_Error(_)) => internal_error("Unexpected PTW Extension Error"),
+    (_, PTW_Ext_Error(_))                          => internal_error("Unexpected PTW Extension Error"),
 
-    /* For other exceptions, Cap accesses fault similar to Data accesses below. */
-    (ReadWrite(Cap), PTW_Access())  => E_SAMO_Access_Fault(),
-    (ReadWrite(Cap), _)             => E_SAMO_Page_Fault(),
-    (Read(Cap), PTW_Access())       => E_Load_Access_Fault(),
-    (Read(Cap), _)                  => E_Load_Page_Fault(),
-    (Write(Cap), PTW_Access())      => E_SAMO_Access_Fault(),
-    (Write(Cap), _)                 => E_SAMO_Page_Fault(),
+    /* For other exceptions, Cap and Data accesses fault in the same way. */
+    (ReadWrite(_, _), PTW_Access())                => E_SAMO_Access_Fault(),
+    (ReadWrite(_, _), _)                           => E_SAMO_Page_Fault(),
+    (Read(_), PTW_Access())                        => E_Load_Access_Fault(),
+    (Read(_), _)                                   => E_Load_Page_Fault(),
+    (Write(_), PTW_Access())                       => E_SAMO_Access_Fault(),
+    (Write(_), _)                                  => E_SAMO_Page_Fault(),
 
-    (ReadWrite(Data), PTW_Access()) => E_SAMO_Access_Fault(),
-    (ReadWrite(Data), _)            => E_SAMO_Page_Fault(),
-    (Read(Data), PTW_Access())      => E_Load_Access_Fault(),
-    (Read(Data), _)                 => E_Load_Page_Fault(),
-    (Write(Data), PTW_Access())     => E_SAMO_Access_Fault(),
-    (Write(Data), _)                => E_SAMO_Page_Fault(),
-
-    (Execute(), PTW_Access())       => E_Fetch_Access_Fault(),
-    (Execute(), _)                  => E_Fetch_Page_Fault()
+    (Execute(), PTW_Access())                      => E_Fetch_Access_Fault(),
+    (Execute(), _)                                 => E_Fetch_Page_Fault()
   } in {
 /*  print_mem("translationException(" ^ a ^ ", " ^ f ^ ") -> " ^ e); */
     e

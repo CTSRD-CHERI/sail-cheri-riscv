@@ -125,17 +125,14 @@ function ext_data_get_addr(base_reg : regidx, offset : xlenbits, acc : AccessTyp
 
   let (auth_val, newAddr, auth_idx) = get_cheri_mode_cap_addr(base_reg, offset);
 
-  let have_rqd_load_perm : bool = match acc {
-    Read(Data)       => auth_val.permit_load,
-    Write(Data)      => true,
-    ReadWrite(Data)  => auth_val.permit_load,
-    Execute()        => false /* should only be for load/store */
-  };
-  let have_rqd_store_perm : bool = match acc {
-    Read(Data)       => true,
-    Write(Data)      => auth_val.permit_store,
-    ReadWrite(Data)  => auth_val.permit_store,
-    Execute()        => false /* should only be for load/store */
+  let (have_rqd_load_perm, have_rqd_store_perm) : (bool, bool) = match acc {
+    Read(Data)            => (auth_val.permit_load, true                 ),
+    Write(Data)           => (true                , auth_val.permit_store),
+    ReadWrite(Data, Data) => (auth_val.permit_load, auth_val.permit_store),
+    Execute()             => internal_error("ext_data_get_addr for Execute"),
+    Read(_)               => internal_error("ext_data_get_addr for Read(_)"),
+    Write(_)              => internal_error("ext_data_get_addr for Write(_)"),
+    ReadWrite(_, _)       => internal_error("ext_data_get_addr for ReadWrite(_, _)")
   };
 
   if not(auth_val.tag) then
