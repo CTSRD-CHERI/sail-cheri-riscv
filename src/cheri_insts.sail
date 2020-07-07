@@ -1194,7 +1194,7 @@ function handle_store_cap_via_cap(rs, cs, cap_val, vaddrBits) = {
   } else if not (cap_val.permit_store) then {
     handle_cheri_cap_exception(CapEx_PermitStoreViolation, cs);
     RETIRE_FAIL
-  } else if not (cap_val.permit_store_cap) then {
+  } else if not (cap_val.permit_store_cap) & rs_val.tag then {
     handle_cheri_cap_exception(CapEx_PermitStoreCapViolation, cs);
     RETIRE_FAIL
   } else if not (cap_val.permit_store_local_cap) & rs_val.tag & not(rs_val.global) then {
@@ -1336,7 +1336,7 @@ function handle_store_cond_cap_via_cap(cs2, cs, cap_val, vaddrBits) = {
   } else if not (cap_val.permit_store) then {
     handle_cheri_cap_exception(CapEx_PermitStoreViolation, cs);
     RETIRE_FAIL
-  } else if not (cap_val.permit_store_cap) then {
+  } else if not (cap_val.permit_store_cap) & cs2_val.tag then {
     handle_cheri_cap_exception(CapEx_PermitStoreCapViolation, cs);
     RETIRE_FAIL
   } else if not (cap_val.permit_store_local_cap) & cs2_val.tag & not(cs2_val.global) then {
