@@ -109,6 +109,70 @@ function clause execute (CGetAddr(rd, cb)) =
   X(rd) = capVal.address;
   RETIRE_SUCCESS
 }
+
+/*
+ * Grab a XLEN-size window of bits out of a capability register, shifting in
+ * units of bytes (chosen somewhat arbitrarily, but giving enough reach for
+ * even 256-bit capabilities, should those ever happen again, e.g., at
+ * datacenter-scale).
+ *
+ * Treat attempts to read completely off the end of the capability (i.e., where
+ * the LSB is past the end) as illegal opcodes, and sign-extend any reads that
+ * only partially overlap the capability (i.e., where the MSB is past the end
+ * but the LSB isn't).
+ */
+union clause ast = CGetBits   : (regidx, regidx, bits(5))
+function clause execute (CGetBits(rd, cs, sel)) =
+{
+  let 'sel_int = unsigned(sel);
+  if sel_int >= sizeof(cap_size) then {
+    handle_illegal();
+    RETIRE_FAIL
+  } else {
+    let 'shsel = unsigned(sel @ 0b000);
+    let capMemBits = capToMemBits(readCapReg(cs));
+
+    // Sign extend capability bits using arithmetic right shift
+    let res : xlenbits = truncate(capMemBits >>_s shsel, sizeof(xlen));
+
+    X(rd) = res;
+    RETIRE_SUCCESS
+  }
+}
+
+/*
+ * The reverse of CGetBits: land 64 bits anywhere (on byte boundaries) in a
+ * capability register.
+ *
+ * Always clears the tag, even if, in principle, it could leave a capability
+ * intact.  That is, this is explicitly a bit-manip instruction, not a
+ * capability one.
+ *
+ * Treat attempts to write of the end of the capability as illegal opcodes.
+ * This is *more restrictive* than CGetBits, as we do not permit only-partially
+ * overlapping writes: the MSB end of the store must be within the capability.
+ */
+union clause ast = CSetBits   : (regidx, regidx, bits(5))
+function clause execute (CSetBits(cd, rs, sel)) =
+{
+  let 'shsel = unsigned(sel @ 0b000);
+
+  /* This can't possibly be the right answer, but it does the right thing... */
+  if unsigned(ones(cap_size) >> shsel) < unsigned(ones(sizeof(xlen))) then {
+    handle_illegal();
+    RETIRE_FAIL
+  } else {
+    let capMemBits : CapBits  = capToMemBits(readCapReg(cd));
+    let rsbits     : CapBits  = EXTZ(X(rs));
+    let maskword   : CapBits  = EXTZ(ones(sizeof(xlen)));
+    let maskbits   : CapBits  = (maskword << shsel)[(8*cap_size - 1) .. 0];
+    let maskedbits : CapBits  = capMemBits & ~(maskbits);
+    let newbits    : CapBits  = maskedbits | (rsbits << shsel);
+    writeCapReg(cd, memBitsToCapability(false, newbits));
+    RETIRE_SUCCESS
+  }
+}
+
 /*
 
 union clause ast = CGetPCCSetOffset : (regidx, regidx)
@@ -1545,6 +1609,9 @@ mapping clause encdec = CSpecialRW(cd, cs, idx) if (haveXcheri()) <-> 0b0000001 
 mapping clause encdec = CIncOffsetImmediate(cd, cb, imm12) if (haveXcheri()) <-> imm12 : bits(12) @ cb @ 0b001 @ cd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CSetBoundsImmediate(cd, cb, imm12) if (haveXcheri()) <-> imm12 : bits(12) @ cb @ 0b010 @ cd @ 0b1011011 if (haveXcheri())
 
+mapping clause encdec = CGetBits(rd, cs, sel)   if (haveXcheri()) <-> 0b0010101 @ rd @ cs @ 0b000 @ sel @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CSetBits(cd, rs, sel)   if (haveXcheri()) <-> 0b0010110 @ cd @ rs @ 0b000 @ sel @ 0b1011011 if (haveXcheri())
+
 mapping clause assembly = CSeal(cd, cs, ct)      <-> "CSeal"      ^ spc() ^ reg_name(cd) ^ sep() ^ reg_name(cs) ^ sep() ^ reg_name(ct)
 mapping clause assembly = CUnseal(cd, cs, ct)    <-> "CUnseal"    ^ spc() ^ reg_name(cd) ^ sep() ^ reg_name(cs) ^ sep() ^ reg_name(ct)
 mapping clause assembly = CAndPerm(cd, cs, rt)   <-> "CAndPerm"   ^ spc() ^ reg_name(cd) ^ sep() ^ reg_name(cs) ^ sep() ^ reg_name(rt)
@@ -1568,6 +1635,9 @@ mapping clause assembly = CSpecialRW(cd, cs, idx) <-> "CSpecialRW"  ^ spc() ^ re
 
 mapping clause assembly = CIncOffsetImmediate(cd, cb, imm12) <-> "CIncOffsetImmediate" ^ spc() ^ reg_name(cd) ^ sep() ^ reg_name(cb) ^ sep() ^ hex_bits_12(imm12)
 mapping clause assembly = CSetBoundsImmediate(cd, cb, imm12) <-> "CSetBoundsImmediate" ^ spc() ^ reg_name(cd) ^ sep() ^ reg_name(cb) ^ sep() ^ hex_bits_12(imm12)
+
+mapping clause assembly = CGetBits(rd, cs, sel) <-> "CGetBits" ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(cs) ^ sep() ^ hex_bits_5(sel)
+mapping clause assembly = CSetBits(cd, rs, sel) <-> "CSetBits" ^ spc() ^ reg_name(cd) ^ sep() ^ reg_name(rs) ^ sep() ^ hex_bits_5(sel)
 
 /* Loads and stores */
 
