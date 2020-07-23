@@ -130,12 +130,12 @@ function clause execute (CSpecialRW(cd, cs, idx)) =
     31 => (true, false, Machine, true),
     _  => (false, true, Machine, true)
   };
-  if (not(specialExists)) then {
+  if (not(specialExists) |
+      ro & cs != 0b00000 |
+      (privLevel_to_bits(cur_privilege) <_u privLevel_to_bits(priv))) then {
     handle_illegal();
     RETIRE_FAIL
-  } else if (ro & cs != 0b00000) |
-     (privLevel_to_bits(cur_privilege) <_u privLevel_to_bits(priv)) |
-     (needASR & not(pcc_access_system_regs())) then {
+  } else if (needASR & not(pcc_access_system_regs())) then {
     handle_cheri_cap_exception(CapEx_AccessSystemRegsViolation, 0b1 @ idx);
     RETIRE_FAIL
   } else {
