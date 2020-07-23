@@ -109,49 +109,6 @@ function clause execute (CGetAddr(rd, cb)) =
   X(rd) = capVal.address;
   RETIRE_SUCCESS
 }
-/*
-
-union clause ast = CGetPCCSetOffset : (regidx, regidx)
-function clause execute (CGetPCCSetOffset(cd, rs)) =
-{
-  checkCP2usable();
-  let rs_val = rGPR(rs);
-  let (success, newPCC) = setCapOffset(PCC, rs_val);
-  if (success) then
-    writeCapReg(cd, newPCC)
-  else
-    writeCapReg(cd, int_to_cap(rs_val));
-  RETIRE_SUCCESS
-}
-/* Get and Set CP2 cause register */
-
-union clause ast = CGetCause : regidx
-function clause execute (CGetCause(rd)) =
-{
-  if not (pcc_access_system_regs ()) then {
-    handle_cheri_pcc_exception(CapEx_AccessSystemRegsViolation);
-    RETIRE_FAIL
-  } else {
-    X(rd) = EXTZ(CapCause.bits());
-    RETIRE_SUCCESS
-  }
-}
-
-union clause ast = CSetCause : regidx
-function clause execute (CSetCause(rt)) =
-{
-  if not (pcc_access_system_regs ()) then {
-    handle_cheri_pcc_exception(CapEx_AccessSystemRegsViolation);
-    RETIRE_FAIL
-  } else {
-    let rt_val = X(rt);
-    CapCause->ExcCode() = rt_val[15..8];
-    CapCause->RegNum()  = rt_val[7..0];
-    RETIRE_SUCCESS
-  }
-}
-
-*/
 
 union clause ast = CSpecialRW : (regidx, regidx, regidx)
 function clause execute (CSpecialRW(cd, cs, idx)) =
