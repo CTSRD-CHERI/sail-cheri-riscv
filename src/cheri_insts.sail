@@ -574,6 +574,15 @@ function clause execute (CTestSubset(rd, cb, ct)) =
   RETIRE_SUCCESS
 }
 
+union clause ast = CSEQX : (regidx, regidx, regidx)
+function clause execute (CSEQX(rd, cb, ct)) =
+{
+  let cb_val = readCapReg(cb);
+  let ct_val = readCapReg(ct);
+  X(rd) = EXTZ(bool_to_bits(cb_val == ct_val));
+  RETIRE_SUCCESS
+}
+
   /*
    * Common suffix of CSeal and CCSeal
    */
@@ -1492,6 +1501,8 @@ mapping clause encdec = CSpecialRW(cd, cs, idx) if (haveXcheri()) <-> 0b0000001 
 mapping clause encdec = CIncOffsetImmediate(cd, cb, imm12) if (haveXcheri()) <-> imm12 : bits(12) @ cb @ 0b001 @ cd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CSetBoundsImmediate(cd, cb, imm12) if (haveXcheri()) <-> imm12 : bits(12) @ cb @ 0b010 @ cd @ 0b1011011 if (haveXcheri())
 
+mapping clause encdec = CSEQX(rd, cb, ct) if (haveXcheri()) <-> 0b0100001 @ ct @ cb @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
+
 mapping clause assembly = CSeal(cd, cs, ct)      <-> "CSeal"      ^ spc() ^ reg_name(cd) ^ sep() ^ reg_name(cs) ^ sep() ^ reg_name(ct)
 mapping clause assembly = CUnseal(cd, cs, ct)    <-> "CUnseal"    ^ spc() ^ reg_name(cd) ^ sep() ^ reg_name(cs) ^ sep() ^ reg_name(ct)
 mapping clause assembly = CAndPerm(cd, cs, rt)   <-> "CAndPerm"   ^ spc() ^ reg_name(cd) ^ sep() ^ reg_name(cs) ^ sep() ^ reg_name(rt)
@@ -1515,6 +1526,8 @@ mapping clause assembly = CSpecialRW(cd, cs, idx) <-> "CSpecialRW"  ^ spc() ^ re
 
 mapping clause assembly = CIncOffsetImmediate(cd, cb, imm12) <-> "CIncOffsetImmediate" ^ spc() ^ reg_name(cd) ^ sep() ^ reg_name(cb) ^ sep() ^ hex_bits_12(imm12)
 mapping clause assembly = CSetBoundsImmediate(cd, cb, imm12) <-> "CSetBoundsImmediate" ^ spc() ^ reg_name(cd) ^ sep() ^ reg_name(cb) ^ sep() ^ hex_bits_12(imm12)
+
+mapping clause assembly = CSEQX(rd, cb, ct) <-> "CSEQX" ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(cb) ^ sep() ^ reg_name(ct)
 
 /* Loads and stores */
 
