@@ -16,15 +16,15 @@ bitfield PTE_Bits : pteAttribs = {
 /*
  * Reserved PTE bits used by extensions on RV64.
  *
- * There are no such bits on RV32/SV32, so we hard-code both StoreCap=1
- * and LoadCap=1 (i.e., there is no ability to disable capability loads
+ * There are no such bits on RV32/SV32, so we hard-code both CapWrite=1
+ * and CapRead=1 (i.e., there is no ability to disable capability loads
  * from or stores to pages in the SV32 MMU).
  */
 type extPte = bits(10)
 
 bitfield Ext_PTE_Bits : extPte = {
-  StoreCap     : 9, /* Permit capability stores */
-  LoadCap      : 8, /* Permit capability loads */
+  CapWrite     : 9, /* Permit capability stores */
+  CapRead      : 8, /* Permit capability loads */
 }
 
 function isPTEPtr(p : pteAttribs, ext : extPte) -> bool = {
@@ -71,16 +71,16 @@ function checkPTEPermission(ac : AccessType(ext_access_type), priv : Privilege, 
   };
 
   let e = Mk_Ext_PTE_Bits(ext);
-  let lcav = if e.LoadCap()  == 0b1 then PTW_LC_OK else PTW_LC_CLEAR;
-  let scav = if e.StoreCap() == 0b1 then PTW_SC_OK else PTW_SC_TRAP;
+  let ptw_lc = if e.CapRead()  == 0b1 then PTW_LC_OK else PTW_LC_CLEAR;
+  let ptw_sc = if e.CapWrite() == 0b1 then PTW_SC_OK else PTW_SC_TRAP;
   let (succ, ext_ptw') : (bool, ext_ptw) =
   match (base_succ, ac) {
     /* Base translation exceptions take priority over CHERI exceptions */
     (false, _)               => (false, init_ext_ptw),
 
-    (true,  Read(Cap))       => (true, ext_ptw_lc_join(ext_ptw, lcav)),
-    (true,  Write(Cap))      => (true, ext_ptw_sc_join(ext_ptw, scav)),
-    (true,  ReadWrite(Cap))  => (true, ext_ptw_sc_join(ext_ptw_lc_join(ext_ptw, lcav), scav)),
+    (true,  Read(Cap))       => (true, ext_ptw_lc_join(ext_ptw, ptw_lc)),
+    (true,  Write(Cap))      => (true, ext_ptw_sc_join(ext_ptw, ptw_sc)),
+    (true,  ReadWrite(Cap))  => (true, ext_ptw_sc_join(ext_ptw_lc_join(ext_ptw, ptw_lc), ptw_sc)),
 
     (true,  Read(Data))      => (true, ext_ptw),
     (true,  Write(Data))     => (true, ext_ptw),
