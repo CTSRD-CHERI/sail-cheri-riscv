@@ -62,6 +62,11 @@ $property
 function propEncodableCorrect(c) : Capability -> bool =
   encodableCap(c) <--> (memBitsToCapability(c.tag, capToMemBits(c)) == c)
 
+/* The decoding of a bit pattern is encodable */
+$property
+function propDecodeEncodable(capBits, tag) : (CapBits, bool) -> bool =
+  encodableCap(memBitsToCapability(tag, capBits))
+
 /* Initial and null capabilites are encodable. */
 $property
 function propDefaultCapEncodable() : unit -> bool = encodableCap(default_cap)
@@ -105,7 +110,9 @@ function validBounds(c) : Capability -> bool =
   let Bmsb  = c.B[mantissa_width - 1] in
   let Bmsb2 = c.B[mantissa_width - 1 .. mantissa_width - 2] in
   let Tmsb  = c.T[mantissa_width - 1] in
-  if (unsigned(c.E) >= maxE) then {
+  if (unsigned(c.E) > maxE) then {
+    false
+  } else if (unsigned(c.E) == maxE) then {
     Tmsb == bitzero & Bmsb2 == 0b00
   } else if (unsigned(c.E) == maxE - 1) then {
     Bmsb == bitzero
@@ -121,6 +128,16 @@ $property
 function propBaseLeqTop(c) : Capability -> bool =
   let (base, top) = getCapBounds(c) in
   (encodableCap(c) & validBounds(c)) --> (base <= top)
+
+$property
+function propBuildCapValidEq(c, auth) : (Capability, Capability) -> bool =
+  let (base, top) = getCapBoundsBits(c) in
+  let (_, c1) = setCapBounds(auth, base, top) in
+  let (_, c2) = setCapOffset(c1, getCapOffsetBits(c)) in
+  let c3 = setCapPerms(c2, getCapPerms(c)) in
+  let result = setCapFlags(c3, getCapFlags(c)) in
+  let expected_result = {unsealCap(c) with tag = true, reserved = auth.reserved} in
+  (encodableCap(c) & encodableCap(auth) & validBounds(c) & auth.tag & not(auth.sealed)) --> (result == expected_result)
 
 /*****************************************************************************/
 
