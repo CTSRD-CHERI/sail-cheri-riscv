@@ -497,7 +497,6 @@ function clause execute (CBuildCap(cd, cs1, cs2)) =
     let (success, cd5) = if cs2_val.otype == to_bits(otype_width, otype_sentry) then sealCap(cd4, to_bits(otype_width, otype_sentry)) else (true, cd4);
     {
       assert(exact, "CBuildCap: setCapBounds was not exact"); /* base and top came from cs2 originally so will be exact */
-      assert(representable, "CBuildCap: offset was not representable"); /* similarly offset should be representable XXX except for fastRepCheck */
       assert(success, "CBuildCap: seal to sentry was unsuccessful"); /* Should be unreachable now that otypes are orthogonal */
       writeCapReg(cd, cd5);
       RETIRE_SUCCESS
