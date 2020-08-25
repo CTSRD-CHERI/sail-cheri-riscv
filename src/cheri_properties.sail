@@ -84,9 +84,8 @@ function propSetBoundsEncodable(c, reqBase, reqTop) : (Capability, CapAddrBits, 
 /* Sealing with a valid object type preserves encodability */
 $property
 function propSealEncodable(c, otype) : (Capability, bits(otype_width)) -> bool =
-  let (_, c') = sealCap(c, otype) in
   let validType = (unsigned(otype) <= max_otype) in
-  (encodableCap(c) & validType) --> encodableCap(c')
+  (encodableCap(c) & validType) --> encodableCap(sealCap(c, otype))
 
 /* Unsealing preserves encodability */
 $property

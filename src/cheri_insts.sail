@@ -494,10 +494,9 @@ function clause execute (CBuildCap(cd, cs1, cs2)) =
     let (representable, cd2) = setCapOffset(cd1, getCapOffsetBits(cs2_val));
     let cd3 = setCapPerms(cd2, cs2_perms);
     let cd4 = setCapFlags(cd3, cs2_flags);
-    let (success, cd5) = if cs2_val.otype == to_bits(otype_width, otype_sentry) then sealCap(cd4, to_bits(otype_width, otype_sentry)) else (true, cd4);
+    let cd5 = if cs2_val.otype == to_bits(otype_width, otype_sentry) then sealCap(cd4, to_bits(otype_width, otype_sentry)) else cd4;
     {
       assert(exact, "CBuildCap: setCapBounds was not exact"); /* base and top came from cs2 originally so will be exact */
-      assert(success, "CBuildCap: seal to sentry was unsuccessful"); /* Should be unreachable now that otypes are orthogonal */
       writeCapReg(cd, cd5);
       RETIRE_SUCCESS
     }
@@ -614,14 +613,8 @@ function CSeal_core (cd, cs1, cs1_val, cs2, cs2_val) =
     handle_cheri_reg_exception(CapEx_LengthViolation, cs2);
     RETIRE_FAIL
   } else {
-    let (success, newCap) = sealCap(cs1_val, to_bits(otype_width, cs2_cursor));
-    if not (success) then {
-      handle_cheri_reg_exception(CapEx_InexactBounds, cs1);
-      RETIRE_FAIL
-    } else {
-      writeCapReg(cd, newCap);
-      RETIRE_SUCCESS
-    }
+    writeCapReg(cd, sealCap(cs1_val, to_bits(otype_width, cs2_cursor)));
+    RETIRE_SUCCESS
   }
 }
 
@@ -750,14 +743,8 @@ function clause execute (CSealEntry(cd, cs1)) =
     handle_cheri_reg_exception(CapEx_PermitExecuteViolation, cs1);
     RETIRE_FAIL
   } else {
-    let (success, newCap) = sealCap(cs1_val, to_bits(otype_width, otype_sentry));
-    if not (success) then {
-      handle_cheri_reg_exception(CapEx_InexactBounds, cs1);
-      RETIRE_FAIL
-    } else {
-      writeCapReg(cd, newCap);
-      RETIRE_SUCCESS
-    }
+    writeCapReg(cd, sealCap(cs1_val, to_bits(otype_width, otype_sentry)));
+    RETIRE_SUCCESS
   }
 }
 
@@ -840,9 +827,7 @@ function clause execute(CJALR(cd, cs1)) =
     let (success, linkCap) = setCapAddr(PCC, nextPC); /* Note that nextPC accounts for compressed instrucitons */
     assert(success, "Link cap should always be representable.");
     assert(not (linkCap.sealed), "Link cap should always be unsealed");
-    let (success, sentryLinkCap) = sealCap(linkCap, to_bits(otype_width, otype_sentry));
-    assert(success, "Sealing a link cap as a sentry should always succeed");
-    writeCapReg(cd, sentryLinkCap);
+    writeCapReg(cd, sealCap(linkCap, to_bits(otype_width, otype_sentry)));
     nextPC  = newPC;
     nextPCC = unsealCap(cs1_val);
     RETIRE_SUCCESS

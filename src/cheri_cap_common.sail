@@ -234,8 +234,8 @@ function setCapFlags(cap, flags) = {cap with flag_cap_mode = bit_to_bool(flags[0
 val hasReservedOType : Capability -> bool
 function hasReservedOType(cap) = unsigned(cap.otype) > max_otype
 
-function sealCap(cap, otyp) : (Capability, bits(otype_width)) -> (bool, Capability) =
-    (true, {cap with sealed=true, otype=otyp})
+function sealCap(cap, otyp) : (Capability, bits(otype_width)) -> Capability =
+    {cap with sealed=true, otype=otyp}
 
 function unsealCap(cap) : Capability -> Capability =
     {cap with sealed=false, otype=to_bits(otype_width, otype_unsealed)}
