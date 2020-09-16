@@ -353,7 +353,7 @@ union clause ast = CSetBoundsImmediate : (regidx, regidx, bits(12))
 function clause execute (CSetBoundsImmediate(cd, cs1, imm)) =
 {
   let cs1_val = readCapReg(cs1);
-  let newBase= cs1_val.address;
+  let newBase = cs1_val.address;
   let newTop : CapLenBits = EXTZ(newBase) + EXTZ(imm);
   if not (cs1_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cs1);
@@ -1493,6 +1493,7 @@ mapping clause encdec = CCSeal(cd, cs1, cs2)      if (haveXcheri()) <-> 0b001111
 mapping clause encdec = CToPtr(rd, cs1, cs2)      if (haveXcheri()) <-> 0b0010010 @ cs2 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CFromPtr(cd, cs1, rs2)    if (haveXcheri()) <-> 0b0010011 @ rs2 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CSub(rd, cs1, cs2)        if (haveXcheri()) <-> 0b0010100 @ cs2 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
+
 mapping clause encdec = CInvoke(cs1, cs2)         if (haveXcheri()) <-> 0b1111110 @ cs2 @ cs1 @ 0b000 @ 0b00001 @ 0b1011011 if (haveXcheri())
 
 mapping clause encdec = CTestSubset(rd, cs1, cs2) if (haveXcheri()) <-> 0b0100000 @ cs2 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
@@ -1519,6 +1520,7 @@ mapping clause assembly = CCSeal(cd, cs1, cs2)    <-> "CCSeal"      ^ spc() ^ re
 mapping clause assembly = CToPtr(rd, cs1, cs2)    <-> "CToPtr"      ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(cs1) ^ sep() ^ reg_name(cs2)
 mapping clause assembly = CFromPtr(cd, cs1, rs2)  <-> "CFromPtr"    ^ spc() ^ reg_name(cd) ^ sep() ^ reg_name(cs1) ^ sep() ^ reg_name(rs2)
 mapping clause assembly = CSub(rd, cs1, cs2)      <-> "CSub"        ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(cs1) ^ sep() ^ reg_name(cs2)
+
 mapping clause assembly = CInvoke(cs1, cs2)       <-> "CInvoke"     ^ spc() ^ reg_name(cs1) ^ sep() ^ reg_name(cs2)
 
 mapping clause assembly = CTestSubset(rd, cs1, cs2) <-> "CTestSubset" ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(cs1) ^ sep() ^ reg_name(cs2)
@@ -1577,12 +1579,12 @@ mapping clause encdec = CStoreDDC(rs2, rs1, DOUBLE)     if (haveXcheri() & haveR
 mapping clause encdec = CStoreCapDDC(cs2, rs1)          if (haveXcheri() & sizeof(xlen) == 64) <-> 0b1111100 @ cs2 @ rs1 @ 0b000 @ 0b00100 @ 0b1011011 if (haveXcheri() & sizeof(xlen) == 64) /* sqddc */
 mapping clause encdec = CStoreCapDDC(cs2, rs1)          if (haveXcheri() & sizeof(xlen) == 32) <-> 0b1111100 @ cs2 @ rs1 @ 0b000 @ 0b00011 @ 0b1011011 if (haveXcheri() & sizeof(xlen) == 32) /* sdddc */
 
-mapping clause encdec = CStoreCap(rs2, cs1, BYTE)        if (haveXcheri()) <-> 0b1111100 @ rs2 @ cs1  @ 0b000 @ 0b01000 @ 0b1011011 if (haveXcheri()) /* sbcap */
-mapping clause encdec = CStoreCap(rs2, cs1, HALF)        if (haveXcheri()) <-> 0b1111100 @ rs2 @ cs1  @ 0b000 @ 0b01001 @ 0b1011011 if (haveXcheri()) /* shcap */
-mapping clause encdec = CStoreCap(rs2, cs1, WORD)        if (haveXcheri()) <-> 0b1111100 @ rs2 @ cs1  @ 0b000 @ 0b01010 @ 0b1011011 if (haveXcheri()) /* swcap */
-mapping clause encdec = CStoreCap(rs2, cs1, DOUBLE)      if (haveXcheri() & haveRV64) <-> 0b1111100 @ rs2 @ cs1  @ 0b000 @ 0b01011 @ 0b1011011 if (haveXcheri() & haveRV64) /* sdcap */
-mapping clause encdec = CStoreCapCap(cs2, cs1)           if (haveXcheri() & sizeof(xlen) == 64) <-> 0b1111100 @ cs2 @ cs1  @ 0b000 @ 0b01100 @ 0b1011011 if (haveXcheri() & sizeof(xlen) == 64) /* sqcap */
-mapping clause encdec = CStoreCapCap(cs2, cs1)           if (haveXcheri() & sizeof(xlen) == 32) <-> 0b1111100 @ cs2 @ cs1  @ 0b000 @ 0b01011 @ 0b1011011 if (haveXcheri() & sizeof(xlen) == 32) /* sdcap */
+mapping clause encdec = CStoreCap(rs2, cs1, BYTE)        if (haveXcheri()) <-> 0b1111100 @ rs2 @ cs1 @ 0b000 @ 0b01000 @ 0b1011011 if (haveXcheri()) /* sbcap */
+mapping clause encdec = CStoreCap(rs2, cs1, HALF)        if (haveXcheri()) <-> 0b1111100 @ rs2 @ cs1 @ 0b000 @ 0b01001 @ 0b1011011 if (haveXcheri()) /* shcap */
+mapping clause encdec = CStoreCap(rs2, cs1, WORD)        if (haveXcheri()) <-> 0b1111100 @ rs2 @ cs1 @ 0b000 @ 0b01010 @ 0b1011011 if (haveXcheri()) /* swcap */
+mapping clause encdec = CStoreCap(rs2, cs1, DOUBLE)      if (haveXcheri() & haveRV64) <-> 0b1111100 @ rs2 @ cs1 @ 0b000 @ 0b01011 @ 0b1011011 if (haveXcheri() & haveRV64) /* sdcap */
+mapping clause encdec = CStoreCapCap(cs2, cs1)           if (haveXcheri() & sizeof(xlen) == 64) <-> 0b1111100 @ cs2 @ cs1 @ 0b000 @ 0b01100 @ 0b1011011 if (haveXcheri() & sizeof(xlen) == 64) /* sqcap */
+mapping clause encdec = CStoreCapCap(cs2, cs1)           if (haveXcheri() & sizeof(xlen) == 32) <-> 0b1111100 @ cs2 @ cs1 @ 0b000 @ 0b01011 @ 0b1011011 if (haveXcheri() & sizeof(xlen) == 32) /* sdcap */
 
 mapping clause encdec = CStoreCondDDC(rs2, rs1, BYTE)   if (haveXcheri() & haveAtomics()) <-> 0b1111100 @ rs2 @ rs1 @ 0b000 @ 0b10000 @ 0b1011011 if (haveXcheri() & haveAtomics()) /* scbddc */
 mapping clause encdec = CStoreCondDDC(rs2, rs1, HALF)   if (haveXcheri() & haveAtomics()) <-> 0b1111100 @ rs2 @ rs1 @ 0b000 @ 0b10001 @ 0b1011011 if (haveXcheri() & haveAtomics()) /* schddc */
