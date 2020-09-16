@@ -417,10 +417,6 @@ function clause execute (CMove(cd, cs1)) =
 union clause ast = ClearRegs : (ClearRegSet, bits(2), bits(8))
 function clause execute (ClearRegs(regset, q, m)) =
 {
-  /*
-  if ((regset == CLo) | (regset == CHi)) then
-    checkCP2usable();
-  */
   foreach (i from 0 to 7)
     if m[i] == bitone then
       match regset {
