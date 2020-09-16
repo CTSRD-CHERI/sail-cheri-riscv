@@ -426,10 +426,15 @@ function clause execute (Clear(q, m)) =
 union clause ast = FPClear : (bits(2), bits(8))
 function clause execute (FPClear(q, m)) =
 {
-  foreach (i from 0 to 7)
-    if m[i] == bitone then
-      (); /* XXX no F regs yet */
-  RETIRE_SUCCESS
+  if haveFExt() then {
+    foreach (i from 0 to 7)
+      if m[i] == bitone then
+        F(8 * unsigned(q) + i) = zeros();
+    RETIRE_SUCCESS
+  } else {
+    handle_illegal();
+    RETIRE_FAIL
+  }
 }
 
 union clause ast = CFromPtr : (regidx, regidx, regidx)
