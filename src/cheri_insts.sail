@@ -414,15 +414,21 @@ function clause execute (CMove(cd, cs1)) =
   RETIRE_SUCCESS
 }
 
-union clause ast = ClearRegs : (ClearRegSet, bits(2), bits(8))
-function clause execute (ClearRegs(regset, q, m)) =
+union clause ast = Clear : (bits(2), bits(8))
+function clause execute (Clear(q, m)) =
 {
   foreach (i from 0 to 7)
     if m[i] == bitone then
-      match regset {
-        GPRegs => X(8 * unsigned(q) + i) = zeros(),
-        FPRegs => () /* XXX no F regs yet */
-      };
+      X(8 * unsigned(q) + i) = zeros();
+  RETIRE_SUCCESS
+}
+
+union clause ast = FPClear : (bits(2), bits(8))
+function clause execute (FPClear(q, m)) =
+{
+  foreach (i from 0 to 7)
+    if m[i] == bitone then
+      (); /* XXX no F regs yet */
   RETIRE_SUCCESS
 }
 
@@ -1446,8 +1452,8 @@ mapping clause encdec = CSealEntry(cd, cs1) if (haveXcheri()) <-> 0b1111111 @ 0b
 mapping clause encdec = CRRL(rd, rs1) if (haveXcheri()) <-> 0b1111111 @ 0b01000 @ rs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CRAM(rd, rs1) if (haveXcheri()) <-> 0b1111111 @ 0b01001 @ rs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 
-mapping clause encdec = ClearRegs(GPRegs, q, m3 @ m5) if (haveXcheri()) <-> 0b1111111 @ 0b01101 @ q : bits(2) @ m3 : bits(3) @ 0b000 @ m5 : regidx @ 0b1011011 if (haveXcheri())
-mapping clause encdec = ClearRegs(FPRegs, q, m3 @ m5) if (haveXcheri()) <-> 0b1111111 @ 0b10000 @ q : bits(2) @ m3 : bits(3) @ 0b000 @ m5 : regidx @ 0b1011011 if (haveXcheri())
+mapping clause encdec = Clear(q, m3 @ m5)   if (haveXcheri()) <-> 0b1111111 @ 0b01101 @ q : bits(2) @ m3 : bits(3) @ 0b000 @ m5 : regidx @ 0b1011011 if (haveXcheri())
+mapping clause encdec = FPClear(q, m3 @ m5) if (haveXcheri()) <-> 0b1111111 @ 0b10000 @ q : bits(2) @ m3 : bits(3) @ 0b000 @ m5 : regidx @ 0b1011011 if (haveXcheri())
 
 mapping clause assembly = CGetPerm(rd, cs1)   <-> "CGetPerm"   ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(cs1)
 mapping clause assembly = CGetFlags(rd, cs1)  <-> "CGetFlags"  ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(cs1)
@@ -1468,8 +1474,8 @@ mapping clause assembly = CSealEntry(cd, cs1) <-> "CSealEntry" ^ spc() ^ reg_nam
 mapping clause assembly = CRRL(rd, rs1) <-> "CRRL" ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1)
 mapping clause assembly = CRAM(rd, rs1) <-> "CRAM" ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1)
 
-mapping clause assembly = ClearRegs(GPRegs, q, m8) <-> "Clearq"   ^ spc() ^ hex_bits_2(q) ^ sep() ^ hex_bits_8(m8)
-mapping clause assembly = ClearRegs(FPRegs, q, m8) <-> "FPClearq" ^ spc() ^ hex_bits_2(q) ^ sep() ^ hex_bits_8(m8)
+mapping clause assembly = Clear(q, m8)   <-> "Clearq"   ^ spc() ^ hex_bits_2(q) ^ sep() ^ hex_bits_8(m8)
+mapping clause assembly = FPClear(q, m8) <-> "FPClearq" ^ spc() ^ hex_bits_2(q) ^ sep() ^ hex_bits_8(m8)
 
 /* Three arg */
 
