@@ -41,7 +41,7 @@ function getCapHardPerms(cap) : Capability -> bits(12) =
    (bool_to_bits(cap.permit_set_CID)
   @ bool_to_bits(cap.access_system_regs)
   @ bool_to_bits(cap.permit_unseal)
-  @ bool_to_bits(cap.permit_ccall)
+  @ bool_to_bits(cap.permit_cinvoke)
   @ bool_to_bits(cap.permit_seal)
   @ bool_to_bits(cap.permit_store_local_cap)
   @ bool_to_bits(cap.permit_store_cap)
@@ -90,7 +90,7 @@ function memBitsToCapability(tag, b) : (bool, CapBits) -> Capability =
 
 
 
-function getCapBoundsBits(c) : Capability -> (CapAddrBits, CapLenBits) = 
+function getCapBoundsBits(c) : Capability -> (CapAddrBits, CapLenBits) =
   let E = min(maxE, unsigned(c.E)) in
   let a : CapAddrBits = c.address in
   /* Extract bits we need to make the top correction and calculate representable limit */
@@ -205,7 +205,7 @@ function setCapPerms(cap, perms) : (Capability, bits(31)) -> Capability =
       permit_set_CID         = bit_to_bool(perms[11]),
       access_system_regs     = bit_to_bool(perms[10]),
       permit_unseal          = bit_to_bool(perms[9]),
-      permit_ccall           = bit_to_bool(perms[8]),
+      permit_cinvoke         = bit_to_bool(perms[8]),
       permit_seal            = bit_to_bool(perms[7]),
       permit_store_local_cap = bit_to_bool(perms[6]),
       permit_store_cap       = bit_to_bool(perms[5]),

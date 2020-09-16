@@ -755,8 +755,8 @@ function clause execute (CSealEntry(cd, cs1)) =
   }
 }
 
-union clause ast = CCall : (regidx, regidx)
-function clause execute (CCall(cs1, cs2)) =
+union clause ast = CInvoke : (regidx, regidx)
+function clause execute (CInvoke(cs1, cs2)) =
 {
   let cs1_val = readCapReg(cs1);
   let cs2_val = readCapReg(cs2);
@@ -777,11 +777,11 @@ function clause execute (CCall(cs1, cs2)) =
   } else if cs1_val.otype != cs2_val.otype then {
     handle_cheri_reg_exception(CapEx_TypeViolation, cs1);
     RETIRE_FAIL
-  } else if not (cs1_val.permit_ccall) then {
-    handle_cheri_reg_exception(CapEx_PermitCCallViolation, cs1);
+  } else if not (cs1_val.permit_cinvoke) then {
+    handle_cheri_reg_exception(CapEx_PermitCInvokeViolation, cs1);
     RETIRE_FAIL
-  } else if not (cs2_val.permit_ccall) then {
-    handle_cheri_reg_exception(CapEx_PermitCCallViolation, cs2);
+  } else if not (cs2_val.permit_cinvoke) then {
+    handle_cheri_reg_exception(CapEx_PermitCInvokeViolation, cs2);
     RETIRE_FAIL
   } else if not (cs1_val.permit_execute) then {
     handle_cheri_reg_exception(CapEx_PermitExecuteViolation, cs1);
@@ -1493,7 +1493,7 @@ mapping clause encdec = CCSeal(cd, cs1, cs2)      if (haveXcheri()) <-> 0b001111
 mapping clause encdec = CToPtr(rd, cs1, cs2)      if (haveXcheri()) <-> 0b0010010 @ cs2 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CFromPtr(cd, cs1, rs2)    if (haveXcheri()) <-> 0b0010011 @ rs2 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CSub(rd, cs1, cs2)        if (haveXcheri()) <-> 0b0010100 @ cs2 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
-mapping clause encdec = CCall(cs1, cs2)           if (haveXcheri()) <-> 0b1111110 @ cs2 @ cs1 @ 0b000 @ 0b00001 @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CInvoke(cs1, cs2)         if (haveXcheri()) <-> 0b1111110 @ cs2 @ cs1 @ 0b000 @ 0b00001 @ 0b1011011 if (haveXcheri())
 
 mapping clause encdec = CTestSubset(rd, cs1, cs2) if (haveXcheri()) <-> 0b0100000 @ cs2 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CSpecialRW(cd, cs1, idx)  if (haveXcheri()) <-> 0b0000001 @ idx @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
@@ -1519,7 +1519,7 @@ mapping clause assembly = CCSeal(cd, cs1, cs2)    <-> "CCSeal"      ^ spc() ^ re
 mapping clause assembly = CToPtr(rd, cs1, cs2)    <-> "CToPtr"      ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(cs1) ^ sep() ^ reg_name(cs2)
 mapping clause assembly = CFromPtr(cd, cs1, rs2)  <-> "CFromPtr"    ^ spc() ^ reg_name(cd) ^ sep() ^ reg_name(cs1) ^ sep() ^ reg_name(rs2)
 mapping clause assembly = CSub(rd, cs1, cs2)      <-> "CSub"        ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(cs1) ^ sep() ^ reg_name(cs2)
-mapping clause assembly = CCall(cs1, cs2)         <-> "CCall"       ^ spc() ^ reg_name(cs1) ^ sep() ^ reg_name(cs2)
+mapping clause assembly = CInvoke(cs1, cs2)       <-> "CInvoke"     ^ spc() ^ reg_name(cs1) ^ sep() ^ reg_name(cs2)
 
 mapping clause assembly = CTestSubset(rd, cs1, cs2) <-> "CTestSubset" ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(cs1) ^ sep() ^ reg_name(cs2)
 mapping clause assembly = CSpecialRW(cd, cs1, idx) <-> "CSpecialRW"  ^ spc() ^ reg_name(cd) ^ sep() ^ reg_name(cs1) ^ sep() ^ hex_bits_5(idx)

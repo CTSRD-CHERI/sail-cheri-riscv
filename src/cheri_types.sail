@@ -77,8 +77,8 @@ enum CapEx = {
   CapEx_PermitStoreLocalCapViolation,
   CapEx_PermitSealViolation,
   CapEx_AccessSystemRegsViolation,
-  CapEx_PermitCCallViolation,
-  CapEx_AccessCCallIDCViolation,
+  CapEx_PermitCInvokeViolation,
+  CapEx_AccessCInvokeIDCViolation,
   CapEx_PermitUnsealViolation,
   CapEx_PermitSetCIDViolation
 }
@@ -106,8 +106,8 @@ function CapExCode(ex) : CapEx -> bits(5) =
     CapEx_PermitStoreLocalCapViolation  => 0b10110,
     CapEx_PermitSealViolation           => 0b10111,
     CapEx_AccessSystemRegsViolation     => 0b11000,
-    CapEx_PermitCCallViolation          => 0b11001,
-    CapEx_AccessCCallIDCViolation       => 0b11010,
+    CapEx_PermitCInvokeViolation        => 0b11001,
+    CapEx_AccessCInvokeIDCViolation     => 0b11010,
     CapEx_PermitUnsealViolation         => 0b11011,
     CapEx_PermitSetCIDViolation         => 0b11100
   }
@@ -135,8 +135,8 @@ function string_of_capex (ex) : CapEx -> string =
     CapEx_PermitStoreLocalCapViolation  => "PermitStoreLocalCapViolation",
     CapEx_PermitSealViolation           => "PermitSealViolation"         ,
     CapEx_AccessSystemRegsViolation     => "AccessSystemRegsViolation"   ,
-    CapEx_PermitCCallViolation          => "PermitCCallViolation"        ,
-    CapEx_AccessCCallIDCViolation       => "AccessCCallIDCViolation"     ,
+    CapEx_PermitCInvokeViolation        => "PermitCInvokeViolation"      ,
+    CapEx_AccessCInvokeIDCViolation     => "AccessCInvokeIDCViolation"   ,
     CapEx_PermitUnsealViolation         => "PermitUnsealViolation"       ,
     CapEx_PermitSetCIDViolation         => "PermitSetCIDViolation"
   }
