@@ -793,7 +793,7 @@ function clause execute (CCall(cs, cb)) =
     handle_cheri_reg_exception(CapEx_LengthViolation, cs);
     RETIRE_FAIL
   } else if newPCCBase[0] == bitone | (newPCCBase[1] == bitone & ~(haveRVC())) then {
-    handle_cheri_reg_exception(CapEx_UnalignedBase, cb);
+    handle_cheri_reg_exception(CapEx_UnalignedBase, cs);
     RETIRE_FAIL
   } else if newPC[1] == bitone & ~(haveRVC()) then {
     handle_mem_exception(newPC,  E_Fetch_Addr_Align());
