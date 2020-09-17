@@ -427,6 +427,19 @@ function clause execute (Clear(q, m)) =
   RETIRE_SUCCESS
 }
 
+union clause ast = CClear : (bits(2), bits(8))
+function clause execute (CClear(q, m)) =
+{
+  let q_u = unsigned(q);
+  foreach (i from 0 to 7)
+    if m[i] == bitone then
+      if q_u == 0 & i == 0 then
+        DDC = null_cap
+      else
+        writeCapReg(8 * q_u + i, null_cap);
+  RETIRE_SUCCESS
+}
+
 union clause ast = FPClear : (bits(2), bits(8))
 function clause execute (FPClear(q, m)) =
 {
@@ -1446,6 +1459,7 @@ mapping clause encdec = CRRL(rd, rs1) if (haveXcheri()) <-> 0b1111111 @ 0b01000 
 mapping clause encdec = CRAM(rd, rs1) if (haveXcheri()) <-> 0b1111111 @ 0b01001 @ rs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 
 mapping clause encdec = Clear(q, m3 @ m5)   if (haveXcheri()) <-> 0b1111111 @ 0b01101 @ q : bits(2) @ m3 : bits(3) @ 0b000 @ m5 : regidx @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CClear(q, m3 @ m5)  if (haveXcheri() & haveSplitRegFile) <-> 0b1111111 @ 0b01110 @ q : bits(2) @ m3 : bits(3) @ 0b000 @ m5 : regidx @ 0b1011011 if (haveXcheri() & haveSplitRegFile)
 mapping clause encdec = FPClear(q, m3 @ m5) if (haveXcheri()) <-> 0b1111111 @ 0b10000 @ q : bits(2) @ m3 : bits(3) @ 0b000 @ m5 : regidx @ 0b1011011 if (haveXcheri())
 
 mapping clause assembly = CGetPerm(rd, cs1)   <-> "CGetPerm"   ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(cs1)
@@ -1468,6 +1482,7 @@ mapping clause assembly = CRRL(rd, rs1) <-> "CRRL" ^ spc() ^ reg_name(rd) ^ sep(
 mapping clause assembly = CRAM(rd, rs1) <-> "CRAM" ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1)
 
 mapping clause assembly = Clear(q, m8)   <-> "Clearq"   ^ spc() ^ hex_bits_2(q) ^ sep() ^ hex_bits_8(m8)
+mapping clause assembly = CClear(q, m8)  <-> "CClearq"  ^ spc() ^ hex_bits_2(q) ^ sep() ^ hex_bits_8(m8)
 mapping clause assembly = FPClear(q, m8) <-> "FPClearq" ^ spc() ^ hex_bits_2(q) ^ sep() ^ hex_bits_8(m8)
 
 /* Three arg */
