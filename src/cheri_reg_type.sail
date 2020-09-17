@@ -1,3 +1,6 @@
+/* merged or split register file? (split not yet implemented) */
+let haveSplitRegFile = false
+
 /* register type */
 type regtype = Capability
 

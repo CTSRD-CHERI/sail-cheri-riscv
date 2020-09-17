@@ -417,9 +417,13 @@ function clause execute (CMove(cd, cs1)) =
 union clause ast = Clear : (bits(2), bits(8))
 function clause execute (Clear(q, m)) =
 {
+  let q_u = unsigned(q);
   foreach (i from 0 to 7)
     if m[i] == bitone then
-      X(8 * unsigned(q) + i) = zeros();
+      if q_u == 0 & i == 0 & not(haveSplitRegFile) then
+        DDC = null_cap
+      else
+        X(8 * q_u + i) = zeros();
   RETIRE_SUCCESS
 }
 
