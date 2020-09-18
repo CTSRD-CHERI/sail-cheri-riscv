@@ -110,10 +110,10 @@ function clause execute (CGetAddr(rd, cs1)) =
   RETIRE_SUCCESS
 }
 
-union clause ast = CSpecialRW : (regidx, regidx, regidx)
-function clause execute (CSpecialRW(cd, cs1, idx)) =
+union clause ast = CSpecialRW : (regidx, screg, regidx)
+function clause execute (CSpecialRW(cd, scr, cs1)) =
 {
-  let (specialExists, ro, priv, needASR) : (bool, bool, Privilege, bool) = match unsigned(idx) {
+  let (specialExists, ro, priv, needASR) : (bool, bool, Privilege, bool) = match unsigned(scr) {
     0  => (true, true,  User, false),
     1  => (true, false, User, false),
     4 if haveNExt() => (true, false, User, true),
@@ -136,13 +136,13 @@ function clause execute (CSpecialRW(cd, cs1, idx)) =
     handle_illegal();
     RETIRE_FAIL
   } else if (needASR & not(pcc_access_system_regs())) then {
-    handle_cheri_cap_exception(CapEx_AccessSystemRegsViolation, 0b1 @ idx);
+    handle_cheri_cap_exception(CapEx_AccessSystemRegsViolation, 0b1 @ scr);
     RETIRE_FAIL
   } else {
     let cs1_val = C(cs1);
     if (cd != 0b00000) then {
       // read special cap
-      let special_val : Capability = match unsigned(idx) {
+      let special_val : Capability = match unsigned(scr) {
         0  => {
           let (success, pcc) = setCapAddr(PCC, PC);
           assert (success, "PCC with offset PC should always be representable");
@@ -167,7 +167,7 @@ function clause execute (CSpecialRW(cd, cs1, idx)) =
     };
     if (cs1 != 0b00000) then {
       // write special cap
-      match unsigned(idx) {
+      match unsigned(scr) {
         1  => DDC = cs1_val,
         4  => UTCC = legalize_tcc(UTCC, cs1_val),
         5  => UTDC = cs1_val,
@@ -1504,7 +1504,7 @@ mapping clause encdec = CFromPtr(cd, cs1, rs2)    if (haveXcheri()) <-> 0b001001
 mapping clause encdec = CSub(rd, cs1, cs2)        if (haveXcheri()) <-> 0b0010100 @ cs2 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 
 mapping clause encdec = CTestSubset(rd, cs1, cs2) if (haveXcheri()) <-> 0b0100000 @ cs2 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
-mapping clause encdec = CSpecialRW(cd, cs1, idx)  if (haveXcheri()) <-> 0b0000001 @ idx @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CSpecialRW(cd, scr, cs1)  if (haveXcheri()) <-> 0b0000001 @ scr @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
 
 mapping clause encdec = CIncOffsetImmediate(cd, cs1, imm12) if (haveXcheri()) <-> imm12 : bits(12) @ cs1 @ 0b001 @ cd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CSetBoundsImmediate(cd, cs1, imm12) if (haveXcheri()) <-> imm12 : bits(12) @ cs1 @ 0b010 @ cd @ 0b1011011 if (haveXcheri())
@@ -1530,7 +1530,7 @@ mapping clause assembly = CSub(rd, cs1, cs2)      <-> "csub"        ^ spc() ^ re
 
 mapping clause assembly = CTestSubset(rd, cs1, cs2) <-> "ctestsubset" ^ spc() ^ reg_name(rd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ cap_reg_name(cs2)
 
-mapping clause assembly = CSpecialRW(cd, cs1, idx) <-> "cspecialrw"  ^ spc() ^ cap_reg_name(cd) ^ sep() ^ hex_bits_5(idx) ^ sep() ^ cap_reg_name(cs1)
+mapping clause assembly = CSpecialRW(cd, scr, cs1) <-> "cspecialrw"  ^ spc() ^ cap_reg_name(cd) ^ sep() ^ scr_name_map(scr) ^ sep() ^ cap_reg_name(cs1)
 
 mapping clause assembly = CIncOffsetImmediate(cd, cs1, imm12) <-> "cincoffsetimm" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ hex_bits_12(imm12)
 mapping clause assembly = CSetBoundsImmediate(cd, cs1, imm12) <-> "csetboundsimm" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ hex_bits_12(imm12)

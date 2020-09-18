@@ -84,6 +84,7 @@ PRELUDE = $(SAIL_RISCV_MODEL_DIR)/prelude.sail \
 SAIL_REGS_SRCS = $(SAIL_CHERI_MODEL_DIR)/cheri_reg_type.sail \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_freg_type.sail \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_csr_map.sail \
+                 $(SAIL_CHERI_MODEL_DIR)/cheri_scr_map.sail \
                  $(SAIL_CHERI_MODEL_DIR)/cheri_vmem_types.sail \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_regs.sail \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_sys_regs.sail \

@@ -149,3 +149,5 @@ struct cheri_cause = {
   cap_idx : capreg_idx,
   capEx   : CapEx
 }
+
+type screg = bits(5)
