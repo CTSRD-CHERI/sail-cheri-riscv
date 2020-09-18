@@ -188,3 +188,28 @@ function ext_rvfi_init () = {
   x30 = default_cap;
   x31 = default_cap;
 }
+
+/* register names */
+
+val cap_reg_name_abi : regidx -> string
+
+function cap_reg_name_abi(r) = {
+  match (r) {
+    0b00000 => "cnull",
+    _       => "c" ^ reg_name_abi(r)
+  }
+}
+
+overload to_str = {cap_reg_name_abi}
+
+/* mappings for assembly */
+
+val cap_reg_name : bits(5) <-> string
+mapping cap_reg_name = {
+    0b00000 <-> "cnull",
+    r       <-> "c" ^ reg_name(r)
+}
+
+mapping cap_creg_name : bits(3) <-> string = {
+  r <-> "c" ^ creg_name(r)
+}
