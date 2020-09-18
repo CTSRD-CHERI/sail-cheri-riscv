@@ -883,16 +883,16 @@ function handle_load_data_via_cap(rd, auth_idx, auth_val, vaddrBits, is_unsigned
   }
 }
 
-union clause ast = CLoadDDC : (regidx, regidx, bool, word_width)
-function clause execute (CLoadDDC(rd, rs1, is_unsigned, width)) =
+union clause ast = LoadDataDDC : (regidx, regidx, bool, word_width)
+function clause execute (LoadDataDDC(rd, rs1, is_unsigned, width)) =
 {
   let ddc_val = DDC;
   let vaddr = ddc_val.address + X(rs1);
   handle_load_data_via_cap(rd, DDC_IDX, ddc_val, vaddr, is_unsigned, width)
 }
 
-union clause ast = CLoadCap : (regidx, regidx, bool, word_width)
-function clause execute (CLoadCap(rd, cs1, is_unsigned, width)) =
+union clause ast = LoadDataCap : (regidx, regidx, bool, word_width)
+function clause execute (LoadDataCap(rd, cs1, is_unsigned, width)) =
 {
   let cs1_val = C(cs1);
   let vaddr = cs1_val.address;
@@ -937,16 +937,16 @@ function handle_load_cap_via_cap(cd, auth_idx, auth_val, vaddrBits) = {
   }
 }
 
-union clause ast = CLoadCapDDC : (regidx, regidx)
-function clause execute (CLoadCapDDC(cd, rs1)) =
+union clause ast = LoadCapDDC : (regidx, regidx)
+function clause execute (LoadCapDDC(cd, rs1)) =
 {
   let ddc_val = DDC;
   let vaddr = ddc_val.address + X(rs1);
   handle_load_cap_via_cap(cd, DDC_IDX, ddc_val, vaddr)
 }
 
-union clause ast = CLoadCapCap : (regidx, regidx)
-function clause execute (CLoadCapCap(cd, cs1)) =
+union clause ast = LoadCapCap : (regidx, regidx)
+function clause execute (LoadCapCap(cd, cs1)) =
 {
   let cs1_val = C(cs1);
   let vaddr = cs1_val.address;
@@ -1039,8 +1039,8 @@ if not(auth_val.tag) then {
   }
 }
 
-union clause ast = CLoadResDDC : (regidx, regidx, word_width)
-function clause execute (CLoadResDDC(rd, rs1, width)) =
+union clause ast = LoadResDataDDC : (regidx, regidx, word_width)
+function clause execute (LoadResDataDDC(rd, rs1, width)) =
 {
   if haveAtomics() then {
     let ddc_val = DDC;
@@ -1052,8 +1052,8 @@ function clause execute (CLoadResDDC(rd, rs1, width)) =
   }
 }
 
-union clause ast = CLoadResCapDDC : (regidx, regidx)
-function clause execute (CLoadResCapDDC(cd, rs1)) =
+union clause ast = LoadResCapDDC : (regidx, regidx)
+function clause execute (LoadResCapDDC(cd, rs1)) =
 {
   if haveAtomics() then {
     let ddc_val = DDC;
@@ -1065,8 +1065,8 @@ function clause execute (CLoadResCapDDC(cd, rs1)) =
   }
 }
 
-union clause ast = CLoadResCap : (regidx, regidx, word_width)
-function clause execute (CLoadResCap(rd, cs1, width)) =
+union clause ast = LoadResCap : (regidx, regidx, word_width)
+function clause execute (LoadResCap(rd, cs1, width)) =
 {
   if haveAtomics() then {
     let cs1_val = C(cs1);
@@ -1078,8 +1078,8 @@ function clause execute (CLoadResCap(rd, cs1, width)) =
   }
 }
 
-union clause ast = CLoadResCapCap : (regidx, regidx)
-function clause execute (CLoadResCapCap(cd, cs1)) =
+union clause ast = LoadResCapCap : (regidx, regidx)
+function clause execute (LoadResCapCap(cd, cs1)) =
 {
   if haveAtomics() then {
     let cs1_val = C(cs1);
@@ -1137,16 +1137,16 @@ function handle_store_data_via_cap(rs2, auth_idx, auth_val, vaddrBits, width) = 
   }
 }
 
-union clause ast = CStoreDDC : (regidx, regidx, word_width)
-function clause execute (CStoreDDC(rs2, rs1, width)) =
+union clause ast = StoreDataDDC : (regidx, regidx, word_width)
+function clause execute (StoreDataDDC(rs2, rs1, width)) =
 {
   let ddc_val = DDC;
   let vaddr = ddc_val.address + X(rs1);
   handle_store_data_via_cap(rs2, DDC_IDX, ddc_val, vaddr, width)
 }
 
-union clause ast = CStoreCap : (regidx, regidx, word_width)
-function clause execute (CStoreCap(rs2, cs1, width)) =
+union clause ast = StoreDataCap : (regidx, regidx, word_width)
+function clause execute (StoreDataCap(rs2, cs1, width)) =
 {
   let cs1_val = C(cs1);
   let vaddr = cs1_val.address;
@@ -1198,16 +1198,16 @@ function handle_store_cap_via_cap(cs2, auth_idx, auth_val, vaddrBits) = {
   }
 }
 
-union clause ast = CStoreCapDDC : (regidx, regidx)
-function clause execute (CStoreCapDDC(cs2, rs1)) =
+union clause ast = StoreCapDDC : (regidx, regidx)
+function clause execute (StoreCapDDC(cs2, rs1)) =
 {
   let ddc_val = DDC;
   let vaddr = ddc_val.address + X(rs1);
   handle_store_cap_via_cap(cs2, DDC_IDX, ddc_val, vaddr)
 }
 
-union clause ast = CStoreCapCap : (regidx, regidx)
-function clause execute (CStoreCapCap(cs2, cs1)) =
+union clause ast = StoreCapCap : (regidx, regidx)
+function clause execute (StoreCapCap(cs2, cs1)) =
 {
   let cs1_val = C(cs1);
   let vaddr = cs1_val.address;
@@ -1222,16 +1222,16 @@ function clause execute CAP_AUIPC(imm, cd) = {
   RETIRE_SUCCESS
 }
 
-union clause ast = CLoadCapImm : (regidx, regidx, bits(12))
-function clause execute CLoadCapImm(cd, rs1, off12) =
+union clause ast = LoadCapImm : (regidx, regidx, bits(12))
+function clause execute LoadCapImm(cd, rs1, off12) =
 {
   let offset : xlenbits = EXTS(off12);
   let (auth_val, vaddr, cause_regno) = get_cheri_cap_addr(rs1, offset);
   handle_load_cap_via_cap(cd, cause_regno, auth_val, vaddr)
 }
 
-union clause ast = CStoreCapImm : (regidx, regidx, bits(12))
-function clause execute CStoreCapImm(cs2, rs1, off12) =
+union clause ast = StoreCapImm : (regidx, regidx, bits(12))
+function clause execute StoreCapImm(cs2, rs1, off12) =
 {
   let offset : xlenbits = EXTS(off12);
   let (auth_val, vaddr, cause_regno) = get_cheri_cap_addr(rs1, offset);
@@ -1353,8 +1353,8 @@ function handle_store_cond_cap_via_cap(cs2, auth_idx, auth_val, vaddrBits) = {
   }
 }
 
-union clause ast = CStoreCondDDC : (regidx, regidx, word_width)
-function clause execute CStoreCondDDC(rs2, rs1, width) =
+union clause ast = StoreCondDataDDC : (regidx, regidx, word_width)
+function clause execute StoreCondDataDDC(rs2, rs1, width) =
 {
   if speculate_conditional () == false then {
     /* should only happen in rmem
@@ -1372,8 +1372,8 @@ function clause execute CStoreCondDDC(rs2, rs1, width) =
   }
 }
 
-union clause ast = CStoreCondCapDDC : (regidx, regidx)
-function clause execute CStoreCondCapDDC(cs2, rs1) =
+union clause ast = StoreCondCapDDC : (regidx, regidx)
+function clause execute StoreCondCapDDC(cs2, rs1) =
 {
   if speculate_conditional () == false then {
     /* should only happen in rmem
@@ -1391,8 +1391,8 @@ function clause execute CStoreCondCapDDC(cs2, rs1) =
   }
 }
 
-union clause ast = CStoreCondCap : (regidx, regidx, word_width)
-function clause execute CStoreCondCap(rs2, cs1, width) =
+union clause ast = StoreCondCap : (regidx, regidx, word_width)
+function clause execute StoreCondCap(rs2, cs1, width) =
 {
   if speculate_conditional () == false then {
     /* should only happen in rmem
@@ -1410,8 +1410,8 @@ function clause execute CStoreCondCap(rs2, cs1, width) =
   }
 }
 
-union clause ast = CStoreCondCapCap : (regidx, regidx)
-function clause execute CStoreCondCapCap(cs2, cs1) =
+union clause ast = StoreCondCapCap : (regidx, regidx)
+function clause execute StoreCondCapCap(cs2, cs1) =
 {
   if speculate_conditional () == false then {
     /* should only happen in rmem
@@ -1548,95 +1548,95 @@ mapping clause assembly = CInvoke(cs1, cs2) <-> "cinvoke" ^ spc() ^ cap_reg_name
 let haveRV128 = sizeof(xlen) >= 128
 let haveRV64  = sizeof(xlen) >= 64
 
-mapping clause encdec = CLoadDDC(rd, rs1, false, BYTE)   if (haveXcheri()) <-> 0b1111101 @ 0b00000 @ rs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lb.ddc */
-mapping clause encdec = CLoadDDC(rd, rs1, false, HALF)   if (haveXcheri()) <-> 0b1111101 @ 0b00001 @ rs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lh.ddc */
-mapping clause encdec = CLoadDDC(rd, rs1, false, WORD)   if (haveXcheri()) <-> 0b1111101 @ 0b00010 @ rs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lw.ddc */
-mapping clause encdec = CLoadDDC(rd, rs1, false, DOUBLE) if (haveXcheri() & haveRV64) <-> 0b1111101 @ 0b00011 @ rs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveRV64) /* ld.ddc */
-mapping clause encdec = CLoadDDC(rd, rs1, true, BYTE)    if (haveXcheri()) <-> 0b1111101 @ 0b00100 @ rs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lbu.ddc */
-mapping clause encdec = CLoadDDC(rd, rs1, true, HALF)    if (haveXcheri()) <-> 0b1111101 @ 0b00101 @ rs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lhu.ddc */
-mapping clause encdec = CLoadDDC(rd, rs1, true, WORD)    if (haveXcheri() & haveRV64)  <-> 0b1111101 @ 0b00110 @ rs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveRV64)  /* lwu.ddc */
-mapping clause encdec = CLoadDDC(rd, rs1, true, DOUBLE)  if (haveXcheri() & haveRV128) <-> 0b1111101 @ 0b00111 @ rs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveRV128) /* ldu.ddc */
-mapping clause encdec = CLoadCapDDC(cd, rs1)             if (haveXcheri() & sizeof(xlen) == 64) <-> 0b1111101 @ 0b10111 @ rs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri() & sizeof(xlen) == 64)  /* lc.ddc */
-mapping clause encdec = CLoadCapDDC(cd, rs1)             if (haveXcheri() & sizeof(xlen) == 32) <-> 0b1111101 @ 0b00011 @ rs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri() & sizeof(xlen) == 32)  /* lc.ddc */
+mapping clause encdec = LoadDataDDC(rd, rs1, false, BYTE)   if (haveXcheri()) <-> 0b1111101 @ 0b00000 @ rs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lb.ddc */
+mapping clause encdec = LoadDataDDC(rd, rs1, false, HALF)   if (haveXcheri()) <-> 0b1111101 @ 0b00001 @ rs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lh.ddc */
+mapping clause encdec = LoadDataDDC(rd, rs1, false, WORD)   if (haveXcheri()) <-> 0b1111101 @ 0b00010 @ rs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lw.ddc */
+mapping clause encdec = LoadDataDDC(rd, rs1, false, DOUBLE) if (haveXcheri() & haveRV64) <-> 0b1111101 @ 0b00011 @ rs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveRV64) /* ld.ddc */
+mapping clause encdec = LoadDataDDC(rd, rs1, true, BYTE)    if (haveXcheri()) <-> 0b1111101 @ 0b00100 @ rs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lbu.ddc */
+mapping clause encdec = LoadDataDDC(rd, rs1, true, HALF)    if (haveXcheri()) <-> 0b1111101 @ 0b00101 @ rs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lhu.ddc */
+mapping clause encdec = LoadDataDDC(rd, rs1, true, WORD)    if (haveXcheri() & haveRV64)  <-> 0b1111101 @ 0b00110 @ rs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveRV64)  /* lwu.ddc */
+mapping clause encdec = LoadDataDDC(rd, rs1, true, DOUBLE)  if (haveXcheri() & haveRV128) <-> 0b1111101 @ 0b00111 @ rs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveRV128) /* ldu.ddc */
+mapping clause encdec = LoadCapDDC(cd, rs1)                 if (haveXcheri() & sizeof(xlen) == 64) <-> 0b1111101 @ 0b10111 @ rs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri() & sizeof(xlen) == 64)  /* lc.ddc */
+mapping clause encdec = LoadCapDDC(cd, rs1)                 if (haveXcheri() & sizeof(xlen) == 32) <-> 0b1111101 @ 0b00011 @ rs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri() & sizeof(xlen) == 32)  /* lc.ddc */
 
-mapping clause encdec = CLoadCap(rd, cs1, false, BYTE)   if (haveXcheri()) <-> 0b1111101 @ 0b01000 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lb.cap */
-mapping clause encdec = CLoadCap(rd, cs1, false, HALF)   if (haveXcheri()) <-> 0b1111101 @ 0b01001 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lh.cap */
-mapping clause encdec = CLoadCap(rd, cs1, false, WORD)   if (haveXcheri()) <-> 0b1111101 @ 0b01010 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lw.cap */
-mapping clause encdec = CLoadCap(rd, cs1, false, DOUBLE) if (haveXcheri() & haveRV64) <-> 0b1111101 @ 0b01011 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveRV64)  /* ld.cap */
-mapping clause encdec = CLoadCap(rd, cs1, true, BYTE)    if (haveXcheri()) <-> 0b1111101 @ 0b01100 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lbu.cap */
-mapping clause encdec = CLoadCap(rd, cs1, true, HALF)    if (haveXcheri()) <-> 0b1111101 @ 0b01101 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lhu.cap */
-mapping clause encdec = CLoadCap(rd, cs1, true, WORD)    if (haveXcheri() & haveRV64)  <-> 0b1111101 @ 0b01110 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveRV64)  /* lwu.cap */
-mapping clause encdec = CLoadCap(rd, cs1, true, DOUBLE)  if (haveXcheri() & haveRV128) <-> 0b1111101 @ 0b01111 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveRV128) /* ldu.cap */
-mapping clause encdec = CLoadCapCap(cd, cs1)             if (haveXcheri() & sizeof(xlen) == 64) <-> 0b1111101 @ 0b11111 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri() & sizeof(xlen) == 64)  /* lc.cap */
-mapping clause encdec = CLoadCapCap(cd, cs1)             if (haveXcheri() & sizeof(xlen) == 32) <-> 0b1111101 @ 0b01011 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri() & sizeof(xlen) == 32)  /* lc.cap */
+mapping clause encdec = LoadDataCap(rd, cs1, false, BYTE)   if (haveXcheri()) <-> 0b1111101 @ 0b01000 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lb.cap */
+mapping clause encdec = LoadDataCap(rd, cs1, false, HALF)   if (haveXcheri()) <-> 0b1111101 @ 0b01001 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lh.cap */
+mapping clause encdec = LoadDataCap(rd, cs1, false, WORD)   if (haveXcheri()) <-> 0b1111101 @ 0b01010 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lw.cap */
+mapping clause encdec = LoadDataCap(rd, cs1, false, DOUBLE) if (haveXcheri() & haveRV64) <-> 0b1111101 @ 0b01011 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveRV64)  /* ld.cap */
+mapping clause encdec = LoadDataCap(rd, cs1, true, BYTE)    if (haveXcheri()) <-> 0b1111101 @ 0b01100 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lbu.cap */
+mapping clause encdec = LoadDataCap(rd, cs1, true, HALF)    if (haveXcheri()) <-> 0b1111101 @ 0b01101 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lhu.cap */
+mapping clause encdec = LoadDataCap(rd, cs1, true, WORD)    if (haveXcheri() & haveRV64)  <-> 0b1111101 @ 0b01110 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveRV64)  /* lwu.cap */
+mapping clause encdec = LoadDataCap(rd, cs1, true, DOUBLE)  if (haveXcheri() & haveRV128) <-> 0b1111101 @ 0b01111 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveRV128) /* ldu.cap */
+mapping clause encdec = LoadCapCap(cd, cs1)                 if (haveXcheri() & sizeof(xlen) == 64) <-> 0b1111101 @ 0b11111 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri() & sizeof(xlen) == 64)  /* lc.cap */
+mapping clause encdec = LoadCapCap(cd, cs1)                 if (haveXcheri() & sizeof(xlen) == 32) <-> 0b1111101 @ 0b01011 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri() & sizeof(xlen) == 32)  /* lc.cap */
 
-mapping clause encdec = CLoadResDDC(rd, rs1, BYTE)   if (haveXcheri() & haveAtomics()) <-> 0b1111101 @ 0b10000 @ rs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveAtomics())  /* lr.b.ddc */
-mapping clause encdec = CLoadResDDC(rd, rs1, HALF)   if (haveXcheri() & haveAtomics()) <-> 0b1111101 @ 0b10001 @ rs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveAtomics())  /* lr.h.ddc */
-mapping clause encdec = CLoadResDDC(rd, rs1, WORD)   if (haveXcheri() & haveAtomics()) <-> 0b1111101 @ 0b10010 @ rs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveAtomics())  /* lr.w.ddc */
-mapping clause encdec = CLoadResDDC(rd, rs1, DOUBLE) if (haveXcheri() & haveAtomics() & haveRV64) <-> 0b1111101 @ 0b10011 @ rs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveAtomics() & haveRV64)  /* lr.d.ddc */
-mapping clause encdec = CLoadResCapDDC(cd, rs1) if (haveXcheri() & haveAtomics() & sizeof(xlen) == 32) <-> 0b1111101 @ 0b10011 @ rs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri() & haveAtomics() & sizeof(xlen) == 32)  /* lr.c.ddc */
-mapping clause encdec = CLoadResCapDDC(cd, rs1) if (haveXcheri() & haveAtomics() & sizeof(xlen) == 64) <-> 0b1111101 @ 0b10100 @ rs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri() & haveAtomics() & sizeof(xlen) == 64)  /* lr.c.ddc */
+mapping clause encdec = LoadResDataDDC(rd, rs1, BYTE)   if (haveXcheri() & haveAtomics()) <-> 0b1111101 @ 0b10000 @ rs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveAtomics())  /* lr.b.ddc */
+mapping clause encdec = LoadResDataDDC(rd, rs1, HALF)   if (haveXcheri() & haveAtomics()) <-> 0b1111101 @ 0b10001 @ rs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveAtomics())  /* lr.h.ddc */
+mapping clause encdec = LoadResDataDDC(rd, rs1, WORD)   if (haveXcheri() & haveAtomics()) <-> 0b1111101 @ 0b10010 @ rs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveAtomics())  /* lr.w.ddc */
+mapping clause encdec = LoadResDataDDC(rd, rs1, DOUBLE) if (haveXcheri() & haveAtomics() & haveRV64) <-> 0b1111101 @ 0b10011 @ rs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveAtomics() & haveRV64)  /* lr.d.ddc */
+mapping clause encdec = LoadResCapDDC(cd, rs1)          if (haveXcheri() & haveAtomics() & sizeof(xlen) == 32) <-> 0b1111101 @ 0b10011 @ rs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri() & haveAtomics() & sizeof(xlen) == 32)  /* lr.c.ddc */
+mapping clause encdec = LoadResCapDDC(cd, rs1)          if (haveXcheri() & haveAtomics() & sizeof(xlen) == 64) <-> 0b1111101 @ 0b10100 @ rs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri() & haveAtomics() & sizeof(xlen) == 64)  /* lr.c.ddc */
 
-mapping clause encdec = CLoadResCap(rd, cs1, BYTE)   if (haveXcheri() & haveAtomics()) <-> 0b1111101 @ 0b11000 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveAtomics())  /* lr.b.cap */
-mapping clause encdec = CLoadResCap(rd, cs1, HALF)   if (haveXcheri() & haveAtomics()) <-> 0b1111101 @ 0b11001 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveAtomics())  /* lr.h.cap */
-mapping clause encdec = CLoadResCap(rd, cs1, WORD)   if (haveXcheri() & haveAtomics()) <-> 0b1111101 @ 0b11010 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveAtomics())  /* lr.w.cap */
-mapping clause encdec = CLoadResCap(rd, cs1, DOUBLE) if (haveXcheri() & haveAtomics() & haveRV64) <-> 0b1111101 @ 0b11011 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveAtomics() & haveRV64)  /* lr.d.cap */
-mapping clause encdec = CLoadResCapCap(cd, cs1) if (haveXcheri() & haveAtomics() & sizeof(xlen) == 32) <-> 0b1111101 @ 0b11011 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri() & haveAtomics() & sizeof(xlen) == 32)  /* lr.c.cap */
-mapping clause encdec = CLoadResCapCap(cd, cs1) if (haveXcheri() & haveAtomics() & sizeof(xlen) == 64) <-> 0b1111101 @ 0b11100 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri() & haveAtomics() & sizeof(xlen) == 64)  /* lr.c.cap */
+mapping clause encdec = LoadResCap(rd, cs1, BYTE)   if (haveXcheri() & haveAtomics()) <-> 0b1111101 @ 0b11000 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveAtomics())  /* lr.b.cap */
+mapping clause encdec = LoadResCap(rd, cs1, HALF)   if (haveXcheri() & haveAtomics()) <-> 0b1111101 @ 0b11001 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveAtomics())  /* lr.h.cap */
+mapping clause encdec = LoadResCap(rd, cs1, WORD)   if (haveXcheri() & haveAtomics()) <-> 0b1111101 @ 0b11010 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveAtomics())  /* lr.w.cap */
+mapping clause encdec = LoadResCap(rd, cs1, DOUBLE) if (haveXcheri() & haveAtomics() & haveRV64) <-> 0b1111101 @ 0b11011 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveAtomics() & haveRV64)  /* lr.d.cap */
+mapping clause encdec = LoadResCapCap(cd, cs1)      if (haveXcheri() & haveAtomics() & sizeof(xlen) == 32) <-> 0b1111101 @ 0b11011 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri() & haveAtomics() & sizeof(xlen) == 32)  /* lr.c.cap */
+mapping clause encdec = LoadResCapCap(cd, cs1)      if (haveXcheri() & haveAtomics() & sizeof(xlen) == 64) <-> 0b1111101 @ 0b11100 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri() & haveAtomics() & sizeof(xlen) == 64)  /* lr.c.cap */
 
-mapping clause encdec = CStoreDDC(rs2, rs1, BYTE)       if (haveXcheri()) <-> 0b1111100 @ rs2 @ rs1 @ 0b000 @ 0b00000 @ 0b1011011 if (haveXcheri()) /* sb.ddc */
-mapping clause encdec = CStoreDDC(rs2, rs1, HALF)       if (haveXcheri()) <-> 0b1111100 @ rs2 @ rs1 @ 0b000 @ 0b00001 @ 0b1011011 if (haveXcheri()) /* sh.ddc */
-mapping clause encdec = CStoreDDC(rs2, rs1, WORD)       if (haveXcheri()) <-> 0b1111100 @ rs2 @ rs1 @ 0b000 @ 0b00010 @ 0b1011011 if (haveXcheri()) /* sw.ddc */
-mapping clause encdec = CStoreDDC(rs2, rs1, DOUBLE)     if (haveXcheri() & haveRV64) <-> 0b1111100 @ rs2 @ rs1 @ 0b000 @ 0b00011 @ 0b1011011 if (haveXcheri() & haveRV64) /* sd.ddc */
-mapping clause encdec = CStoreCapDDC(cs2, rs1)          if (haveXcheri() & sizeof(xlen) == 64) <-> 0b1111100 @ cs2 @ rs1 @ 0b000 @ 0b00100 @ 0b1011011 if (haveXcheri() & sizeof(xlen) == 64) /* sc.ddc */
-mapping clause encdec = CStoreCapDDC(cs2, rs1)          if (haveXcheri() & sizeof(xlen) == 32) <-> 0b1111100 @ cs2 @ rs1 @ 0b000 @ 0b00011 @ 0b1011011 if (haveXcheri() & sizeof(xlen) == 32) /* sc.ddc */
+mapping clause encdec = StoreDataDDC(rs2, rs1, BYTE)   if (haveXcheri()) <-> 0b1111100 @ rs2 @ rs1 @ 0b000 @ 0b00000 @ 0b1011011 if (haveXcheri()) /* sb.ddc */
+mapping clause encdec = StoreDataDDC(rs2, rs1, HALF)   if (haveXcheri()) <-> 0b1111100 @ rs2 @ rs1 @ 0b000 @ 0b00001 @ 0b1011011 if (haveXcheri()) /* sh.ddc */
+mapping clause encdec = StoreDataDDC(rs2, rs1, WORD)   if (haveXcheri()) <-> 0b1111100 @ rs2 @ rs1 @ 0b000 @ 0b00010 @ 0b1011011 if (haveXcheri()) /* sw.ddc */
+mapping clause encdec = StoreDataDDC(rs2, rs1, DOUBLE) if (haveXcheri() & haveRV64) <-> 0b1111100 @ rs2 @ rs1 @ 0b000 @ 0b00011 @ 0b1011011 if (haveXcheri() & haveRV64) /* sd.ddc */
+mapping clause encdec = StoreCapDDC(cs2, rs1)          if (haveXcheri() & sizeof(xlen) == 64) <-> 0b1111100 @ cs2 @ rs1 @ 0b000 @ 0b00100 @ 0b1011011 if (haveXcheri() & sizeof(xlen) == 64) /* sc.ddc */
+mapping clause encdec = StoreCapDDC(cs2, rs1)          if (haveXcheri() & sizeof(xlen) == 32) <-> 0b1111100 @ cs2 @ rs1 @ 0b000 @ 0b00011 @ 0b1011011 if (haveXcheri() & sizeof(xlen) == 32) /* sc.ddc */
 
-mapping clause encdec = CStoreCap(rs2, cs1, BYTE)        if (haveXcheri()) <-> 0b1111100 @ rs2 @ cs1 @ 0b000 @ 0b01000 @ 0b1011011 if (haveXcheri()) /* sb.cap */
-mapping clause encdec = CStoreCap(rs2, cs1, HALF)        if (haveXcheri()) <-> 0b1111100 @ rs2 @ cs1 @ 0b000 @ 0b01001 @ 0b1011011 if (haveXcheri()) /* sh.cap */
-mapping clause encdec = CStoreCap(rs2, cs1, WORD)        if (haveXcheri()) <-> 0b1111100 @ rs2 @ cs1 @ 0b000 @ 0b01010 @ 0b1011011 if (haveXcheri()) /* sw.cap */
-mapping clause encdec = CStoreCap(rs2, cs1, DOUBLE)      if (haveXcheri() & haveRV64) <-> 0b1111100 @ rs2 @ cs1 @ 0b000 @ 0b01011 @ 0b1011011 if (haveXcheri() & haveRV64) /* sd.cap */
-mapping clause encdec = CStoreCapCap(cs2, cs1)           if (haveXcheri() & sizeof(xlen) == 64) <-> 0b1111100 @ cs2 @ cs1 @ 0b000 @ 0b01100 @ 0b1011011 if (haveXcheri() & sizeof(xlen) == 64) /* sc.cap */
-mapping clause encdec = CStoreCapCap(cs2, cs1)           if (haveXcheri() & sizeof(xlen) == 32) <-> 0b1111100 @ cs2 @ cs1 @ 0b000 @ 0b01011 @ 0b1011011 if (haveXcheri() & sizeof(xlen) == 32) /* sc.cap */
+mapping clause encdec = StoreDataCap(rs2, cs1, BYTE)    if (haveXcheri()) <-> 0b1111100 @ rs2 @ cs1 @ 0b000 @ 0b01000 @ 0b1011011 if (haveXcheri()) /* sb.cap */
+mapping clause encdec = StoreDataCap(rs2, cs1, HALF)    if (haveXcheri()) <-> 0b1111100 @ rs2 @ cs1 @ 0b000 @ 0b01001 @ 0b1011011 if (haveXcheri()) /* sh.cap */
+mapping clause encdec = StoreDataCap(rs2, cs1, WORD)    if (haveXcheri()) <-> 0b1111100 @ rs2 @ cs1 @ 0b000 @ 0b01010 @ 0b1011011 if (haveXcheri()) /* sw.cap */
+mapping clause encdec = StoreDataCap(rs2, cs1, DOUBLE)  if (haveXcheri() & haveRV64) <-> 0b1111100 @ rs2 @ cs1 @ 0b000 @ 0b01011 @ 0b1011011 if (haveXcheri() & haveRV64) /* sd.cap */
+mapping clause encdec = StoreCapCap(cs2, cs1)           if (haveXcheri() & sizeof(xlen) == 64) <-> 0b1111100 @ cs2 @ cs1 @ 0b000 @ 0b01100 @ 0b1011011 if (haveXcheri() & sizeof(xlen) == 64) /* sc.cap */
+mapping clause encdec = StoreCapCap(cs2, cs1)           if (haveXcheri() & sizeof(xlen) == 32) <-> 0b1111100 @ cs2 @ cs1 @ 0b000 @ 0b01011 @ 0b1011011 if (haveXcheri() & sizeof(xlen) == 32) /* sc.cap */
 
-mapping clause encdec = CStoreCondDDC(rs2, rs1, BYTE)   if (haveXcheri() & haveAtomics()) <-> 0b1111100 @ rs2 @ rs1 @ 0b000 @ 0b10000 @ 0b1011011 if (haveXcheri() & haveAtomics()) /* sc.b.ddc */
-mapping clause encdec = CStoreCondDDC(rs2, rs1, HALF)   if (haveXcheri() & haveAtomics()) <-> 0b1111100 @ rs2 @ rs1 @ 0b000 @ 0b10001 @ 0b1011011 if (haveXcheri() & haveAtomics()) /* sc.h.ddc */
-mapping clause encdec = CStoreCondDDC(rs2, rs1, WORD)   if (haveXcheri() & haveAtomics()) <-> 0b1111100 @ rs2 @ rs1 @ 0b000 @ 0b10010 @ 0b1011011 if (haveXcheri() & haveAtomics()) /* sc.w.ddc */
-mapping clause encdec = CStoreCondDDC(rs2, rs1, DOUBLE) if (haveXcheri() & haveAtomics() & haveRV64) <-> 0b1111100 @ rs2 @ rs1 @ 0b000 @ 0b10011 @ 0b1011011 if (haveXcheri() & haveAtomics() & haveRV64) /* sc.d.ddc */
-mapping clause encdec = CStoreCondCapDDC(cs2, rs1)      if (haveXcheri() & haveAtomics() & sizeof(xlen) == 32) <-> 0b1111100 @ cs2 @ rs1 @ 0b000 @ 0b10011 @ 0b1011011 if (haveXcheri() & haveAtomics() & sizeof(xlen) == 32) /* sc.c.ddc */
-mapping clause encdec = CStoreCondCapDDC(cs2, rs1)      if (haveXcheri() & haveAtomics() & sizeof(xlen) == 64) <-> 0b1111100 @ cs2 @ rs1 @ 0b000 @ 0b10100 @ 0b1011011 if (haveXcheri() & haveAtomics() & sizeof(xlen) == 64) /* sc.c.ddc */
+mapping clause encdec = StoreCondDataDDC(rs2, rs1, BYTE)   if (haveXcheri() & haveAtomics()) <-> 0b1111100 @ rs2 @ rs1 @ 0b000 @ 0b10000 @ 0b1011011 if (haveXcheri() & haveAtomics()) /* sc.b.ddc */
+mapping clause encdec = StoreCondDataDDC(rs2, rs1, HALF)   if (haveXcheri() & haveAtomics()) <-> 0b1111100 @ rs2 @ rs1 @ 0b000 @ 0b10001 @ 0b1011011 if (haveXcheri() & haveAtomics()) /* sc.h.ddc */
+mapping clause encdec = StoreCondDataDDC(rs2, rs1, WORD)   if (haveXcheri() & haveAtomics()) <-> 0b1111100 @ rs2 @ rs1 @ 0b000 @ 0b10010 @ 0b1011011 if (haveXcheri() & haveAtomics()) /* sc.w.ddc */
+mapping clause encdec = StoreCondDataDDC(rs2, rs1, DOUBLE) if (haveXcheri() & haveAtomics() & haveRV64) <-> 0b1111100 @ rs2 @ rs1 @ 0b000 @ 0b10011 @ 0b1011011 if (haveXcheri() & haveAtomics() & haveRV64) /* sc.d.ddc */
+mapping clause encdec = StoreCondCapDDC(cs2, rs1)          if (haveXcheri() & haveAtomics() & sizeof(xlen) == 32) <-> 0b1111100 @ cs2 @ rs1 @ 0b000 @ 0b10011 @ 0b1011011 if (haveXcheri() & haveAtomics() & sizeof(xlen) == 32) /* sc.c.ddc */
+mapping clause encdec = StoreCondCapDDC(cs2, rs1)          if (haveXcheri() & haveAtomics() & sizeof(xlen) == 64) <-> 0b1111100 @ cs2 @ rs1 @ 0b000 @ 0b10100 @ 0b1011011 if (haveXcheri() & haveAtomics() & sizeof(xlen) == 64) /* sc.c.ddc */
 
-mapping clause encdec = CStoreCondCap(rs2, cs1, BYTE)   if (haveXcheri() & haveAtomics()) <-> 0b1111100 @ rs2 @ cs1 @ 0b000 @ 0b11000 @ 0b1011011 if (haveXcheri() & haveAtomics()) /* sc.b.cap */
-mapping clause encdec = CStoreCondCap(rs2, cs1, HALF)   if (haveXcheri() & haveAtomics()) <-> 0b1111100 @ rs2 @ cs1 @ 0b000 @ 0b11001 @ 0b1011011 if (haveXcheri() & haveAtomics()) /* sc.h.cap */
-mapping clause encdec = CStoreCondCap(rs2, cs1, WORD)   if (haveXcheri() & haveAtomics()) <-> 0b1111100 @ rs2 @ cs1 @ 0b000 @ 0b11010 @ 0b1011011 if (haveXcheri() & haveAtomics()) /* sc.w.cap */
-mapping clause encdec = CStoreCondCap(rs2, cs1, DOUBLE) if (haveXcheri() & haveAtomics() & haveRV64) <-> 0b1111100 @ rs2 @ cs1 @ 0b000 @ 0b11011 @ 0b1011011 if (haveXcheri()  & haveAtomics()& haveRV64) /* sc.d.cap */
-mapping clause encdec = CStoreCondCapCap(cs2, cs1)       if (haveXcheri() & haveAtomics() & sizeof(xlen) == 32) <-> 0b1111100 @ cs2 @ cs1 @ 0b000 @ 0b11011 @ 0b1011011 if (haveXcheri() & haveAtomics() & sizeof(xlen) == 32) /* sc.c.cap */
-mapping clause encdec = CStoreCondCapCap(cs2, cs1)       if (haveXcheri() & haveAtomics() & sizeof(xlen) == 64) <-> 0b1111100 @ cs2 @ cs1 @ 0b000 @ 0b11100 @ 0b1011011 if (haveXcheri() & haveAtomics() & sizeof(xlen) == 64) /* sc.c.cap */
+mapping clause encdec = StoreCondCap(rs2, cs1, BYTE)   if (haveXcheri() & haveAtomics()) <-> 0b1111100 @ rs2 @ cs1 @ 0b000 @ 0b11000 @ 0b1011011 if (haveXcheri() & haveAtomics()) /* sc.b.cap */
+mapping clause encdec = StoreCondCap(rs2, cs1, HALF)   if (haveXcheri() & haveAtomics()) <-> 0b1111100 @ rs2 @ cs1 @ 0b000 @ 0b11001 @ 0b1011011 if (haveXcheri() & haveAtomics()) /* sc.h.cap */
+mapping clause encdec = StoreCondCap(rs2, cs1, WORD)   if (haveXcheri() & haveAtomics()) <-> 0b1111100 @ rs2 @ cs1 @ 0b000 @ 0b11010 @ 0b1011011 if (haveXcheri() & haveAtomics()) /* sc.w.cap */
+mapping clause encdec = StoreCondCap(rs2, cs1, DOUBLE) if (haveXcheri() & haveAtomics() & haveRV64) <-> 0b1111100 @ rs2 @ cs1 @ 0b000 @ 0b11011 @ 0b1011011 if (haveXcheri()  & haveAtomics()& haveRV64) /* sc.d.cap */
+mapping clause encdec = StoreCondCapCap(cs2, cs1)      if (haveXcheri() & haveAtomics() & sizeof(xlen) == 32) <-> 0b1111100 @ cs2 @ cs1 @ 0b000 @ 0b11011 @ 0b1011011 if (haveXcheri() & haveAtomics() & sizeof(xlen) == 32) /* sc.c.cap */
+mapping clause encdec = StoreCondCapCap(cs2, cs1)      if (haveXcheri() & haveAtomics() & sizeof(xlen) == 64) <-> 0b1111100 @ cs2 @ cs1 @ 0b000 @ 0b11100 @ 0b1011011 if (haveXcheri() & haveAtomics() & sizeof(xlen) == 64) /* sc.c.cap */
 
-mapping clause assembly = CLoadDDC(rd, rs1, u, w) <-> "l" ^ size_mnemonic(w) ^ maybe_u(u) ^ ".ddc" ^ spc() ^ reg_name(rd) ^ sep() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
-mapping clause assembly = CLoadCap(rd, cs1, u, w) <-> "l" ^ size_mnemonic(w) ^ maybe_u(u) ^ ".cap" ^ spc() ^ reg_name(rd) ^ sep() ^ "(" ^ opt_spc() ^ cap_reg_name(cs1) ^ opt_spc() ^ ")"
-mapping clause assembly = CLoadCapDDC(cd, rs1)    <-> "lc.ddc" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
-mapping clause assembly = CLoadCapCap(cd, cs1)    <-> "lc.cap" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ "(" ^ opt_spc() ^ cap_reg_name(cs1) ^ opt_spc() ^ ")"
+mapping clause assembly = LoadDataDDC(rd, rs1, u, w) <-> "l" ^ size_mnemonic(w) ^ maybe_u(u) ^ ".ddc" ^ spc() ^ reg_name(rd) ^ sep() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
+mapping clause assembly = LoadDataCap(rd, cs1, u, w) <-> "l" ^ size_mnemonic(w) ^ maybe_u(u) ^ ".cap" ^ spc() ^ reg_name(rd) ^ sep() ^ "(" ^ opt_spc() ^ cap_reg_name(cs1) ^ opt_spc() ^ ")"
+mapping clause assembly = LoadCapDDC(cd, rs1)        <-> "lc.ddc" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
+mapping clause assembly = LoadCapCap(cd, cs1)        <-> "lc.cap" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ "(" ^ opt_spc() ^ cap_reg_name(cs1) ^ opt_spc() ^ ")"
 
-mapping clause assembly = CLoadResDDC(rd, cs1, w) <-> "lr." ^ size_mnemonic(w) ^ ".ddc" ^ spc() ^ reg_name(rd) ^ sep() ^ "(" ^ opt_spc() ^ cap_reg_name(cs1) ^ opt_spc() ^ ")"
-mapping clause assembly = CLoadResCapDDC(cd, cs1) <-> "lr.c.ddc" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ "(" ^ opt_spc() ^ cap_reg_name(cs1) ^ opt_spc() ^ ")"
-mapping clause assembly = CLoadResCap(rd, cs1, w) <-> "lr." ^ size_mnemonic(w) ^ ".cap" ^ spc() ^ reg_name(rd) ^ sep() ^ "(" ^ opt_spc() ^ cap_reg_name(cs1) ^ opt_spc() ^ ")"
-mapping clause assembly = CLoadResCapCap(cd, cs1) <-> "lr.c.cap" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ "(" ^ opt_spc() ^ cap_reg_name(cs1) ^ opt_spc() ^ ")"
+mapping clause assembly = LoadResDataDDC(rd, cs1, w) <-> "lr." ^ size_mnemonic(w) ^ ".ddc" ^ spc() ^ reg_name(rd) ^ sep() ^ "(" ^ opt_spc() ^ cap_reg_name(cs1) ^ opt_spc() ^ ")"
+mapping clause assembly = LoadResCapDDC(cd, cs1)     <-> "lr.c.ddc" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ "(" ^ opt_spc() ^ cap_reg_name(cs1) ^ opt_spc() ^ ")"
+mapping clause assembly = LoadResCap(rd, cs1, w)     <-> "lr." ^ size_mnemonic(w) ^ ".cap" ^ spc() ^ reg_name(rd) ^ sep() ^ "(" ^ opt_spc() ^ cap_reg_name(cs1) ^ opt_spc() ^ ")"
+mapping clause assembly = LoadResCapCap(cd, cs1)     <-> "lr.c.cap" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ "(" ^ opt_spc() ^ cap_reg_name(cs1) ^ opt_spc() ^ ")"
 
-mapping clause assembly = CStoreDDC(rs2, rs1, w) <-> "s" ^ size_mnemonic(w) ^ ".ddc" ^ spc() ^ reg_name(rs2) ^ sep() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
-mapping clause assembly = CStoreCap(rs2, cs1, w) <-> "s" ^ size_mnemonic(w) ^ ".cap" ^ spc() ^ reg_name(rs2) ^ sep() ^ "(" ^ opt_spc() ^ cap_reg_name(cs1) ^ opt_spc() ^ ")"
-mapping clause assembly = CStoreCapDDC(cs2, rs1) <-> "sc.ddc" ^ spc() ^ cap_reg_name(cs2) ^ sep() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
-mapping clause assembly = CStoreCapCap(cs2, cs1) <-> "sc.cap" ^ spc() ^ cap_reg_name(cs2) ^ sep() ^ "(" ^ opt_spc() ^ cap_reg_name(cs1) ^ opt_spc() ^ ")"
+mapping clause assembly = StoreDataDDC(rs2, rs1, w) <-> "s" ^ size_mnemonic(w) ^ ".ddc" ^ spc() ^ reg_name(rs2) ^ sep() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
+mapping clause assembly = StoreDataCap(rs2, cs1, w) <-> "s" ^ size_mnemonic(w) ^ ".cap" ^ spc() ^ reg_name(rs2) ^ sep() ^ "(" ^ opt_spc() ^ cap_reg_name(cs1) ^ opt_spc() ^ ")"
+mapping clause assembly = StoreCapDDC(cs2, rs1)     <-> "sc.ddc" ^ spc() ^ cap_reg_name(cs2) ^ sep() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
+mapping clause assembly = StoreCapCap(cs2, cs1)     <-> "sc.cap" ^ spc() ^ cap_reg_name(cs2) ^ sep() ^ "(" ^ opt_spc() ^ cap_reg_name(cs1) ^ opt_spc() ^ ")"
 
-mapping clause assembly = CStoreCondDDC(rs2, rs1, w) <-> "sc." ^ size_mnemonic(w) ^ ".ddc" ^ spc() ^ reg_name(rs2) ^ sep() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
-mapping clause assembly = CStoreCondCapDDC(cs2, rs1) <-> "sc.c.ddc" ^ spc() ^ cap_reg_name(cs2) ^ sep() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
-mapping clause assembly = CStoreCondCap(rs2, cs1, w) <-> "sc." ^ size_mnemonic(w) ^ ".cap" ^ spc() ^ reg_name(rs2) ^ sep() ^ "(" ^ opt_spc() ^ cap_reg_name(cs1) ^ opt_spc() ^ ")"
-mapping clause assembly = CStoreCondCapCap(cs2, cs1) <-> "sc.c.cap" ^ spc() ^ cap_reg_name(cs2) ^ sep() ^ "(" ^ opt_spc() ^ cap_reg_name(cs1) ^ opt_spc() ^ ")"
+mapping clause assembly = StoreCondDataDDC(rs2, rs1, w) <-> "sc." ^ size_mnemonic(w) ^ ".ddc" ^ spc() ^ reg_name(rs2) ^ sep() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
+mapping clause assembly = StoreCondCapDDC(cs2, rs1)     <-> "sc.c.ddc" ^ spc() ^ cap_reg_name(cs2) ^ sep() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
+mapping clause assembly = StoreCondCap(rs2, cs1, w)     <-> "sc." ^ size_mnemonic(w) ^ ".cap" ^ spc() ^ reg_name(rs2) ^ sep() ^ "(" ^ opt_spc() ^ cap_reg_name(cs1) ^ opt_spc() ^ ")"
+mapping clause assembly = StoreCondCapCap(cs2, cs1)     <-> "sc.c.cap" ^ spc() ^ cap_reg_name(cs2) ^ sep() ^ "(" ^ opt_spc() ^ cap_reg_name(cs1) ^ opt_spc() ^ ")"
 
-mapping clause encdec = CLoadCapImm(cd, rs1, offset) if sizeof(xlen) == 64 <-> offset @ rs1 @ 0b010 @ cd @ 0b0001111 if sizeof(xlen) == 64 /* lc */
-mapping clause encdec = CLoadCapImm(cd, rs1, offset) if sizeof(xlen) == 32 <-> offset @ rs1 @ 0b011 @ cd @ 0b0000011 if sizeof(xlen) == 32 /* lc */
+mapping clause encdec = LoadCapImm(cd, rs1, offset) if sizeof(xlen) == 64 <-> offset @ rs1 @ 0b010 @ cd @ 0b0001111 if sizeof(xlen) == 64 /* lc */
+mapping clause encdec = LoadCapImm(cd, rs1, offset) if sizeof(xlen) == 32 <-> offset @ rs1 @ 0b011 @ cd @ 0b0000011 if sizeof(xlen) == 32 /* lc */
 
-mapping clause encdec = CStoreCapImm(cs2, rs1, off7 @ off5) if sizeof(xlen) == 64 <-> off7 : bits(7) @ cs2 @ rs1 @ 0b100 @ off5 : bits(5) @ 0b0100011 if sizeof(xlen) == 64 /* sc */
-mapping clause encdec = CStoreCapImm(cs2, rs1, off7 @ off5) if sizeof(xlen) == 32 <-> off7 : bits(7) @ cs2 @ rs1 @ 0b011 @ off5 : bits(5) @ 0b0100011 if sizeof(xlen) == 32 /* sc */
+mapping clause encdec = StoreCapImm(cs2, rs1, off7 @ off5) if sizeof(xlen) == 64 <-> off7 : bits(7) @ cs2 @ rs1 @ 0b100 @ off5 : bits(5) @ 0b0100011 if sizeof(xlen) == 64 /* sc */
+mapping clause encdec = StoreCapImm(cs2, rs1, off7 @ off5) if sizeof(xlen) == 32 <-> off7 : bits(7) @ cs2 @ rs1 @ 0b011 @ off5 : bits(5) @ 0b0100011 if sizeof(xlen) == 32 /* sc */
 
-mapping clause assembly = CLoadCapImm(cd, rs1, offset)   <-> "lc" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ hex_bits_12(offset) ^ opt_spc() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
-mapping clause assembly = CStoreCapImm(cs2, rs1, offset) <-> "sc" ^ spc() ^ cap_reg_name(cs2) ^ sep() ^ hex_bits_12(offset) ^ opt_spc() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
+mapping clause assembly = LoadCapImm(cd, rs1, offset)   <-> "lc" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ hex_bits_12(offset) ^ opt_spc() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
+mapping clause assembly = StoreCapImm(cs2, rs1, offset) <-> "sc" ^ spc() ^ cap_reg_name(cs2) ^ sep() ^ hex_bits_12(offset) ^ opt_spc() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
