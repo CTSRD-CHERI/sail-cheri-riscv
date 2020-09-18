@@ -108,7 +108,7 @@ bounding capability, effective address, and capreg_idx (for use in cap cause).
 val get_cheri_cap_addr : (regidx, xlenbits) -> (Capability, xlenbits, capreg_idx) effect {rreg, escape}
 function get_cheri_cap_addr (base_reg : regidx, offset : xlenbits) = {
   if (PCC.flag_cap_mode) then
-    let base_cap = readCapReg(base_reg) in
+    let base_cap = C(base_reg) in
     (base_cap, base_cap.address + offset, 0b0 @ base_reg)
   else
     let ddc = DDC in

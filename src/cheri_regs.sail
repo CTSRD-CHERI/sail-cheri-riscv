@@ -1,8 +1,8 @@
 /* accessors for capability representation */
 
 /* reads a given capability register, or the null capability if the argument is zero. */
-val readCapReg_int : forall 'n, 0 <= 'n < 32. regno('n) -> regtype effect {rreg, escape}
-function readCapReg_int r = {
+val rC : forall 'n, 0 <= 'n < 32. regno('n) -> regtype effect {rreg, escape}
+function rC r = {
   match r {
     0  => zero_reg,
     1  => x1,
@@ -40,24 +40,9 @@ function readCapReg_int r = {
   }
 }
 
-function readCapReg_bits(r: bits(5)) -> regtype = readCapReg_int(unsigned(r))
-
-overload readCapReg = {readCapReg_bits, readCapReg_int}
-
-/* as per [readCapReg] but reads DDC instead of null when argument is zero. */
-val readCapRegDDC_int : forall 'n, 0 <= 'n < 32 . regno('n) -> Capability effect {rreg, escape}
-function readCapRegDDC_int(r) =
-  if r == 0 then DDC else readCapReg_int(r)
-
-val readCapRegDDC_bits : bits(5) -> Capability effect {rreg, escape}
-function readCapRegDDC_bits(r) =
-  if r == 0b00000 then DDC else readCapReg_bits(r)
-
-overload readCapRegDDC = {readCapRegDDC_bits, readCapRegDDC_int}
-
 /* writes a register with a capability value */
-val writeCapReg_int : forall 'n, 0 <= 'n < 32. (regno('n), regtype) -> unit effect {wreg, escape}
-function writeCapReg_int (r, v) = {
+val wC : forall 'n, 0 <= 'n < 32. (regno('n), regtype) -> unit effect {wreg, escape}
+function wC (r, v) = {
   match r {
     0  => (),
     1  => x1 = v,
@@ -100,9 +85,11 @@ function writeCapReg_int (r, v) = {
   }
 }
 
-function writeCapReg_bits(r: bits(5), v: regtype) -> unit = writeCapReg_int(unsigned(r), v)
+function rC_bits(r: bits(5)) -> regtype = rC(unsigned(r))
 
-overload writeCapReg = {writeCapReg_bits, writeCapReg_int}
+function wC_bits(r: bits(5), v: regtype) -> unit = wC(unsigned(r), v)
+
+overload C = {rC_bits, wC_bits, rC, wC}
 
 val ext_init_regs : unit -> unit effect {wreg}
 function ext_init_regs () = {
