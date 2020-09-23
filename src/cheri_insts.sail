@@ -1214,8 +1214,8 @@ function clause execute (StoreCapCap(cs2, cs1)) =
   handle_store_cap_via_cap(cs2, 0b0 @ cs1, cs1_val, vaddr)
 }
 
-union clause ast = CAP_AUIPC : (bits(20), regidx)
-function clause execute CAP_AUIPC(imm, cd) = {
+union clause ast = AUIPCC : (bits(20), regidx)
+function clause execute AUIPCC(imm, cd) = {
   let off : xlenbits = EXTS(imm @ 0x000);
   let ret = setCapAddrOrNull(PCC, PC + off);
   C(cd) = ret;
