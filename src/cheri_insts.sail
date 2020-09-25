@@ -189,6 +189,19 @@ function clause execute (CSpecialRW(cd, scr, cs1)) =
 }
 
 union clause ast = CAndPerm : (regidx, regidx, regidx)
+/*!
+ * Capability register *cd* is replaced with the contents of capability
+ * register *cs1* with the **perms** field set to the bitwise and of its
+ * previous value and bits 0 to [cap_hperms_width]-1 of integer register *rs2*
+ * and the **uperms** field set to the bitwise and of its previous value and
+ * bits [cap_uperms_shift] to [cap_uperms_shift]+[cap_uperms_width]-1 of *rd*.
+ *
+ *
+ * ## Exceptions:
+ * An exception is raised if:
+ *   - *cs1.tag* is not set.
+ *   - *cs1* is sealed.
+ */
 function clause execute(CAndPerm(cd, cs1, rs2)) =
 {
   let cs1_val = C(cs1);
