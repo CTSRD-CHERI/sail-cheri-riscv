@@ -34,8 +34,13 @@
 
 
 let max_otype = MAX(otype_width) - reserved_otypes
-type CapAddrBits = bits(cap_addr_width)
-type CapLenBits  = bits(cap_len_width)
+
+type cap_perms_width : Int = 15 + uperms_width
+let  cap_perms_width = sizeof(cap_perms_width)
+
+type CapAddrBits  = bits(cap_addr_width)
+type CapLenBits   = bits(cap_len_width)
+type CapPermsBits = bits(cap_perms_width)
 
 function getCapHardPerms(cap) : Capability -> bits(12) =
    (bool_to_bits(cap.permit_set_CID)
@@ -194,13 +199,13 @@ function setCapBounds(cap, base, top) : (Capability, CapAddrBits, CapLenBits) ->
   (exact, newCap)
 }
 
-function getCapPerms(cap) : Capability -> bits(31) =
+function getCapPerms(cap) : Capability -> CapPermsBits =
     let perms : bits(15) = EXTZ(getCapHardPerms(cap)) in
-    EXTZ(cap.uperms @ perms)
+    cap.uperms @ perms
 
-function setCapPerms(cap, perms) : (Capability, bits(31)) -> Capability =
+function setCapPerms(cap, perms) : (Capability, CapPermsBits) -> Capability =
     { cap with
-      uperms                 = truncate(perms[30..15], uperms_width),
+      uperms                 = truncate(perms >> 15, uperms_width),
       /* 14..12 reserved -- ignore */
       permit_set_CID         = bit_to_bool(perms[11]),
       access_system_regs     = bit_to_bool(perms[10]),

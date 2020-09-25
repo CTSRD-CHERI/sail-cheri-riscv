@@ -201,7 +201,8 @@ function clause execute(CAndPerm(cd, cs1, rs2)) =
     RETIRE_FAIL
   } else {
     let perms   = getCapPerms(cs1_val);
-    let newCap  = setCapPerms(cs1_val, (perms & rs2_val[30..0]));
+    let mask    = truncate(rs2_val, cap_perms_width);
+    let newCap  = setCapPerms(cs1_val, (perms & mask));
     C(cd) = newCap;
     RETIRE_SUCCESS
   }
