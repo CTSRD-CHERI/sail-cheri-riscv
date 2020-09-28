@@ -41,8 +41,8 @@ function operator <--> (p, q) = (p --> q) & (q --> p)
  */
 
 function encodableCap(c) : Capability -> bool =
-  let Bbot = truncate(c.B, mantissa_width - 2) in
-  let Tbot = truncate(c.T, mantissa_width - 2) in
+  let Bbot = truncate(c.B, cap_mantissa_width - 2) in
+  let Tbot = truncate(c.T, cap_mantissa_width - 2) in
   let Btop2 = truncateLSB(c.B, 2) in
   let Ttop2 = truncateLSB(c.T, 2) in
   let Ltop2 = if c.internal_e then 0b01 else 0b00 in
@@ -106,9 +106,9 @@ function propUnsealEncodable(c) : Capability -> bool =
    the initial capability in a monotonic way, base <= top should hold. */
 
 function validBounds(c) : Capability -> bool =
-  let Bmsb  = c.B[mantissa_width - 1] in
-  let Bmsb2 = c.B[mantissa_width - 1 .. mantissa_width - 2] in
-  let Tmsb  = c.T[mantissa_width - 1] in
+  let Bmsb  = c.B[cap_mantissa_width - 1] in
+  let Bmsb2 = c.B[cap_mantissa_width - 1 .. cap_mantissa_width - 2] in
+  let Tmsb  = c.T[cap_mantissa_width - 1] in
   if (unsigned(c.E) > maxE) then {
     false
   } else if (unsigned(c.E) == maxE) then {
@@ -193,7 +193,7 @@ function propSetOffset(base, top, offset) : (CapAddrBits, CapLenBits, CapAddrBit
   let (origBase, origTop) = getCapBounds(cap);
   let (newBase, newTop)   = getCapBounds(cap');
   let sensibleCap = ((0b0 @ base) <=_u top) & (unsigned(top) <= pow2(cap_addr_width));
-  let len = max(pow2(mantissa_width - 2), origTop - origBase);
+  let len = max(pow2(cap_mantissa_width - 2), origTop - origBase);
   let lowerRepOff = 0 - len;
   let upperRepOff = 6 * len;
   let signedOff = 4 * signed(offset);
