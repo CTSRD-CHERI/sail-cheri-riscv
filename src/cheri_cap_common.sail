@@ -33,7 +33,7 @@
 /*========================================================================*/
 
 
-let max_otype = MAX(otype_width) - reserved_otypes
+let max_otype = MAX(cap_otype_width) - reserved_otypes
 
 type cap_uperms_shift : Int = 15
 let cap_uperms_shift = sizeof(cap_uperms_shift)
@@ -241,11 +241,11 @@ function setCapFlags(cap, flags) = {cap with flag_cap_mode = bit_to_bool(flags[0
 val hasReservedOType : Capability -> bool
 function hasReservedOType(cap) = unsigned(cap.otype) > max_otype
 
-function sealCap(cap, otyp) : (Capability, bits(otype_width)) -> Capability =
+function sealCap(cap, otyp) : (Capability, bits(cap_otype_width)) -> Capability =
     {cap with sealed=true, otype=otyp}
 
 function unsealCap(cap) : Capability -> Capability =
-    {cap with sealed=false, otype=to_bits(otype_width, otype_unsealed)}
+    {cap with sealed=false, otype=to_bits(cap_otype_width, otype_unsealed)}
 
 function getCapBaseBits(c) : Capability -> CapAddrBits =
     let (base, _) = getCapBoundsBits(c) in

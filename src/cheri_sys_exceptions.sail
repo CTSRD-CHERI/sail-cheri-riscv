@@ -110,7 +110,7 @@ function prepare_xret_target(p) = {
    * Sentries unseal on transfer into nextPCC; other sealed types will trap
    * with a seal violation later, when we go to do a fetch from nextPCC.
    */
-  let epcc = if epcc.sealed & epcc.otype == to_bits(otype_width, otype_sentry)
+  let epcc = if epcc.sealed & epcc.otype == to_bits(cap_otype_width, otype_sentry)
              then unsealCap(epcc)
              else epcc;
 

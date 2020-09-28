@@ -39,8 +39,8 @@ type log2_cap_size : Int = 4
 let log2_cap_size = sizeof(log2_cap_size)
 type CapBits = bits(8 * cap_size)
 /* width of otype field in bits */
-type otype_width : Int = 18
-let otype_width = sizeof(otype_width)
+type cap_otype_width : Int = 18
+let cap_otype_width = sizeof(cap_otype_width)
 type cap_hperms_width : Int = 12
 let cap_hperms_width = sizeof(cap_hperms_width)
 type cap_uperms_width : Int = 4
@@ -82,7 +82,7 @@ struct Capability = {
   sealed                 : bool    ,
   B                      : bits(mantissa_width),
   T                      : bits(mantissa_width),
-  otype                  : bits(otype_width),
+  otype                  : bits(cap_otype_width),
   address                : bits(cap_addr_width)
 }
 
@@ -114,7 +114,7 @@ let null_cap : Capability = struct {
   sealed                 = false,
   B                      = zeros(),
   T                      = resetT,
-  otype                  = to_bits(otype_width, otype_unsealed),
+  otype                  = to_bits(cap_otype_width, otype_unsealed),
   address                = zeros()
 }
 
@@ -140,7 +140,7 @@ let default_cap : Capability = struct {
   sealed                 = false,
   B                      = zeros(),
   T                      = resetT,
-  otype                  = to_bits(otype_width, otype_unsealed),
+  otype                  = to_bits(cap_otype_width, otype_unsealed),
   address                = zeros()
 }
 
@@ -148,7 +148,7 @@ let default_cap : Capability = struct {
 function capBitsToCapability(t, c) : (bool, CapBits) -> Capability = {
   internal_exponent : bool = bit_to_bool(c[90]);
   otype : bits(18) = c[108..91];
-  let sealed : bool = otype != to_bits(otype_width, otype_unsealed);
+  let sealed : bool = otype != to_bits(cap_otype_width, otype_unsealed);
   E : bits(6)  = zeros();
   Bs : bits(14) = zeros();
   T : bits(12) = zeros();
