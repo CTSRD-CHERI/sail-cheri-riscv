@@ -41,8 +41,8 @@ type CapBits = bits(8 * cap_size)
 /* width of otype field in bits */
 type otype_width : Int = 18
 let otype_width = sizeof(otype_width)
-type uperms_width : Int = 4
-let uperms_width = sizeof(uperms_width)
+type cap_uperms_width : Int = 4
+let cap_uperms_width = sizeof(cap_uperms_width)
 type cap_addr_width : Int = xlen
 let  cap_addr_width = sizeof(cap_addr_width)
 type cap_len_width : Int = cap_addr_width + 1
@@ -60,7 +60,7 @@ type CapLen = range(0, 2 ^ 65) /* XXX sail can't handle if this is expressed as 
  */
 struct Capability = {
   tag                    : bool    ,
-  uperms                 : bits(uperms_width) ,
+  uperms                 : bits(cap_uperms_width) ,
   permit_set_CID         : bool    ,
   access_system_regs     : bool    ,
   permit_unseal          : bool    ,
