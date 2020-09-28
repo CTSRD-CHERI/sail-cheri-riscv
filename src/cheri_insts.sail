@@ -199,7 +199,7 @@ union clause ast = CAndPerm : (regidx, regidx, regidx)
  * ## Exceptions
  *
  * An exception is raised if:
- *   - *cs1.tag* is not set.
+ *   - *cs1*.**tag** is not set.
  *   - *cs1* is sealed.
  */
 function clause execute(CAndPerm(cd, cs1, rs2)) =
