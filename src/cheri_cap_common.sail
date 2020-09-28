@@ -35,7 +35,7 @@
 
 let max_otype = MAX(otype_width) - reserved_otypes
 
-type cap_perms_width : Int = 15 + uperms_width
+type cap_perms_width : Int = 15 + cap_uperms_width
 let  cap_perms_width = sizeof(cap_perms_width)
 
 type CapAddrBits  = bits(cap_addr_width)
@@ -205,7 +205,7 @@ function getCapPerms(cap) : Capability -> CapPermsBits =
 
 function setCapPerms(cap, perms) : (Capability, CapPermsBits) -> Capability =
     { cap with
-      uperms                 = truncate(perms >> 15, uperms_width),
+      uperms                 = truncate(perms >> 15, cap_uperms_width),
       /* 14..12 reserved -- ignore */
       permit_set_CID         = bit_to_bool(perms[11]),
       access_system_regs     = bit_to_bool(perms[10]),
