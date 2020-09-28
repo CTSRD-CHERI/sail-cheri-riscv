@@ -196,8 +196,8 @@ union clause ast = CAndPerm : (regidx, regidx, regidx)
  * and the **uperms** field set to the bitwise and of its previous value and
  * bits [cap_uperms_shift] to [cap_uperms_shift]+[cap_uperms_width]-1 of *rd*.
  *
+ * ## Exceptions
  *
- * ## Exceptions:
  * An exception is raised if:
  *   - *cs1.tag* is not set.
  *   - *cs1* is sealed.
