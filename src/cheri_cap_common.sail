@@ -60,9 +60,9 @@ function getCapHardPerms(cap) : Capability -> bits(cap_hperms_width) =
 
 /* Convert from capabilty struct to bits (no tag) */
 function capToBits(cap) : Capability -> CapBits = {
-  t_hi : bits(mantissa_width - 5) = cap.T[mantissa_width - 3..3];
+  t_hi : bits(cap_mantissa_width - 5) = cap.T[cap_mantissa_width - 3..3];
   t_lo : bits(3)  = cap.T[2..0];
-  b_hi : bits(mantissa_width - 3) = cap.B[mantissa_width - 1..3];
+  b_hi : bits(cap_mantissa_width - 3) = cap.B[cap_mantissa_width - 1..3];
   b_lo : bits(3)  = cap.B[2..0];
   if cap.internal_e then {
     t_lo = cap.E[5..3];
@@ -101,7 +101,7 @@ function getCapBoundsBits(c) : Capability -> (CapAddrBits, CapLenBits) =
   let E = min(maxE, unsigned(c.E)) in
   let a : CapAddrBits = c.address in
   /* Extract bits we need to make the top correction and calculate representable limit */
-  let a3 = truncate(a >> (E + mantissa_width - 3), 3) in
+  let a3 = truncate(a >> (E + cap_mantissa_width - 3), 3) in
   let B3 = truncateLSB(c.B, 3) in
   let T3 = truncateLSB(c.T, 3) in
   let R3 = B3 - 0b001 in /* wraps */
@@ -112,7 +112,7 @@ function getCapBoundsBits(c) : Capability -> (CapAddrBits, CapLenBits) =
   /* Compute region corrections for top and base relative to a */
   let correction_base = bHi - aHi in
   let correction_top  = tHi - aHi in
-  let a_top = (a >> (E + mantissa_width)) in {
+  let a_top = (a >> (E + cap_mantissa_width)) in {
     base : CapLenBits = truncate((a_top + correction_base) @ c.B @ zeros(E), cap_len_width);
     top  : CapLenBits = truncate((a_top + correction_top)  @ c.T @ zeros(E), cap_len_width);
     /* If the base and top are more than an address space away from each other,
@@ -145,14 +145,14 @@ function setCapBounds(cap, base, top) : (Capability, CapAddrBits, CapLenBits) ->
    * second from the top as assumed during decoding. We ignore the bottom
    * MW bits because those are handled by the ie = 0 format.
    */
-  let e = maxE - count_leading_zeros(length[cap_addr_width..mantissa_width - 1]);
+  let e = maxE - count_leading_zeros(length[cap_addr_width..cap_mantissa_width - 1]);
   // Use use internal exponent if e is non-zero or if e is zero but
   // but the implied bit of length is not zero (denormal vs. normal case)
-  let ie = (e != 0) | length[mantissa_width - 2] == bitone;
+  let ie = (e != 0) | length[cap_mantissa_width - 2] == bitone;
 
   /* The non-ie e == 0 case is easy. It is exact so just extract relevant bits. */
-  Bbits = truncate(base, mantissa_width);
-  Tbits = truncate(top, mantissa_width);
+  Bbits = truncate(base, cap_mantissa_width);
+  Tbits = truncate(top, cap_mantissa_width);
   lostSignificantTop : bool = false;
   lostSignificantBase : bool = false;
   incE : bool = false;
@@ -161,8 +161,8 @@ function setCapBounds(cap, base, top) : (Capability, CapAddrBits, CapLenBits) ->
     /* the internal exponent case is trickier */
 
     /* Extract B and T bits (we lose 3 bits of each to store the exponent) */
-    B_ie = truncate(base >> (e + 3), mantissa_width - 3);
-    T_ie = truncate(top >> (e + 3), mantissa_width - 3);
+    B_ie = truncate(base >> (e + 3), cap_mantissa_width - 3);
+    T_ie = truncate(top >> (e + 3), cap_mantissa_width - 3);
 
     /* Find out whether we have lost significant bits of base and top using a
      * mask of bits that we will lose (including 3 extra for exp).
@@ -180,7 +180,7 @@ function setCapBounds(cap, base, top) : (Capability, CapAddrBits, CapLenBits) ->
     /* Has the length overflowed? We chose e so that the top two bits of len would be 0b01,
        but either because of incrementing T or losing bits of base it might have grown. */
     len_ie = T_ie - B_ie;
-    if len_ie[mantissa_width - 4] == bitone then {
+    if len_ie[cap_mantissa_width - 4] == bitone then {
       /* length overflow -- increment E by one and then recalculate
          T, B etc accordingly */
       incE = true;
@@ -188,9 +188,9 @@ function setCapBounds(cap, base, top) : (Capability, CapAddrBits, CapLenBits) ->
       lostSignificantBase = lostSignificantBase | B_ie[0] == bitone;
       lostSignificantTop  = lostSignificantTop | T_ie[0] == bitone;
 
-      B_ie = truncate(base >> (e + 4), mantissa_width - 3);
+      B_ie = truncate(base >> (e + 4), cap_mantissa_width - 3);
       let incT : range(0,1) = if lostSignificantTop then 1 else 0;
-      T_ie = truncate(top >> (e + 4), mantissa_width - 3) + incT;
+      T_ie = truncate(top >> (e + 4), cap_mantissa_width - 3) + incT;
     };
 
     Bbits = B_ie @ 0b000;
@@ -318,12 +318,12 @@ function fastRepCheck(c, i) : (Capability, CapAddrBits) -> bool=
     if (E >= maxE - 2) then
         true /* in this case representable region is whole address space */
     else
-        let i_top    = signed(i >>_s (E + mantissa_width)) in
-        let i_mid    = truncate(i >> E, mantissa_width)in
-        let a_mid    = truncate(c.address >> E, mantissa_width) in
+        let i_top    = signed(i >>_s (E + cap_mantissa_width)) in
+        let i_mid    = truncate(i >> E, cap_mantissa_width)in
+        let a_mid    = truncate(c.address >> E, cap_mantissa_width) in
         let B3 = truncateLSB(c.B, 3) in
         let R3 = B3 - 0b001 in
-        let R  = R3 @ zeros(mantissa_width - 3) in
+        let R  = R3 @ zeros(cap_mantissa_width - 3) in
         let diff  = R - a_mid in
         let diff1 = diff - 1 in
         /* i_top determines 1. whether the increment is inRange

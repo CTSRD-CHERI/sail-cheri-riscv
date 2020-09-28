@@ -49,8 +49,8 @@ type cap_addr_width : Int = xlen
 let  cap_addr_width = sizeof(cap_addr_width)
 type cap_len_width : Int = cap_addr_width + 1
 let  cap_len_width  = sizeof(cap_len_width)
-type mantissa_width : Int = 14
-let  mantissa_width = sizeof(mantissa_width)
+type cap_mantissa_width : Int = 14
+let  cap_mantissa_width = sizeof(cap_mantissa_width)
 
 let MAX_ADDR = MAX(cap_addr_width)
 type CapAddrInt = range(0, (2 ^ 64) - 1) /* XXX should be cap_addr_width */
@@ -80,8 +80,8 @@ struct Capability = {
   internal_e             : bool    ,
   E                      : bits(6) ,
   sealed                 : bool    ,
-  B                      : bits(mantissa_width),
-  T                      : bits(mantissa_width),
+  B                      : bits(cap_mantissa_width),
+  T                      : bits(cap_mantissa_width),
   otype                  : bits(cap_otype_width),
   address                : bits(cap_addr_width)
 }
