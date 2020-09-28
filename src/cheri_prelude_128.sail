@@ -41,6 +41,8 @@ type CapBits = bits(8 * cap_size)
 /* width of otype field in bits */
 type otype_width : Int = 18
 let otype_width = sizeof(otype_width)
+type cap_hperms_width : Int = 12
+let cap_hperms_width = sizeof(cap_hperms_width)
 type cap_uperms_width : Int = 4
 let cap_uperms_width = sizeof(cap_uperms_width)
 type cap_addr_width : Int = xlen

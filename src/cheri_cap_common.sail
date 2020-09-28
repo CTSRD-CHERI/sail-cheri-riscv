@@ -44,7 +44,7 @@ type CapAddrBits  = bits(cap_addr_width)
 type CapLenBits   = bits(cap_len_width)
 type CapPermsBits = bits(cap_perms_width)
 
-function getCapHardPerms(cap) : Capability -> bits(12) =
+function getCapHardPerms(cap) : Capability -> bits(cap_hperms_width) =
    (bool_to_bits(cap.permit_set_CID)
   @ bool_to_bits(cap.access_system_regs)
   @ bool_to_bits(cap.permit_unseal)
