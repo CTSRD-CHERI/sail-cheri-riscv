@@ -512,7 +512,7 @@ function clause execute (CBuildCap(cd, cs1, cs2)) =
     let (representable, cd2) = setCapOffset(cd1, getCapOffsetBits(cs2_val));
     let cd3 = setCapPerms(cd2, cs2_perms);
     let cd4 = setCapFlags(cd3, cs2_flags);
-    let cd5 = if cs2_val.otype == to_bits(otype_width, otype_sentry) then sealCap(cd4, to_bits(otype_width, otype_sentry)) else cd4;
+    let cd5 = if cs2_val.otype == to_bits(cap_otype_width, otype_sentry) then sealCap(cd4, to_bits(cap_otype_width, otype_sentry)) else cd4;
     {
       assert(exact, "CBuildCap: setCapBounds was not exact"); /* base and top came from cs2 originally so will be exact */
       C(cd) = cd5;
@@ -631,7 +631,7 @@ function CSeal_core (cd, cs1, cs1_val, cs2, cs2_val) =
     handle_cheri_reg_exception(CapEx_LengthViolation, cs2);
     RETIRE_FAIL
   } else {
-    C(cd) = sealCap(cs1_val, to_bits(otype_width, cs2_cursor));
+    C(cd) = sealCap(cs1_val, to_bits(cap_otype_width, cs2_cursor));
     RETIRE_SUCCESS
   }
 }
@@ -760,7 +760,7 @@ function clause execute (CSealEntry(cd, cs1)) =
     handle_cheri_reg_exception(CapEx_PermitExecuteViolation, cs1);
     RETIRE_FAIL
   } else {
-    C(cd) = sealCap(cs1_val, to_bits(otype_width, otype_sentry));
+    C(cd) = sealCap(cs1_val, to_bits(cap_otype_width, otype_sentry));
     RETIRE_SUCCESS
   }
 }
@@ -825,7 +825,7 @@ function clause execute(CJALR(cd, cs1)) =
   if not (cs1_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cs1);
     RETIRE_FAIL
-  } else if (cs1_val.sealed & cs1_val.otype != to_bits(otype_width, otype_sentry)) then {
+  } else if (cs1_val.sealed & cs1_val.otype != to_bits(cap_otype_width, otype_sentry)) then {
     handle_cheri_reg_exception(CapEx_SealViolation, cs1);
     RETIRE_FAIL
   } else if not (cs1_val.permit_execute) then {
@@ -844,7 +844,7 @@ function clause execute(CJALR(cd, cs1)) =
     let (success, linkCap) = setCapAddr(PCC, nextPC); /* Note that nextPC accounts for compressed instrucitons */
     assert(success, "Link cap should always be representable.");
     assert(not (linkCap.sealed), "Link cap should always be unsealed");
-    C(cd) = sealCap(linkCap, to_bits(otype_width, otype_sentry));
+    C(cd) = sealCap(linkCap, to_bits(cap_otype_width, otype_sentry));
     nextPC  = newPC;
     nextPCC = unsealCap(cs1_val);
     RETIRE_SUCCESS
