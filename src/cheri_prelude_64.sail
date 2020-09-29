@@ -144,7 +144,7 @@ let default_cap : Capability = struct {
   address                = zeros()
 }
 
-/* Convert from capabilty bits (128 bits with tag) to a more convenient struct. */
+/* Convert from capabilty bits (64 bits with tag) to a more convenient struct. */
 function capBitsToCapability(t, c) : (bool, CapBits) -> Capability = {
   internal_exponent : bool = bit_to_bool(c[46]);
   otype : bits(4) = c[50..47];
