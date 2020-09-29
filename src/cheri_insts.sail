@@ -44,6 +44,13 @@ union clause ast = CGetOffset : (regidx, regidx)
 union clause ast = CGetAddr   : (regidx, regidx)
 union clause ast = CGetFlags  : (regidx, regidx)
 
+/*!
+ * The least significant [cap_hperms_width] bits of integer register *rd* are
+ * set equal to the **perms** field of capability register *cs1*; bits
+ * [cap_uperms_shift] to [cap_uperms_shift]+[cap_uperms_width]-1 of *rd* are set
+ * equal to the **uperms** field of *cs1*.
+ * The other bits of \emph{rd} are set to zero.
+ */
 function clause execute (CGetPerm(rd, cs1)) =
 {
   let capVal = C(cs1);
@@ -51,6 +58,10 @@ function clause execute (CGetPerm(rd, cs1)) =
   RETIRE_SUCCESS
 }
 
+/*!
+ * Integer register *rd* is set equal to the zero-extended **flags** field of
+ * capability register *cs1*.
+ */
 function clause execute (CGetFlags(rd, cs1)) =
 {
   let capVal = C(cs1);
@@ -58,6 +69,10 @@ function clause execute (CGetFlags(rd, cs1)) =
   RETIRE_SUCCESS
 }
 
+/*!
+ * Integer register *rd* is set equal to the **otype** field of capability
+ * register *cs1*.
+ */
 function clause execute (CGetType(rd, cs1)) =
 {
   let capVal = C(cs1);
@@ -67,6 +82,10 @@ function clause execute (CGetType(rd, cs1)) =
   RETIRE_SUCCESS
 }
 
+/*!
+ * Integer register *rd* is set equal to the **base** field of capability
+ * register *cs1*.
+ */
 function clause execute (CGetBase(rd, cs1)) =
 {
   let capVal = C(cs1);
@@ -74,6 +93,10 @@ function clause execute (CGetBase(rd, cs1)) =
   RETIRE_SUCCESS
 }
 
+/*!
+ * Integer register *rd* is set equal to the **offset** field of capability
+ * register *cs1*.
+ */
 function clause execute (CGetOffset(rd, cs1)) =
 {
   let capVal = C(cs1);
@@ -81,6 +104,20 @@ function clause execute (CGetOffset(rd, cs1)) =
   RETIRE_SUCCESS
 }
 
+/*
+ * Note: We have to use [{xlen}][xlen] instead of [xlen] to avoid \lstinline{}
+ * inside math mode.
+ */
+/*!
+ * Integer register *rd* is set equal to the **length** field of capability
+ * register *cs1*.
+ *
+ * ## Notes
+ *
+ * Due to the compressed representation of capabilities, the actual length
+ * of capabilities can be $2^{[{xlen}][xlen]}$; [CGetLen] will return the maximum
+ * value of $2^{[{xlen}][xlen]}-1$ in this case.
+ */
 function clause execute (CGetLen(rd, cs1)) =
 {
   let capVal = C(cs1);
@@ -89,6 +126,10 @@ function clause execute (CGetLen(rd, cs1)) =
   RETIRE_SUCCESS
 }
 
+/*!
+ * The low bit of integer register *rd* is set to the **tag** field of *cs1*.
+ * All other bits of *rd* are cleared.
+ */
 function clause execute (CGetTag(rd, cs1)) =
 {
   let capVal = C(cs1);
@@ -96,6 +137,11 @@ function clause execute (CGetTag(rd, cs1)) =
   RETIRE_SUCCESS
 }
 
+/*!
+ * The low bit of integer register \emph{rd} is set to 0 if *cs1* is unsealed
+ * and to 1 otherwise.
+ * All other bits of *rd* are cleared.
+ */
 function clause execute (CGetSealed(rd, cs1)) =
 {
   let capVal = C(cs1);
@@ -103,6 +149,10 @@ function clause execute (CGetSealed(rd, cs1)) =
   RETIRE_SUCCESS
 }
 
+/*!
+ * Integer register *rd* is set equal to the **address** field of capability
+ * register *cs1*.
+ */
 function clause execute (CGetAddr(rd, cs1)) =
 {
   let capVal = C(cs1);
