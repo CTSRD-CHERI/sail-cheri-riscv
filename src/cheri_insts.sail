@@ -428,18 +428,18 @@ function clause execute (CSetBounds(cd, cs1, rs2)) =
 }
 
 union clause ast = CSetBoundsImmediate : (regidx, regidx, bits(12))
-function clause execute (CSetBoundsImmediate(cd, cs1, imm)) =
+function clause execute (CSetBoundsImmediate(cd, cs1, uimm)) =
 {
   let cs1_val = C(cs1);
   let newBase = cs1_val.address;
-  let newTop : CapLenBits = EXTZ(newBase) + EXTZ(imm);
+  let newTop : CapLenBits = EXTZ(newBase) + EXTZ(uimm);
   if not (cs1_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cs1);
     RETIRE_FAIL
   } else if cs1_val.sealed then {
     handle_cheri_reg_exception(CapEx_SealViolation, cs1);
     RETIRE_FAIL
-  } else if not(inCapBounds(cs1_val, newBase, unsigned(imm))) then {
+  } else if not(inCapBounds(cs1_val, newBase, unsigned(uimm))) then {
     handle_cheri_reg_exception(CapEx_LengthViolation, cs1);
     RETIRE_FAIL
   } else {
