@@ -321,7 +321,7 @@ function clause execute(CToPtr(rd, cs1, cs2)) =
 union clause ast = CSub : (regidx, regidx, regidx)
 /*!
  * Integer register *rd* is set equal to (*cs1*.**address** $-$
- * *cs1*.**address**) $\bmod~2^{[{xlen}][xlen]}$.
+ * *cs2*.**address**) $\bmod~2^{[{xlen}][xlen]}$.
  */
 function clause execute(CSub(rd, cs1, cs2)) =
 {
@@ -643,7 +643,7 @@ function clause execute (CCopyType(cd, cs1, cs2)) =
 
 union clause ast = CRRL : (regidx, regidx)
 /*!
- * Integer register *rt* is set to the smallest value greater or equal to *rs1*
+ * Integer register *rd* is set to the smallest value greater or equal to *rs1*
  * that can be used to set precise bounds on a capability that has a suitably
  * aligned base.
  */
@@ -656,7 +656,7 @@ function clause execute(CRRL(rd, rs1)) =
 
 union clause ast = CRAM : (regidx, regidx)
 /*!
- * Integer register *rt* is set to a mask that can be used to round addresses
+ * Integer register *rd* is set to a mask that can be used to round addresses
  * down to to a value that is sufficiently aligned to set precise bounds for
  * the nearest representable length of *rs1* (as obtained by [CRRL]).
  */
