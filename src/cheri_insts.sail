@@ -250,7 +250,7 @@ union clause ast = CAndPerm : (regidx, regidx, regidx)
  *
  * An exception is raised if:
  *   - *cs1*.**tag** is not set.
- *   - *cs1* is sealed.
+ *   - *cs1*.**tag** is set and *cs1* is sealed.
  */
 function clause execute(CAndPerm(cd, cs1, rs2)) =
 {
@@ -280,7 +280,7 @@ union clause ast = CSetFlags : (regidx, regidx, regidx)
  * ## Exceptions
  *
  * An exception is raised if:
- *   - *cs1* is sealed.
+ *   - *cs1*.**tag** is set and *cs1* is sealed.
  */
 function clause execute(CSetFlags(cd, cs1, rs2)) =
 {
@@ -332,6 +332,19 @@ function clause execute(CSub(rd, cs1, cs2)) =
 }
 
 union clause ast = CIncOffset : (regidx, regidx, regidx)
+/*!
+ * Capability register *cd* is set equal to capability register *cs1* with its
+ * **address** replaced with *cs1*.**address** $+$ *rs2*.
+ * If the resulting capability cannot be represented exactly, then *cd*.**tag**
+ * is cleared. The remaining capability fields are set to what the in-memory
+ * representation of *cs1* with the address set to *cs1*.**address** $+$ *rs2*
+ * decodes to.
+ *
+ * ## Exceptions
+ *
+ * An exception is raised if:
+ *   - *cs1*.**tag** is set and *cs1* is sealed.
+ */
 function clause execute (CIncOffset(cd, cs1, rs2)) =
 {
   let cs1_val = C(cs1);
@@ -350,6 +363,19 @@ function clause execute (CIncOffset(cd, cs1, rs2)) =
 }
 
 union clause ast = CIncOffsetImmediate : (regidx, regidx, bits(12))
+/*!
+ * Capability register *cd* is set equal to capability register *cs1* with its
+ * **address** replaced with *cs1*.**address** $+$ *imm*.
+ * If the resulting capability cannot be represented exactly, then *cd*.**tag**
+ * is cleared. The remaining capability fields are set to what the in-memory
+ * representation of *cs1* with the address set to *cs1*.**address** $+$ *imm*
+ * decodes to.
+ *
+ * ## Exceptions
+ *
+ * An exception is raised if:
+ *   - *cs1*.**tag** is set and *cs1* is sealed.
+ */
 function clause execute (CIncOffsetImmediate(cd, cs1, imm)) =
 {
   let cs1_val = C(cs1);
@@ -368,6 +394,18 @@ function clause execute (CIncOffsetImmediate(cd, cs1, imm)) =
 }
 
 union clause ast = CSetOffset : (regidx, regidx, regidx)
+/*!
+ * Capability register *cd* is set equal to capability register *cs1* with its
+ * **offset** replaced with *cs1*.**offset** $+$ *rs2*.
+ * If the resulting capability cannot be represented exactly, then *cd*.**tag**
+ * is cleared. The remaining capability fields are set to what the in-memory
+ * representation of *cs1* with the address set to *cd*.**address** decodes to.
+ *
+ * ## Exceptions
+ *
+ * An exception is raised if:
+ *   - *cs1*.**tag** is set and *cs1* is sealed.
+ */
 function clause execute (CSetOffset(cd, cs1, rs2)) =
 {
   let cs1_val = C(cs1);
@@ -386,6 +424,18 @@ function clause execute (CSetOffset(cd, cs1, rs2)) =
 }
 
 union clause ast = CSetAddr : (regidx, regidx, regidx)
+/*!
+ * Capability register *cd* is set equal to capability register *cs1* with its
+ * **address** replaced with *rs2*.
+ * If the resulting capability cannot be represented exactly, then *cd*.**tag**
+ * is cleared. The remaining capability fields are set to what the in-memory
+ * representation of *cs1* with the address set to *rs2* decodes to.
+ *
+ * ## Exceptions
+ *
+ * An exception is raised if:
+ *   - *cs1*.**tag** is set and *cs1* is sealed.
+ */
 function clause execute (CSetAddr(cd, cs1, rs2)) =
 {
   let cs1_val = C(cs1);
