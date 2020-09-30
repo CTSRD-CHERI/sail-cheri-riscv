@@ -272,6 +272,16 @@ function clause execute(CAndPerm(cd, cs1, rs2)) =
 }
 
 union clause ast = CSetFlags : (regidx, regidx, regidx)
+/*!
+ * Capability register *cd* is replaced with the contents of capability
+ * register *cs1* with the **flags** field set to bits 0 to [cap_flags_width]-1
+ * of integer register *rs2*.
+ *
+ * ## Exceptions
+ *
+ * An exception is raised if:
+ *   - *cs1* is sealed.
+ */
 function clause execute(CSetFlags(cd, cs1, rs2)) =
 {
   let cs1_val = C(cs1);
