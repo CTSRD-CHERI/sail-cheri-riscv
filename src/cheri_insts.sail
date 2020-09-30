@@ -49,7 +49,7 @@ union clause ast = CGetFlags  : (regidx, regidx)
  * set equal to the **perms** field of capability register *cs1*; bits
  * [cap_uperms_shift] to [cap_uperms_shift]+[cap_uperms_width]-1 of *rd* are set
  * equal to the **uperms** field of *cs1*.
- * The other bits of \emph{rd} are set to zero.
+ * The other bits of *rd* are set to zero.
  */
 function clause execute (CGetPerm(rd, cs1)) =
 {
@@ -138,7 +138,7 @@ function clause execute (CGetTag(rd, cs1)) =
 }
 
 /*!
- * The low bit of integer register \emph{rd} is set to 0 if *cs1* is unsealed
+ * The low bit of integer register *rd* is set to 0 if *cs1* is unsealed
  * and to 1 otherwise.
  * All other bits of *rd* are cleared.
  */
