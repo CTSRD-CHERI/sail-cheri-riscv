@@ -280,7 +280,7 @@ function clause execute(CSetFlags(cd, cs1, rs2)) =
     handle_cheri_reg_exception(CapEx_SealViolation, cs1);
     RETIRE_FAIL
   } else {
-    let newCap  = setCapFlags(cs1_val, truncate(rs2_val, num_flags));
+    let newCap  = setCapFlags(cs1_val, truncate(rs2_val, cap_flags_width));
     C(cd) = newCap;
     RETIRE_SUCCESS
   }

@@ -35,6 +35,8 @@
 
 let max_otype = MAX(cap_otype_width) - reserved_otypes
 
+type cap_flags_width : Int = 1
+let cap_flags_width = sizeof(cap_flags_width)
 type cap_uperms_shift : Int = 15
 let cap_uperms_shift = sizeof(cap_uperms_shift)
 type cap_perms_width : Int = cap_uperms_shift + cap_uperms_width
@@ -43,6 +45,7 @@ let  cap_perms_width = sizeof(cap_perms_width)
 type CapAddrBits  = bits(cap_addr_width)
 type CapLenBits   = bits(cap_len_width)
 type CapPermsBits = bits(cap_perms_width)
+type CapFlagsBits = bits(cap_flags_width)
 
 function getCapHardPerms(cap) : Capability -> bits(cap_hperms_width) =
    (bool_to_bits(cap.permit_set_CID)
@@ -226,13 +229,13 @@ function setCapPerms(cap, perms) : (Capability, CapPermsBits) -> Capability =
 /*!
 Gets the architecture specific capability flags for given capability.
  */
-val getCapFlags : Capability -> CFlags
+val getCapFlags : Capability -> CapFlagsBits
 function getCapFlags(cap) = bool_to_bits(cap.flag_cap_mode)
 
 /*!
 THIS`(cap, flags)` sets the architecture specific capability flags on `cap` to `flags` and returns the result as new capability.
  */
-val setCapFlags : (Capability, CFlags) -> Capability
+val setCapFlags : (Capability, CapFlagsBits) -> Capability
 function setCapFlags(cap, flags) = {cap with flag_cap_mode = bit_to_bool(flags[0])}
 
 /*! Tests whether the capability has a reserved otype (larger than max_otype).
