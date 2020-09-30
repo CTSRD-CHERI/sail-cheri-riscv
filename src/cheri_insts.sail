@@ -478,6 +478,10 @@ function clause execute (CSetBoundsExact(cd, cs1, rs2)) =
 }
 
 union clause ast = CClearTag : (regidx, regidx)
+/*!
+ * Capability register *cd* is replaced with the contents of *cs1*, with
+ * the tag bit cleared.
+ */
 function clause execute (CClearTag(cd, cs1)) =
 {
   let cs1_val = C(cs1);
@@ -486,6 +490,9 @@ function clause execute (CClearTag(cd, cs1)) =
 }
 
 union clause ast = CMove : (regidx, regidx)
+/*!
+ * Capability register *cd* is replaced with the contents of *cs1*.
+ */
 function clause execute (CMove(cd, cs1)) =
 {
   C(cd) = C(cs1);
