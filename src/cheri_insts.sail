@@ -644,7 +644,7 @@ function clause execute (CCopyType(cd, cs1, cs2)) =
 union clause ast = CRRL : (regidx, regidx)
 /*!
  * Integer register *rd* is set to the smallest value greater or equal to *rs1*
- * that can be used to set precise bounds on a capability that has a suitably
+ * that can be used as a length to set precise bounds on a capability that has a suitably
  * aligned base.
  */
 function clause execute(CRRL(rd, rs1)) =
