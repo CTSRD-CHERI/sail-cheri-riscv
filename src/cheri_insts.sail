@@ -531,10 +531,7 @@ function clause execute (Clear(q, m)) = {
   let q_u = unsigned(q);
   foreach (i from 0 to 7)
     if m[i] == bitone then
-      if q_u == 0 & i == 0 & not(haveSplitRegFile) then
-        DDC = null_cap
-      else
-        X(8 * q_u + i) = zeros();
+      X(8 * q_u + i) = zeros();
   RETIRE_SUCCESS
 }
 
@@ -1546,8 +1543,8 @@ mapping clause encdec = CSealEntry(cd, cs1) if (haveXcheri()) <-> 0b1111111 @ 0b
 mapping clause encdec = CRRL(rd, rs1) if (haveXcheri()) <-> 0b1111111 @ 0b01000 @ rs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CRAM(rd, rs1) if (haveXcheri()) <-> 0b1111111 @ 0b01001 @ rs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 
-mapping clause encdec = Clear(q, m3 @ m5)   if (haveXcheri()) <-> 0b1111111 @ 0b01101 @ q : bits(2) @ m3 : bits(3) @ 0b000 @ m5 : regidx @ 0b1011011 if (haveXcheri())
-mapping clause encdec = CClear(q, m3 @ m5)  if (haveXcheri() & haveSplitRegFile) <-> 0b1111111 @ 0b01110 @ q : bits(2) @ m3 : bits(3) @ 0b000 @ m5 : regidx @ 0b1011011 if (haveXcheri() & haveSplitRegFile)
+mapping clause encdec = Clear(q, m3 @ m5)   if (haveXcheri() & haveSplitRegFile) <-> 0b1111111 @ 0b01101 @ q : bits(2) @ m3 : bits(3) @ 0b000 @ m5 : regidx @ 0b1011011 if (haveXcheri() & haveSplitRegFile)
+mapping clause encdec = CClear(q, m3 @ m5)  if (haveXcheri()) <-> 0b1111111 @ 0b01110 @ q : bits(2) @ m3 : bits(3) @ 0b000 @ m5 : regidx @ 0b1011011 if (haveXcheri())
 mapping clause encdec = FPClear(q, m3 @ m5) if (haveXcheri()) <-> 0b1111111 @ 0b10000 @ q : bits(2) @ m3 : bits(3) @ 0b000 @ m5 : regidx @ 0b1011011 if (haveXcheri())
 
 mapping clause assembly = CGetPerm(rd, cs1)   <-> "cgetperm"   ^ spc() ^ reg_name(rd) ^ sep() ^ cap_reg_name(cs1)
