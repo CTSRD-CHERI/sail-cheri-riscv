@@ -695,15 +695,15 @@ function clause execute (CTestSubset(rd, cs1, cs2)) = {
   let cs2_perms = getCapPerms(cs2_val);
   let cs1_perms = getCapPerms(cs1_val);
   let result = if cs1_val.tag != cs2_val.tag then
-                  0b0
+                 0b0
                else if cs2_base < cs1_base then
-                  0b0
+                 0b0
                else if cs2_top > cs1_top then
-                  0b0
+                 0b0
                else if (cs2_perms & cs1_perms) != cs2_perms then
-                  0b0
+                 0b0
                else
-                  0b1;
+                 0b1;
   X(rd) = EXTZ(result);
   RETIRE_SUCCESS
 }
