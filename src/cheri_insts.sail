@@ -851,7 +851,6 @@ function clause execute (CUnseal(cd, cs1, cs2)) = {
 union clause ast = CSealEntry : (regidx, regidx)
 function clause execute (CSealEntry(cd, cs1)) = {
   let cs1_val = C(cs1);
-
   if not (cs1_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cs1);
     RETIRE_FAIL
