@@ -307,10 +307,6 @@ function setCapAddr(c, addr) =
     let representable = capBoundsEqual(c, newCap) in
     (representable, newCap)
 
-function setCapAddrOrNull (cap, addr) : (Capability, CapAddrBits) -> Capability =
-  let (representable, newCap) = setCapAddr(cap, addr) in
-  if representable & not(cap.sealed) then newCap else invalidateCap(newCap)
-
 infix 1 >>_s
 overload operator >> = {sail_shiftright}
 overload operator << = {sail_shiftleft}

@@ -1309,8 +1309,11 @@ function clause execute (StoreCapCap(cs2, cs1)) = {
 union clause ast = AUIPCC : (bits(20), regidx)
 function clause execute AUIPCC(imm, cd) = {
   let off : xlenbits = EXTS(imm @ 0x000);
-  let ret = setCapAddrOrNull(PCC, PC + off);
-  C(cd) = ret;
+  let (representable, newCap) = setCapAddr(PCC, PC + off);
+  if representable then
+    C(cd) = newCap
+  else
+    C(cd) = invalidateCap(newCap);
   RETIRE_SUCCESS
 }
 
