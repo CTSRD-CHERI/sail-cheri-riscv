@@ -115,7 +115,7 @@ function clause execute (CGetOffset(rd, cs1)) = {
  */
 function clause execute (CGetLen(rd, cs1)) = {
   let capVal = C(cs1);
-  let len  = getCapLength(capVal);
+  let len = getCapLength(capVal);
   X(rd) = to_bits(sizeof(xlen), if len > MAX_ADDR then MAX_ADDR else len);
   RETIRE_SUCCESS
 }
@@ -252,9 +252,9 @@ function clause execute(CAndPerm(cd, cs1, rs2)) = {
     handle_cheri_reg_exception(CapEx_SealViolation, cs1);
     RETIRE_FAIL
   } else {
-    let perms   = getCapPerms(cs1_val);
-    let mask    = truncate(rs2_val, cap_perms_width);
-    let newCap  = setCapPerms(cs1_val, (perms & mask));
+    let perms = getCapPerms(cs1_val);
+    let mask = truncate(rs2_val, cap_perms_width);
+    let newCap = setCapPerms(cs1_val, (perms & mask));
     C(cd) = newCap;
     RETIRE_SUCCESS
   }
@@ -278,7 +278,7 @@ function clause execute(CSetFlags(cd, cs1, rs2)) = {
     handle_cheri_reg_exception(CapEx_SealViolation, cs1);
     RETIRE_FAIL
   } else {
-    let newCap  = setCapFlags(cs1_val, truncate(rs2_val, cap_flags_width));
+    let newCap = setCapFlags(cs1_val, truncate(rs2_val, cap_flags_width));
     C(cd) = newCap;
     RETIRE_SUCCESS
   }
@@ -340,9 +340,9 @@ function clause execute (CIncOffset(cd, cs1, rs2)) = {
   } else {
     let (success, newCap) = incCapOffset(cs1_val, rs2_val);
     if success then
-        C(cd) = newCap
+      C(cd) = newCap
     else
-        C(cd) = invalidateCap(newCap);
+      C(cd) = invalidateCap(newCap);
     RETIRE_SUCCESS
   }
 }
@@ -370,9 +370,9 @@ function clause execute (CIncOffsetImmediate(cd, cs1, imm)) = {
   } else {
     let (success, newCap) = incCapOffset(cs1_val, immBits);
     if success then
-        C(cd) = newCap
+      C(cd) = newCap
     else
-        C(cd) = invalidateCap(newCap);
+      C(cd) = invalidateCap(newCap);
     RETIRE_SUCCESS
   }
 }
@@ -399,9 +399,9 @@ function clause execute (CSetOffset(cd, cs1, rs2)) = {
   } else {
     let (success, newCap) = setCapOffset(cs1_val, rs2_val);
     if success then
-        C(cd) = newCap
+      C(cd) = newCap
     else
-        C(cd) = invalidateCap(newCap);
+      C(cd) = invalidateCap(newCap);
     RETIRE_SUCCESS
   }
 }
@@ -428,9 +428,9 @@ function clause execute (CSetAddr(cd, cs1, rs2)) = {
   } else {
     let (representable, newCap) = setCapAddr(cs1_val, rs2_val);
     if representable then
-        C(cd) = newCap
+      C(cd) = newCap
     else
-        C(cd) = invalidateCap(newCap);
+      C(cd) = invalidateCap(newCap);
     RETIRE_SUCCESS
   }
 }
@@ -579,9 +579,9 @@ function clause execute (CFromPtr(cd, cs1, rs2)) = {
   } else {
     let (success, newCap) = setCapOffset(cs1_val, rs2_val);
     if success then
-        C(cd) = newCap
+      C(cd) = newCap
     else
-        C(cd) = invalidateCap(newCap);
+      C(cd) = invalidateCap(newCap);
     RETIRE_SUCCESS
   }
 }
@@ -948,7 +948,7 @@ function clause execute(CJALR(cd, cs1)) = {
     assert(success, "Link cap should always be representable.");
     assert(not (linkCap.sealed), "Link cap should always be unsealed");
     C(cd) = sealCap(linkCap, to_bits(cap_otype_width, otype_sentry));
-    nextPC  = newPC;
+    nextPC = newPC;
     nextPCC = unsealCap(cs1_val);
     RETIRE_SUCCESS
   }
