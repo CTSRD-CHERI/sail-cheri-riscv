@@ -105,8 +105,8 @@ type ext_data_addr_error = (CapEx, capreg_idx)
 For given base register and offset returns, depending on current capability mode flag, a
 bounding capability, effective address, and capreg_idx (for use in cap cause).
  */
-val get_cheri_cap_addr : (regidx, xlenbits) -> (Capability, xlenbits, capreg_idx) effect {rreg, escape}
-function get_cheri_cap_addr (base_reg : regidx, offset : xlenbits) = {
+val get_cheri_mode_cap_addr : (regidx, xlenbits) -> (Capability, xlenbits, capreg_idx) effect {rreg, escape}
+function get_cheri_mode_cap_addr (base_reg : regidx, offset : xlenbits) = {
   if (PCC.flag_cap_mode) then
     let base_cap = C(base_reg) in
     (base_cap, base_cap.address + offset, 0b0 @ base_reg)
@@ -118,31 +118,31 @@ function get_cheri_cap_addr (base_reg : regidx, offset : xlenbits) = {
 function ext_data_get_addr(base_reg : regidx, offset : xlenbits, acc : AccessType(ext_access_type), width : word_width)
          -> Ext_DataAddr_Check(ext_data_addr_error) = {
 
-  let (cap_val, newAddr, cause_regno) = get_cheri_cap_addr(base_reg, offset);
+  let (auth_val, newAddr, auth_idx) = get_cheri_mode_cap_addr(base_reg, offset);
 
   let have_rqd_load_perm : bool = match acc {
-    Read(Data)       => cap_val.permit_load,
+    Read(Data)       => auth_val.permit_load,
     Write(Data)      => true,
-    ReadWrite(Data)  => cap_val.permit_load,
+    ReadWrite(Data)  => auth_val.permit_load,
     Execute()        => false /* should only be for load/store */
   };
   let have_rqd_store_perm : bool = match acc {
     Read(Data)       => true,
-    Write(Data)      => cap_val.permit_store,
-    ReadWrite(Data)  => cap_val.permit_store,
+    Write(Data)      => auth_val.permit_store,
+    ReadWrite(Data)  => auth_val.permit_store,
     Execute()        => false /* should only be for load/store */
   };
 
-  if not(cap_val.tag) then
-    Ext_DataAddr_Error(CapEx_TagViolation, cause_regno)
-  else if cap_val.sealed then
-    Ext_DataAddr_Error(CapEx_SealViolation, cause_regno)
+  if not(auth_val.tag) then
+    Ext_DataAddr_Error(CapEx_TagViolation, auth_idx)
+  else if auth_val.sealed then
+    Ext_DataAddr_Error(CapEx_SealViolation, auth_idx)
   else if not(have_rqd_load_perm) then
-    Ext_DataAddr_Error(CapEx_PermitLoadViolation, cause_regno)
+    Ext_DataAddr_Error(CapEx_PermitLoadViolation, auth_idx)
   else if not(have_rqd_store_perm) then
-    Ext_DataAddr_Error(CapEx_PermitStoreViolation, cause_regno)
-  else if not(inCapBounds(cap_val, newAddr, word_width_bytes(width))) then
-    Ext_DataAddr_Error(CapEx_LengthViolation, cause_regno)
+    Ext_DataAddr_Error(CapEx_PermitStoreViolation, auth_idx)
+  else if not(inCapBounds(auth_val, newAddr, word_width_bytes(width))) then
+    Ext_DataAddr_Error(CapEx_LengthViolation, auth_idx)
   else
     Ext_DataAddr_OK(newAddr)
 }

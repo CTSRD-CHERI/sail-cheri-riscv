@@ -1315,17 +1315,17 @@ function clause execute AUIPCC(imm, cd) = {
 }
 
 union clause ast = LoadCapImm : (regidx, regidx, bits(12))
-function clause execute LoadCapImm(cd, rs1, off12) = {
-  let offset : xlenbits = EXTS(off12);
-  let (auth_val, vaddr, cause_regno) = get_cheri_cap_addr(rs1, offset);
-  handle_load_cap_via_cap(cd, cause_regno, auth_val, vaddr)
+function clause execute LoadCapImm(cd, rs1_cs1, imm) = {
+  let offset : xlenbits = EXTS(imm);
+  let (auth_val, vaddr, auth_idx) = get_cheri_mode_cap_addr(rs1_cs1, offset);
+  handle_load_cap_via_cap(cd, auth_idx, auth_val, vaddr)
 }
 
 union clause ast = StoreCapImm : (regidx, regidx, bits(12))
-function clause execute StoreCapImm(cs2, rs1, off12) = {
-  let offset : xlenbits = EXTS(off12);
-  let (auth_val, vaddr, cause_regno) = get_cheri_cap_addr(rs1, offset);
-  handle_store_cap_via_cap(cs2, cause_regno, auth_val, vaddr)
+function clause execute StoreCapImm(cs2, rs1_cs1, imm) = {
+  let offset : xlenbits = EXTS(imm);
+  let (auth_val, vaddr, auth_idx) = get_cheri_mode_cap_addr(rs1_cs1, offset);
+  handle_store_cap_via_cap(cs2, auth_idx, auth_val, vaddr)
 }
 
 val handle_store_cond_data_via_cap : (regidx, capreg_idx, Capability, xlenbits, word_width) -> Retired effect {eamem, escape, rmem, rmemt, rreg, wmv, wmvt, wreg}
