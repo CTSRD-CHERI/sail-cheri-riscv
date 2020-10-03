@@ -652,7 +652,7 @@ function clause execute (CCopyType(cd, cs1, cs2)) = {
     handle_cheri_reg_exception(CapEx_LengthViolation, cs1);
     RETIRE_FAIL
   } else {
-    let (success, cap) = setCapOffset(cs1_val, to_bits(cap_addr_width, cs2_otype - cs1_base));
+    let (success, cap) = setCapAddr(cs1_val, to_bits(cap_addr_width, cs2_otype));
     assert(success, "CopyType: offset is in bounds so should be representable");
     C(cd) = cap;
     RETIRE_SUCCESS
