@@ -699,7 +699,7 @@ function clause execute (CBuildCap(cd, cs1, cs2)) = {
     let (representable, cd2) = setCapOffset(cd1, getCapOffsetBits(cs2_val));
     let cd3 = setCapPerms(cd2, cs2_perms);
     let cd4 = setCapFlags(cd3, cs2_flags);
-    let cd5 = if cs2_val.otype == to_bits(cap_otype_width, otype_sentry) then sealCap(cd4, to_bits(cap_otype_width, otype_sentry)) else cd4;
+    let cd5 = if signed(cs2_val.otype) == otype_sentry then sealCap(cd4, to_bits(cap_otype_width, otype_sentry)) else cd4;
     {
       assert(exact, "CBuildCap: setCapBounds was not exact"); /* base and top came from cs2 originally so will be exact */
       C(cd) = cd5;
@@ -930,7 +930,7 @@ function clause execute (CCSeal(cd, cs1, cs2)) = {
   } else if cs2_cursor >= cs2_top then {
     C(cd) = cs1_val;
     RETIRE_SUCCESS
-  } else if cs2_val.address == to_bits(sizeof(xlen), otype_unsealed) then {
+  } else if signed(cs2_val.address) == otype_unsealed then {
     C(cd) = cs1_val;
     RETIRE_SUCCESS
   } else if isCapSealed(cs2_val) then {
@@ -1128,7 +1128,7 @@ function clause execute(CJALR(cd, cs1)) = {
   if not (cs1_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cs1);
     RETIRE_FAIL
-  } else if (isCapSealed(cs1_val) & cs1_val.otype != to_bits(cap_otype_width, otype_sentry)) then {
+  } else if isCapSealed(cs1_val) & (signed(cs1_val.otype) != otype_sentry) then {
     handle_cheri_reg_exception(CapEx_SealViolation, cs1);
     RETIRE_FAIL
   } else if not (cs1_val.permit_execute) then {
