@@ -527,6 +527,22 @@ function clause execute (CMove(cd, cs1)) = {
 }
 
 union clause ast = Clear : (bits(2), bits(8))
+/*!
+ * Integer registers 8 $\times$ *q* $+$ *i* are each set to 0 if the *i*th bit
+ * of *m* is set.
+ *
+ * This instruction is only present on implementations with a split register
+ * file. On implementations with a merged register file the functionality of
+ * this instruction is covered by [CClear].
+ *
+ * ## Notes
+ *
+ * This instruction is designed to accelerate the register clearing that is
+ * required for secure domain transitions. It is expected that it can be
+ * implemented efficiently in hardware using a single 'valid' bit per register
+ * that is cleared by this instruction and set on any subsequent write to the
+ * register.
+ */
 function clause execute (Clear(q, m)) = {
   let q_u = unsigned(q);
   foreach (i from 0 to 7)
@@ -536,6 +552,19 @@ function clause execute (Clear(q, m)) = {
 }
 
 union clause ast = CClear : (bits(2), bits(8))
+/*!
+ * Capability registers 8 $\times$ *q* $+$ *i* are each set to **NULL** if the
+ * *i*th bit of *m* is set, with the exception that the 0th bit of *m* refers
+ * to **DDC** when *q* is 0, rather than **C0**.
+ *
+ * ## Notes
+ *
+ * This instruction is designed to accelerate the register clearing that is
+ * required for secure domain transitions. It is expected that it can be
+ * implemented efficiently in hardware using a single 'valid' bit per register
+ * that is cleared by this instruction and set on any subsequent write to the
+ * register.
+ */
 function clause execute (CClear(q, m)) = {
   let q_u = unsigned(q);
   foreach (i from 0 to 7)
@@ -548,6 +577,22 @@ function clause execute (CClear(q, m)) = {
 }
 
 union clause ast = FPClear : (bits(2), bits(8))
+/*!
+ * Floating-point registers 8 $\times$ *q* $+$ *i* are each set to 0 if the
+ * *i*th bit of *m* is set.
+ *
+ * ## Notes
+ *
+ * This instruction is designed to accelerate the register clearing that is
+ * required for secure domain transitions. It is expected that it can be
+ * implemented efficiently in hardware using a single 'valid' bit per register
+ * that is cleared by this instruction and set on any subsequent write to the
+ * register.
+ *
+ * The 0 value written is FLEN bits wide, the largest supported by the
+ * implementation, such that the in-memory representation of the register is 0,
+ * rather than a NaN-boxed narrower value.
+ */
 function clause execute (FPClear(q, m)) = {
   if haveFExt() then {
     foreach (i from 0 to 7)
@@ -561,6 +606,20 @@ function clause execute (FPClear(q, m)) = {
 }
 
 union clause ast = CFromPtr : (regidx, regidx, regidx)
+/*!
+ * If the value of integer register *rs2* is 0 then capability register *cd* is
+ * set to **NULL**. Otherwise capability register *cd* is set to capability
+ * register *cs1* with its **offset** replaced with *rs2*. If the resulting
+ * capability cannot be represented exactly, then *cd*.**tag** is cleared. The
+ * remaining capability fields are set to what the in-memory representation of
+ * *cs1* with the address set to *cd*.**address** decodes to.
+ *
+ * ## Exceptions
+ *
+ * An exception is raised if:
+ *   - *cs1*.**tag* is set.
+ *   - *cs1* is sealed.
+ */
 function clause execute (CFromPtr(cd, cs1, rs2)) = {
   let cs1_val = if unsigned(cs1) == 0 then DDC else C(cs1);
   let rs2_val = X(rs2);
@@ -584,6 +643,31 @@ function clause execute (CFromPtr(cd, cs1, rs2)) = {
 }
 
 union clause ast = CBuildCap : (regidx, regidx, regidx)
+/*!
+ * Capability register *cd* is set equal to capability register *cs1* with its
+ * **base**, **length**, **address**, **perms**, **uperms**, **flags** replaced
+ * with the corresponding fields in capability register *cs2*. If *cs2* is a
+ * sentry then *cd* is also sealed as a sentry.
+ *
+ * ## Exceptions
+ *
+ * An exception is raised if:
+ *   - *cs1*.**tag** is not set.
+ *   - *cs1* is sealed.
+ *   - *cs2*.**base** $\lt$ *cs1*.**base**
+ *   - *cs2*.**top** $\gt$ *cs1*.**top**
+ *   - *cs2*.**base** $\gt$ *cs2*.**top**
+ *   - *cs2*.**perms** grants a permission that is not granted by
+ *     *cs1*.**perms**.
+ *   - *cs2*.**uperms** grants a permission that is not granted by
+ *     *cs1*.**uperms**.
+ *
+ * ## Notes
+ *
+ * Implementations may instead choose to set *cd* to *cs2* with its tag set
+ * after performing all checks, but the specification derives the result from
+ * *cs1* in order to convey the provenance associated with this operation.
+ */
 function clause execute (CBuildCap(cd, cs1, cs2)) = {
   let cs1_val = if unsigned(cs1) == 0 then DDC else C(cs1);
   let cs2_val = C(cs2);
@@ -625,6 +709,28 @@ function clause execute (CBuildCap(cd, cs1, cs2)) = {
 }
 
 union clause ast = CCopyType : (regidx, regidx, regidx)
+/*!
+ * If the **otype** field of capability register *cs2* is not a reserved value
+ * then capability register *cd* is replaced with the contents of capability
+ * register *cs1* with the **address** set to *cs2*.**otype**. Otherwise
+ * capability register *cd* is replaced with the **NULL** capability with its
+ * **address** set to *cs2*.**otype**.
+ *
+ * ## Exceptions
+ *
+ * An exception is raised if:
+ *   - *cs1*.**tag** is not set.
+ *   - *cs1* is sealed.
+ *   - *cs2*.**otype** $\lt$ *cs1*.**base**.
+ *   - *cs2*.**otype** $\ge$ *cs1*.**top**.
+ *
+ * ## Notes
+ *
+ * Reserved otypes always get turned into derived-from-NULL capabilities,
+ * regardless of the authority given in cs1, as, at the moment, all reserved
+ * otypes are constructed using ambiently-available actions. [CCSeal] knows how
+ * to work with these.
+ */
 function clause execute (CCopyType(cd, cs1, cs2)) = {
   let cs1_val = C(cs1);
   let cs2_val = C(cs2);
@@ -637,12 +743,6 @@ function clause execute (CCopyType(cd, cs1, cs2)) = {
     handle_cheri_reg_exception(CapEx_SealViolation, cs1);
     RETIRE_FAIL
   } else if hasReservedOType(cs2_val) then {
-    /*
-     * Reserved otypes always get turned into derived-from-NULL capabilities,
-     * regardless of the authority given in cs1, as, at the moment, all reserved
-     * otypes are constructed using ambiently-available actions.
-     * CCSeal knows how to work with these.
-     */
     C(cd) = int_to_cap(EXTS(cs2_val.otype));
     RETIRE_SUCCESS
   } else if cs2_otype < cs1_base then {
@@ -849,6 +949,17 @@ function clause execute (CUnseal(cd, cs1, cs2)) = {
 }
 
 union clause ast = CSealEntry : (regidx, regidx)
+/*!
+ * Capability register *cd* is replaced with capability register *cs1* and
+ * sealed as a sentry.
+ *
+ * ## Exceptions
+ *
+ * An exception is raised if:
+ *   - *cs1*.**tag** is not set.
+ *   - *cs1* is sealed.
+ *   - *cs1*.**perms** does not grant Permit_Execute.
+ */
 function clause execute (CSealEntry(cd, cs1)) = {
   let cs1_val = C(cs1);
   if not (cs1_val.tag) then {
@@ -867,6 +978,42 @@ function clause execute (CSealEntry(cd, cs1)) = {
 }
 
 union clause ast = CInvoke : (regidx, regidx)
+/*!
+ * **PCC** is set equal to capability register *cs1* and unsealed with the 0th
+ * bit of its **address** set to 0, whilst **C31** is set equal to capability
+ * register *cs2* and unsealed. This provides a constrained form of
+ * non-monotonicity, allowing for fast jumps between protection domains, with
+ * *cs1* providing the target domain's code and *cs2* providing the target
+ * domain's data. The capabilities must have a matching **otype** to ensure the
+ * right data is provided for the given jump target.
+ *
+ * ## Exceptions
+ *
+ * An exception is raised if:
+ *   - *cs1*.**tag** is not set.
+ *   - *cs2*.**tag** is not set.
+ *   - *cs1*.**otype** is reserved.
+ *   - *cs2*.**otype** is reserved.
+ *   - *cs1*.**otype** $\ne$ *cs2*.**otype**.
+ *   - *cs1*.**perms** does not grant Permit_CInvoke.
+ *   - *cs2*.**perms** does not grant Permit_CInvoke.
+ *   - *cs1*.**perms** does not grant Permit_Execute.
+ *   - *cs2*.**perms** grants Permit_Execute.
+ *   - *cs1*.**address** $\lt$ *cs1*.**base**.
+ *   - *cs1*.**address** $+$ min_instruction_bytes $\gt$ *cs1*.**top**.
+ *   - *cs1*.**base** is unaligned.
+ *   - *cs1*.**address** is unaligned, ignoring bit 0.
+ *
+ * ## Notes
+ *
+ * From the point of view of security, this needs to be an atomic operation
+ * (i.e. the caller cannot decide to just do some of it, because partial
+ * execution could put the system into an insecure state). From a hardware
+ * perspective, more complex domain-transition implementations (e.g., to
+ * implement function-call semantics or message passing) may need to perform
+ * multiple memory reads and writes, which might take multiple cycles and
+ * complicate control logic.
+ */
 function clause execute (CInvoke(cs1, cs2)) = {
   let cs1_val = C(cs1);
   let cs2_val = C(cs2);
@@ -917,6 +1064,23 @@ function clause execute (CInvoke(cs1, cs2)) = {
 }
 
 union clause ast = CJALR : (regidx, regidx)
+/*!
+ * Capability register *cd* is replaced with the next instruction's **PCC** and
+ * sealed as a sentry. **PCC** is replaced with the value of capability
+ * register *cs1* with the 0th bit of its **address** set to 0 and is unsealed
+ * if it is a sentry.
+ *
+ * ## Exceptions
+ *
+ * An exception is raised if:
+ *   - *cs1*.**tag** is not set.
+ *   - *cs1* is sealed and is not a sentry.
+ *   - *cs1*.**perms** does not grant Permit_Execute.
+ *   - *cs1*.**address** $\lt$ *cs1*.**base**.
+ *   - *cs1*.**address** $+$ min_instruction_bytes $\gt$ *cs1*.**top**.
+ *   - *cs1*.**base** is unaligned.
+ *   - *cs1*.**address** is unaligned, ignoring bit 0.
+ */
 function clause execute(CJALR(cd, cs1)) = {
   let cs1_val = C(cs1);
   let newPC = [cs1_val.address with 0 = bitzero]; /* clear bit zero as for RISCV JALR */
@@ -1303,6 +1467,10 @@ function clause execute (StoreCapCap(cs2, cs1)) = {
 }
 
 union clause ast = AUIPCC : (bits(20), regidx)
+/*!
+ * Capability register *cd* is replaced with the contents of **PCC**, with the
+ * **address** replaced with **PCC**.**address** $+$ *imm* $\times$ 4096.
+ */
 function clause execute AUIPCC(imm, cd) = {
   let off : xlenbits = EXTS(imm @ 0x000);
   let (representable, newCap) = setCapAddr(PCC, PC + off);
