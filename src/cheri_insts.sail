@@ -290,12 +290,11 @@ function clause execute(CToPtr(rd, cs1, cs2)) = {
     handle_cheri_reg_exception(CapEx_SealViolation, cs1);
     RETIRE_FAIL
   } else {
-    let ctBase = getCapBaseBits(cs2_val);
     /* Note: returning zero for untagged values breaks magic constants such as SIG_IGN */
     X(rd) = if not (cs1_val.tag) then
               zeros()
             else
-              cs1_val.address - ctBase;
+              cs1_val.address - getCapBaseBits(cs2_val);
     RETIRE_SUCCESS
   }
 }
