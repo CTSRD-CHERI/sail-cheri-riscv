@@ -180,33 +180,28 @@ function clause execute (CSpecialRW(cd, scr, cs1)) = {
     RETIRE_FAIL
   } else {
     let cs1_val = C(cs1);
-    if (cd != zeros()) then {
-      // read special cap
-      let special_val : Capability = match unsigned(scr) {
-        0  => {
-          let (success, pcc) = setCapAddr(PCC, PC);
-          assert (success, "PCC with offset PC should always be representable");
-          pcc
-        },
-        1  => DDC,
-        4  => UTCC,
-        5  => UTDC,
-        6  => UScratchC,
-        7  => legalize_epcc(UEPCC),
-        12 => STCC,
-        13 => STDC,
-        14 => SScratchC,
-        15 => legalize_epcc(SEPCC),
-        28 => MTCC,
-        29 => MTDC,
-        30 => MScratchC,
-        31 => legalize_epcc(MEPCC),
-        _  => {assert(false, "unreachable"); undefined}
-      };
-      C(cd) = special_val;
+    C(cd) = match unsigned(scr) {
+      0  => {
+        let (success, pcc) = setCapAddr(PCC, PC);
+        assert (success, "PCC with offset PC should always be representable");
+        pcc
+      },
+      1  => DDC,
+      4  => UTCC,
+      5  => UTDC,
+      6  => UScratchC,
+      7  => legalize_epcc(UEPCC),
+      12 => STCC,
+      13 => STDC,
+      14 => SScratchC,
+      15 => legalize_epcc(SEPCC),
+      28 => MTCC,
+      29 => MTDC,
+      30 => MScratchC,
+      31 => legalize_epcc(MEPCC),
+      _  => {assert(false, "unreachable"); undefined}
     };
     if (cs1 != zeros()) then {
-      // write special cap
       match unsigned(scr) {
         1  => DDC = cs1_val,
         4  => UTCC = legalize_tcc(UTCC, cs1_val),
