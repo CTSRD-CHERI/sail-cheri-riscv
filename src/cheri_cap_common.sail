@@ -238,6 +238,9 @@ THIS`(cap, flags)` sets the architecture specific capability flags on `cap` to `
 val setCapFlags : (Capability, CapFlagsBits) -> Capability
 function setCapFlags(cap, flags) = {cap with flag_cap_mode = bit_to_bool(flags[0])}
 
+val isCapSealed : Capability -> bool
+function isCapSealed(cap) = signed(cap.otype) != otype_unsealed
+
 /*! Tests whether the capability has a reserved otype (larger than max_otype).
     Note that this includes both sealed (e.g. sentry) and unsealed (all ones)
     otypes. */
@@ -245,10 +248,10 @@ val hasReservedOType : Capability -> bool
 function hasReservedOType(cap) = unsigned(cap.otype) > max_otype
 
 function sealCap(cap, otyp) : (Capability, bits(cap_otype_width)) -> Capability =
-    {cap with sealed=true, otype=otyp}
+    {cap with otype=otyp}
 
 function unsealCap(cap) : Capability -> Capability =
-    {cap with sealed=false, otype=to_bits(cap_otype_width, otype_unsealed)}
+    {cap with otype=to_bits(cap_otype_width, otype_unsealed)}
 
 function getCapBaseBits(c) : Capability -> CapAddrBits =
     let (base, _) = getCapBoundsBits(c) in
@@ -347,7 +350,7 @@ function setCapOffset(c, offset) : (Capability, CapAddrBits) -> (bool, Capabilit
 
 function setCapOffsetOrNull (cap, offset) : (Capability, CapAddrBits) -> Capability =
     let (representable, newCap) = setCapOffset(cap, offset) in
-    if representable & not(cap.sealed) then newCap else invalidateCap(newCap)
+    if representable & not(isCapSealed(cap)) then newCap else invalidateCap(newCap)
 
 function incCapOffset(c, delta) : (Capability, CapAddrBits) -> (bool, Capability) =
     let newAddress : CapAddrBits = c.address + delta in
@@ -366,7 +369,7 @@ function capToString (cap) = {
   concat_str(" t:",
   concat_str(if cap.tag then "1" else "0",
   concat_str(" s:",
-  concat_str(if cap.sealed then "1" else "0",
+  concat_str(if isCapSealed(cap) then "1" else "0",
   concat_str(" perms:",
   concat_str(BitStr(0b0 @ getCapPerms(cap)),
   concat_str(" type:",

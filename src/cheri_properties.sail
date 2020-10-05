@@ -30,7 +30,6 @@ function operator <--> (p, q) = (p --> q) & (q --> p)
    representation:
 
      - the two MSBs of T, inferred from the base
-     - a sealed flag, derived from the object type
      - a separate exponent field (with the low bits of B and T set to zero
        if the exponent was taken from there)
 
@@ -53,8 +52,7 @@ function encodableCap(c) : Capability -> bool =
   let Tie = truncate(c.T, internal_exponent_take_bits) in
   let Zie = zeros(internal_exponent_take_bits) in
   let bot_correct = (if c.internal_e then Bie == Zie & Tie == Zie else true) in
-  let sealed_correct = (c.sealed == (c.otype != to_bits(cap_otype_width, otype_unsealed))) in
-  top_correct & bot_correct & ie_correct & sealed_correct
+  top_correct & bot_correct & ie_correct
 
 /* A Capability is encodable iff the back-and-forth conversion to and
    from the in-memory represenation is the identity. */
@@ -92,8 +90,8 @@ $property
 function propUnsealEncodable(c) : Capability -> bool =
   encodableCap(c) --> encodableCap(unsealCap(c))
 
-/* Other capability manipulations do not change the bounds, the sealed flag,
-   or the object type, and therefore trivially preserve encodability. */
+/* Other capability manipulations do not change the bounds or the object type,
+   and therefore trivially preserve encodability. */
 
 /*****************************************************************************/
 
@@ -136,7 +134,7 @@ function propBuildCapValidEq(c, auth) : (Capability, Capability) -> bool =
   let c3 = setCapPerms(c2, getCapPerms(c)) in
   let result = setCapFlags(c3, getCapFlags(c)) in
   let expected_result = {unsealCap(c) with tag = true, reserved = auth.reserved} in
-  (encodableCap(c) & encodableCap(auth) & validBounds(c) & auth.tag & not(auth.sealed)) --> (result == expected_result)
+  (encodableCap(c) & encodableCap(auth) & validBounds(c) & auth.tag & not(isCapSealed(auth))) --> (result == expected_result)
 
 /*****************************************************************************/
 

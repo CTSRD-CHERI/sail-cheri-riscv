@@ -45,7 +45,7 @@ function ext_fetch_check_pc(start_pc, pc) = {
     /* We need to perform the permission checks only for the first granule. */
     if      not(PCC.tag)
     then    Ext_FetchAddr_Error(CapEx_TagViolation)
-    else if PCC.sealed
+    else if isCapSealed(PCC)
     then    Ext_FetchAddr_Error(CapEx_SealViolation)
     else if not(PCC.permit_execute)
     then    Ext_FetchAddr_Error(CapEx_PermitExecuteViolation)
@@ -135,7 +135,7 @@ function ext_data_get_addr(base_reg : regidx, offset : xlenbits, acc : AccessTyp
 
   if not(auth_val.tag) then
     Ext_DataAddr_Error(CapEx_TagViolation, auth_idx)
-  else if auth_val.sealed then
+  else if isCapSealed(auth_val) then
     Ext_DataAddr_Error(CapEx_SealViolation, auth_idx)
   else if not(have_rqd_load_perm) then
     Ext_DataAddr_Error(CapEx_PermitLoadViolation, auth_idx)

@@ -56,9 +56,9 @@ let MAX_ADDR = MAX(cap_addr_width)
 type CapAddrInt = range(0, (2 ^ cap_addr_width) - 1)
 type CapLen = range(0, 2 ^ 33) /* XXX sail can't handle if this is expressed as cap_len_width */
 
-/* A partially decompressed version of a capability -- E, B, T,
- * lenMSB, sealed and otype fields are not present in all formats and are
- * populated by capBitsToCapability.
+/*!
+ * A partially decompressed version of a capability, populated by
+ * capBitsToCapability. E is not present in all formats.
  */
 struct Capability = {
   tag                    : bool    ,
@@ -79,7 +79,6 @@ struct Capability = {
   flag_cap_mode          : bool    ,
   internal_e             : bool    ,
   E                      : bits(6) ,
-  sealed                 : bool    ,
   B                      : bits(cap_mantissa_width),
   T                      : bits(cap_mantissa_width),
   otype                  : bits(cap_otype_width),
@@ -111,7 +110,6 @@ let null_cap : Capability = struct {
   flag_cap_mode          = false,
   internal_e             = true,
   E                      = resetE,
-  sealed                 = false,
   B                      = zeros(),
   T                      = resetT,
   otype                  = to_bits(cap_otype_width, otype_unsealed),
@@ -137,7 +135,6 @@ let default_cap : Capability = struct {
   flag_cap_mode          = false,
   internal_e             = true,
   E                      = resetE,
-  sealed                 = false,
   B                      = zeros(),
   T                      = resetT,
   otype                  = to_bits(cap_otype_width, otype_unsealed),
@@ -148,7 +145,6 @@ let default_cap : Capability = struct {
 function capBitsToCapability(t, c) : (bool, CapBits) -> Capability = {
   internal_exponent : bool = bit_to_bool(c[46]);
   otype : bits(4) = c[50..47];
-  let sealed : bool = otype != to_bits(cap_otype_width, otype_unsealed);
   E : bits(6)  = zeros();
   Bs : bits(8) = zeros();
   T : bits(6) = zeros();
@@ -192,7 +188,6 @@ function capBitsToCapability(t, c) : (bool, CapBits) -> Capability = {
     flag_cap_mode          = bit_to_bool(c[51]),
     internal_e             = internal_exponent,
     E                      = E,
-    sealed                 = sealed,
     B                      = Bs,
     T                      = Ttop2 @ T,
     otype                  = otype,
