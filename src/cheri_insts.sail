@@ -827,7 +827,7 @@ function clause execute (CUnseal(cd, cs1, cs2)) = {
     handle_cheri_reg_exception(CapEx_SealViolation, cs2);
     RETIRE_FAIL
   } else if hasReservedOType(cs1_val) then {
-    handle_cheri_reg_exception(CapEx_TypeViolation, cs2);
+    handle_cheri_reg_exception(CapEx_TypeViolation, cs1);
     RETIRE_FAIL
   } else if cs2_cursor != unsigned(cs1_val.otype) then {
     handle_cheri_reg_exception(CapEx_TypeViolation, cs2);
