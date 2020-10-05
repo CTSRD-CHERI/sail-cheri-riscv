@@ -171,7 +171,7 @@ function clause execute (CSpecialRW(cd, scr, cs1)) = {
     _  => (false, true, Machine, true)
   };
   if (not(specialExists) |
-      ro & cs1 != 0b00000 |
+      ro & cs1 != zeros() |
       (privLevel_to_bits(cur_privilege) <_u privLevel_to_bits(priv))) then {
     handle_illegal();
     RETIRE_FAIL
@@ -180,7 +180,7 @@ function clause execute (CSpecialRW(cd, scr, cs1)) = {
     RETIRE_FAIL
   } else {
     let cs1_val = C(cs1);
-    if (cd != 0b00000) then {
+    if (cd != zeros()) then {
       // read special cap
       let special_val : Capability = match unsigned(scr) {
         0  => {
@@ -205,7 +205,7 @@ function clause execute (CSpecialRW(cd, scr, cs1)) = {
       };
       C(cd) = special_val;
     };
-    if (cs1 != 0b00000) then {
+    if (cs1 != zeros()) then {
       // write special cap
       match unsigned(scr) {
         1  => DDC = cs1_val,
