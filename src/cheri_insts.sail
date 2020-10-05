@@ -897,7 +897,7 @@ function clause execute (CInvoke(cs1, cs2)) = {
     handle_cheri_reg_exception(CapEx_PermitExecuteViolation, cs1);
     RETIRE_FAIL
   } else if cs2_val.permit_execute then {
-    handle_cheri_reg_exception(CapEx_PermitExecuteViolation, cs1);
+    handle_cheri_reg_exception(CapEx_PermitExecuteViolation, cs2);
     RETIRE_FAIL
   } else if not(inCapBounds(cs1_val, newPC, min_instruction_bytes())) then {
     handle_cheri_reg_exception(CapEx_LengthViolation, cs1);
@@ -909,7 +909,7 @@ function clause execute (CInvoke(cs1, cs2)) = {
     handle_mem_exception(newPC,  E_Fetch_Addr_Align());
     RETIRE_FAIL
   } else {
-    C(31) = unsealCap(cs1_val);
+    C(31) = unsealCap(cs2_val);
     nextPC = newPC;
     nextPCC = unsealCap(cs1_val);
     RETIRE_SUCCESS
