@@ -523,17 +523,15 @@ function clause execute (CMove(cd, cs1)) = {
 union clause ast = Clear : (bits(2), bits(8))
 /*!
  * Integer registers 8 $\times$ *q* $+$ *i* are each set to 0 if the *i*th bit
- * of *m* is set.
- *
- * This instruction is only present on implementations with a split register
- * file. On implementations with a merged register file the functionality of
- * this instruction is covered by [CClear].
+ * of *m* is set. This instruction is only present on implementations with a
+ * split register file. On implementations with a merged register file the
+ * functionality of this instruction is covered by [CClear].
  *
  * ## Notes
  *
  * This instruction is designed to accelerate the register clearing that is
  * required for secure domain transitions. It is expected that it can be
- * implemented efficiently in hardware using a single 'valid' bit per register
+ * implemented efficiently in hardware using a single \`valid' bit per register
  * that is cleared by this instruction and set on any subsequent write to the
  * register.
  */
@@ -555,7 +553,7 @@ union clause ast = CClear : (bits(2), bits(8))
  *
  * This instruction is designed to accelerate the register clearing that is
  * required for secure domain transitions. It is expected that it can be
- * implemented efficiently in hardware using a single 'valid' bit per register
+ * implemented efficiently in hardware using a single \`valid' bit per register
  * that is cleared by this instruction and set on any subsequent write to the
  * register.
  */
@@ -579,7 +577,7 @@ union clause ast = FPClear : (bits(2), bits(8))
  *
  * This instruction is designed to accelerate the register clearing that is
  * required for secure domain transitions. It is expected that it can be
- * implemented efficiently in hardware using a single 'valid' bit per register
+ * implemented efficiently in hardware using a single \`valid' bit per register
  * that is cleared by this instruction and set on any subsequent write to the
  * register.
  *
@@ -639,9 +637,9 @@ function clause execute (CFromPtr(cd, cs1, rs2)) = {
 union clause ast = CBuildCap : (regidx, regidx, regidx)
 /*!
  * Capability register *cd* is set equal to capability register *cs1* with its
- * **base**, **length**, **address**, **perms**, **uperms**, **flags** replaced
- * with the corresponding fields in capability register *cs2*. If *cs2* is a
- * sentry then *cd* is also sealed as a sentry.
+ * **base**, **length**, **address**, **perms**, **uperms** and **flags**
+ * replaced with the corresponding fields in capability register *cs2*. If
+ * *cs2* is a sentry then *cd* is also sealed as a sentry.
  *
  * ## Exceptions
  *
@@ -658,7 +656,7 @@ union clause ast = CBuildCap : (regidx, regidx, regidx)
  *
  * ## Notes
  *
- * Implementations may instead choose to set *cd* to *cs2* with its tag set
+ * Implementations may instead choose to set *cd* to *cs2* with its **tag** set
  * after performing all checks, but the specification derives the result from
  * *cs1* in order to convey the provenance associated with this operation.
  */
@@ -720,8 +718,8 @@ union clause ast = CCopyType : (regidx, regidx, regidx)
  *
  * ## Notes
  *
- * Reserved otypes always get turned into derived-from-NULL capabilities,
- * regardless of the authority given in cs1, as, at the moment, all reserved
+ * Reserved otypes always get turned into derived-from-**NULL** capabilities,
+ * regardless of the authority given in *cs1*, as, at the moment, all reserved
  * otypes are constructed using ambiently-available actions. [CCSeal] knows how
  * to work with these.
  */
