@@ -152,6 +152,29 @@ function clause execute (CGetAddr(rd, cs1)) = {
 }
 
 union clause ast = CSpecialRW : (regidx, screg, regidx)
+/*!
+ * Capability register *cd* is set equal to special capability register *scr*,
+ * and *scr* is set equal to capability register *cs1* if *cs1* is not **C0**.
+ *
+ * ## Exceptions
+ *
+ * An exception is raised if:
+ *   - *scr* does not exist.
+ *   - *scr* is read-only and *cs1* is not **C0**.
+ *   - *scr* is only accessible to a higher privilege mode.
+ *   - *scr* requires Permit_Access_System_Registers and that is not granted by
+ *     **PCC**.**perms**.
+ *
+ * ## Notes
+ *
+ * Writing **NULL** to a special capability register cannot be done with **C0**
+ * as that only performs a read. An alternative implementation would allocate a
+ * separate two-operand CSpecialR instruction and interpret *cs1* being **C0**
+ * as a write of **NULL** if the need to use a temporary capability register
+ * proves to be overly problematic for software. For U-mode transitions to
+ * domains without Permit_Access_System_Registers only **DDC** should need
+ * clearing, which can be done with [CClear].
+ */
 function clause execute (CSpecialRW(cd, scr, cs1)) = {
   let (specialExists, ro, priv, needASR) : (bool, bool, Privilege, bool) = match unsigned(scr) {
     0  => (true, true,  User, false),
@@ -280,6 +303,22 @@ function clause execute(CSetFlags(cd, cs1, rs2)) = {
 }
 
 union clause ast = CToPtr : (regidx, regidx, regidx)
+/*!
+ * If the **tag** field of capability register *cs1* is not set then integer
+ * register *rd* is set to 0, otherwise integer register *rd* is set to
+ * *cs1*.**address** $-$ *cs2*.**base**.
+ *
+ * ## Exceptions
+ *
+ * An exception is raised if:
+ *   - *cs2*.**tag** is unset.
+ *   - *cs1*.**tag** is set and *cs1* is sealed.
+ *
+ * ## Notes
+ *
+ *   - *cs2* being sealed will not cause an exception to be raised. This is for
+ *     further study.
+ */
 function clause execute(CToPtr(rd, cs1, cs2)) = {
   let cs2_val = if unsigned(cs2) == 0 then DDC else C(cs2);
   let cs1_val = C(cs1);
@@ -431,6 +470,23 @@ function clause execute (CSetAddr(cd, cs1, rs2)) = {
 
 
 union clause ast = CSetBounds : (regidx, regidx, regidx)
+/*!
+ * Capability register *cd* is set to capability register *cs1* with its
+ * **base** field replaced with *cs1*.**address** and its **length** field
+ * replaced with integer register *rs2*. If the resulting capability cannot be
+ * represented exactly the **base** will be rounded down and the **length**
+ * will be rounded up by the smallest amount needed to form a representable
+ * capability covering the requested bounds, and will never exceed the bounds
+ * of *cs1*.
+ *
+ * ## Exceptions
+ *
+ * An exception is raised if:
+ *   - *cs1*.**tag** is not set.
+ *   - *cs1* is sealed.
+ *   - *cs1*.**address** $\lt$ *cs1*.**base**.
+ *   - *cs1*.**address** $+$ *rs2* $\gt$ *cs1*.**top**.
+ */
 function clause execute (CSetBounds(cd, cs1, rs2)) = {
   let cs1_val = C(cs1);
   let rs2_val = X(rs2);
@@ -453,6 +509,22 @@ function clause execute (CSetBounds(cd, cs1, rs2)) = {
 }
 
 union clause ast = CSetBoundsImmediate : (regidx, regidx, bits(12))
+/*!
+ * Capability register *cd* is set to capability register *cs1* with its
+ * **base** field replaced with *cs1*.**address** and its **length** field
+ * replaced with *uimm*. If the resulting capability cannot be represented
+ * exactly the **base** will be rounded down and the **length** will be rounded
+ * up by the smallest amount needed to form a representable capability covering
+ * the requested bounds, and will never exceed the bounds of *cs1*.
+ *
+ * ## Exceptions
+ *
+ * An exception is raised if:
+ *   - *cs1*.**tag** is not set.
+ *   - *cs1* is sealed.
+ *   - *cs1*.**address** $\lt$ *cs1*.**base**.
+ *   - *cs1*.**address** $+$ *uimm* $\gt$ *cs1*.**top**.
+ */
 function clause execute (CSetBoundsImmediate(cd, cs1, uimm)) = {
   let cs1_val = C(cs1);
   let newBase = cs1_val.address;
@@ -474,6 +546,21 @@ function clause execute (CSetBoundsImmediate(cd, cs1, uimm)) = {
 }
 
 union clause ast = CSetBoundsExact : (regidx, regidx, regidx)
+/*!
+ * Capability register *cd* is set to capability register *cs1* with its
+ * **base** field replaced with *cs1*.**address** and its **length** field
+ * replaced with integer register *rs2*. Unlike [CSetBounds], this instruction
+ * will trap if the resulting capability cannot be represented exactly.
+ *
+ * ## Exceptions
+ *
+ * An exception is raised if:
+ *   - *cs1*.**tag** is not set.
+ *   - *cs1* is sealed.
+ *   - *cs1*.**address** $\lt$ *cs1*.**base**.
+ *   - *cs1*.**address** $+$ *rs2* $\gt$ *cs1*.**top**.
+ *   - The resulting capability cannot be represented exactly.
+ */
 function clause execute (CSetBoundsExact(cd, cs1, rs2)) = {
   let cs1_val = C(cs1);
   let rs2_val = X(rs2);
@@ -776,6 +863,20 @@ function clause execute(CRAM(rd, rs1)) = {
 }
 
 union clause ast = CTestSubset : (regidx, regidx, regidx)
+/*!
+ * Integer register *rd* is set to 1 if the **tag** fields of capability
+ * registers *cs1* and *cs2* are the same and the bounds and permissions of
+ * *cs2* are a subset of those of *cs1*.
+ *
+ * ## Notes
+ *
+ * - The operand order for this instruction is reversed compared with the
+ *   normal RISC-V comparison instructions, but this may be changed in future.
+ *
+ * - The **otype** field is ignored for this instruction, but an alternative
+ *   implementation might wish to consider capabilities with distinct
+ *   **otype**s as unordered as is done for the **tag** field.
+ */
 function clause execute (CTestSubset(rd, cs1, cs2)) = {
   let cs1_val = if unsigned(cs1) == 0 then DDC else C(cs1);
   let cs2_val = C(cs2);
@@ -798,6 +899,11 @@ function clause execute (CTestSubset(rd, cs1, cs2)) = {
 }
 
 union clause ast = CSEQX : (regidx, regidx, regidx)
+/*!
+ * Integer register *rd* is set to 1 if the **tag** fields and in-memory
+ * representations of capability registers *cs1* and *cs2* are identical,
+ * including any reserved encoding bits, otherwise it is set to 0.
+ */
 function clause execute (CSEQX(rd, cs1, cs2)) = {
   let cs1_val = C(cs1);
   let cs2_val = C(cs2);
@@ -941,6 +1047,24 @@ function clause execute (CCSeal(cd, cs1, cs2)) = {
 }
 
 union clause ast = CUnseal : (regidx, regidx, regidx)
+/*!
+ * Capability register *cd* is replaced with capability register *cs1* and is
+ * unsealed, using capability register *cs2* as the authority for the unsealing
+ * operation. If *cs2*.**global** is not set then *cd*.**global** is cleared.
+ *
+ * ## Exceptions
+ *
+ * An exception is raised if:
+ *   - *cs1*.**tag** is not set.
+ *   - *cs2*.**tag** is not set.
+ *   - *cs1* is not sealed.
+ *   - *cs2* is sealed.
+ *   - *cs1*.**otype** is reserved.
+ *   - *cs1*.**address** $\ne$ *cs1*.**otype**.
+ *   - *cs2*.**perms** does not grant Permit_Unseal.
+ *   - *cs2*.**address** $\lt$ *cs2*.**base**.
+ *   - *cs2*.**address** $\ge$ *cs2*.**top**.
+ */
 function clause execute (CUnseal(cd, cs1, cs2)) = {
   let cs1_val = C(cs1);
   let cs2_val = C(cs2);
