@@ -162,8 +162,8 @@ union clause ast = CSpecialRW : (regidx, screg, regidx)
  *   - *scr* does not exist.
  *   - *scr* is read-only and *cs1* is not **C0**.
  *   - *scr* is only accessible to a higher privilege mode.
- *   - *scr* requires Permit_Access_System_Registers and that is not granted by
- *     **PCC**.**perms**.
+ *   - *scr* requires **Permit_Access_System_Registers** and that is not
+ *     granted by **PCC**.**perms**.
  *
  * ## Notes
  *
@@ -172,7 +172,7 @@ union clause ast = CSpecialRW : (regidx, screg, regidx)
  * separate two-operand CSpecialR instruction and interpret *cs1* being **C0**
  * as a write of **NULL** if the need to use a temporary capability register
  * proves to be overly problematic for software. For U-mode transitions to
- * domains without Permit_Access_System_Registers only **DDC** should need
+ * domains without **Permit_Access_System_Registers** only **DDC** should need
  * clearing, which can be done with [CClear].
  */
 function clause execute (CSpecialRW(cd, scr, cs1)) = {
@@ -924,7 +924,7 @@ union clause ast = CSeal : (regidx, regidx, regidx)
  *   - *cs2*.**tag** is not set.
  *   - *cs1*.**sealed** is set.
  *   - *cs2*.**sealed** is set.
- *   - *cs2*.**perms** does not grant Permit_Seal.
+ *   - *cs2*.**perms** does not grant **Permit_Seal**.
  *   - *cs2*.**address** $\lt$ *cs2*.**base**.
  *   - *cs2*.**address** $\ge$ *cs2*.**top**.
  *   - *cs2*.**address** $\gt$ [max_otype].
@@ -979,7 +979,7 @@ union clause ast = CCSeal : (regidx, regidx, regidx)
  * An exception is raised if:
  *   - *cs1*.**tag** is not set.
  *   - *cs2*.**sealed** is set.
- *   - *cs2*.**perms** does not grant Permit_Seal.
+ *   - *cs2*.**perms** does not grant **Permit_Seal**.
  *   - *cs2*.**address** $\gt$ [max_otype].
  *
  * ## Notes
@@ -1050,7 +1050,8 @@ union clause ast = CUnseal : (regidx, regidx, regidx)
 /*!
  * Capability register *cd* is replaced with capability register *cs1* and is
  * unsealed, using capability register *cs2* as the authority for the unsealing
- * operation. If *cs2*.**global** is not set then *cd*.**global** is cleared.
+ * operation. If *cs2*.**perms** does not grant **Global** then *cd*.**perms**
+ * is stripped of **Global**.
  *
  * ## Exceptions
  *
@@ -1061,7 +1062,7 @@ union clause ast = CUnseal : (regidx, regidx, regidx)
  *   - *cs2* is sealed.
  *   - *cs1*.**otype** is reserved.
  *   - *cs1*.**address** $\ne$ *cs1*.**otype**.
- *   - *cs2*.**perms** does not grant Permit_Unseal.
+ *   - *cs2*.**perms** does not grant **Permit_Unseal**.
  *   - *cs2*.**address** $\lt$ *cs2*.**base**.
  *   - *cs2*.**address** $\ge$ *cs2*.**top**.
  */
@@ -1114,7 +1115,7 @@ union clause ast = CSealEntry : (regidx, regidx)
  * An exception is raised if:
  *   - *cs1*.**tag** is not set.
  *   - *cs1* is sealed.
- *   - *cs1*.**perms** does not grant Permit_Execute.
+ *   - *cs1*.**perms** does not grant **Permit_Execute**.
  */
 function clause execute (CSealEntry(cd, cs1)) = {
   let cs1_val = C(cs1);
@@ -1151,10 +1152,10 @@ union clause ast = CInvoke : (regidx, regidx)
  *   - *cs1*.**otype** is reserved.
  *   - *cs2*.**otype** is reserved.
  *   - *cs1*.**otype** $\ne$ *cs2*.**otype**.
- *   - *cs1*.**perms** does not grant Permit_CInvoke.
- *   - *cs2*.**perms** does not grant Permit_CInvoke.
- *   - *cs1*.**perms** does not grant Permit_Execute.
- *   - *cs2*.**perms** grants Permit_Execute.
+ *   - *cs1*.**perms** does not grant **Permit_CInvoke**.
+ *   - *cs2*.**perms** does not grant **Permit_CInvoke**.
+ *   - *cs1*.**perms** does not grant **Permit_Execute**.
+ *   - *cs2*.**perms** grants **Permit_Execute**.
  *   - *cs1*.**address** $\lt$ *cs1*.**base**.
  *   - *cs1*.**address** $+$ min_instruction_bytes $\gt$ *cs1*.**top**.
  *   - *cs1*.**base** is unaligned.
@@ -1231,7 +1232,7 @@ union clause ast = CJALR : (regidx, regidx)
  * An exception is raised if:
  *   - *cs1*.**tag** is not set.
  *   - *cs1* is sealed and is not a sentry.
- *   - *cs1*.**perms** does not grant Permit_Execute.
+ *   - *cs1*.**perms** does not grant **Permit_Execute**.
  *   - *cs1*.**address** $\lt$ *cs1*.**base**.
  *   - *cs1*.**address** $+$ min_instruction_bytes $\gt$ *cs1*.**top**.
  *   - *cs1*.**base** is unaligned.
