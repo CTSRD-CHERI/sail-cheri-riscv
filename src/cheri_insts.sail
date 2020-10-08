@@ -779,9 +779,13 @@ function clause execute (CBuildCap(cd, cs1, cs2)) = {
     let (_, cd2) = setCapOffset(cd1, getCapOffsetBits(cs2_val)); // Ignore representability check, since Fast Rep Check not relevant
     let cd3 = setCapPerms(cd2, cs2_perms);
     let cd4 = setCapFlags(cd3, cs2_flags);
-    let cd5 = if signed(cs2_val.otype) == otype_sentry then sealCap(cd4, to_bits(cap_otype_width, otype_sentry)) else cd4;
+    if cd4 != {unsealCap(cs2_val) with tag=true} then
     {
+      handle_cheri_reg_exception(CapEx_LengthViolation, cs2);
+      RETIRE_FAIL
+    } else {
       assert(exact, "CBuildCap: setCapBounds was not exact"); /* base and top came from cs2 originally so will be exact */
+      let cd5 = if signed(cs2_val.otype) == otype_sentry then sealCap(cd4, to_bits(cap_otype_width, otype_sentry)) else cd4;
       C(cd) = cd5;
       RETIRE_SUCCESS
     }
