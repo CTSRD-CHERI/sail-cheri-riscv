@@ -24,7 +24,7 @@ function handle_cheri_reg_exception(capEx, regnum) =
   handle_cheri_cap_exception(capEx, reg6)
 
 /*!
-is as [raise_c2_exception] except that CapCause.RegNum  is written with the special value 0x10 indicating PCC register.
+is as [handle_cheri_cap_exception] except that the capability register number uses the special value 0x10 indicating the PCC register.
  */
 val handle_cheri_pcc_exception : (CapEx) -> unit effect {escape, rreg, wreg}
 function handle_cheri_pcc_exception(capEx) =
