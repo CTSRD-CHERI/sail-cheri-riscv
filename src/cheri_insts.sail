@@ -776,7 +776,7 @@ function clause execute (CBuildCap(cd, cs1, cs2)) = {
     RETIRE_FAIL
   } else {
     let (exact, cd1) = setCapBounds(cs1_val, to_bits(cap_addr_width, cs2_base), to_bits(cap_len_width, cs2_top));
-    let (representable, cd2) = setCapOffset(cd1, getCapOffsetBits(cs2_val));
+    let (_, cd2) = setCapOffset(cd1, getCapOffsetBits(cs2_val)); // Ignore representability check, since Fast Rep Check not relevant
     let cd3 = setCapPerms(cd2, cs2_perms);
     let cd4 = setCapFlags(cd3, cs2_flags);
     let cd5 = if signed(cs2_val.otype) == otype_sentry then sealCap(cd4, to_bits(cap_otype_width, otype_sentry)) else cd4;
