@@ -55,7 +55,7 @@ type cap_E_width : Int = 6
 let  cap_E_width = sizeof(cap_E_width)
 type cap_addr_width : Int = xlen
 let  cap_addr_width = sizeof(cap_addr_width)
-type cap_len_width : Int = cap_addr_width + 1
+type cap_len_width : Int = cap_addr_width + 2
 let  cap_len_width = sizeof(cap_len_width)
 
 /* For CLoadTags and CClearTags, which operate at cache line granularity */
