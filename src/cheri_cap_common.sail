@@ -243,7 +243,7 @@ val isCapSealed : Capability -> bool
 function isCapSealed(cap) = signed(cap.otype) != otype_unsealed
 
 /*!
- * Tests whether the capability has a reserved otype (larger than max_otype).
+ * Tests whether the capability has a reserved otype (larger than [max_otype]).
  * Note that this includes both sealed (e.g. sentry) and unsealed (all ones)
  * otypes.
  */
