@@ -17,14 +17,18 @@ function handle_cheri_cap_exception(capEx, regnum) =
   }
 
 /*!
-causes the processor to raise a capability exception by writing the given capability exception cause and register number to the xccsr register then signalling an exception. */
+ * Causes the processor to raise a capability exception by writing the given
+ * capability exception cause and register number to the xccsr register then
+ * signalling an exception.
+ */
 val handle_cheri_reg_exception : (CapEx, regidx) -> unit effect {escape, rreg, wreg}
 function handle_cheri_reg_exception(capEx, regnum) =
   let reg6 = 0b0 @ regnum in
   handle_cheri_cap_exception(capEx, reg6)
 
 /*!
-is as [handle_cheri_cap_exception] except that the capability register number uses the special value 0x10 indicating the PCC register.
+ * Is as [handle_cheri_cap_exception] except that the capability register
+ * number uses the special value 0x10 indicating the PCC register.
  */
 val handle_cheri_pcc_exception : (CapEx) -> unit effect {escape, rreg, wreg}
 function handle_cheri_pcc_exception(capEx) =
@@ -102,8 +106,9 @@ type ext_data_addr_error = (CapEx, capreg_idx)
 
 
 /*!
-For given base register and offset returns, depending on current capability mode flag, a
-bounding capability, effective address, and capreg_idx (for use in cap cause).
+ * For given base register and offset returns, depending on current capability
+ * mode flag, a bounding capability, effective address, and capreg_idx (for use
+ * in cap cause).
  */
 val get_cheri_mode_cap_addr : (regidx, xlenbits) -> (Capability, xlenbits, capreg_idx) effect {rreg, escape}
 function get_cheri_mode_cap_addr (base_reg : regidx, offset : xlenbits) = {

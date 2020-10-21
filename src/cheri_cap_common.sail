@@ -227,13 +227,14 @@ function setCapPerms(cap, perms) : (Capability, CapPermsBits) -> Capability =
       }
 
 /*!
-Gets the architecture specific capability flags for given capability.
+ * Gets the architecture specific capability flags for given capability.
  */
 val getCapFlags : Capability -> CapFlagsBits
 function getCapFlags(cap) = bool_to_bits(cap.flag_cap_mode)
 
 /*!
-THIS`(cap, flags)` sets the architecture specific capability flags on `cap` to `flags` and returns the result as new capability.
+ * THIS`(cap, flags)` sets the architecture specific capability flags on `cap`
+ * to `flags` and returns the result as new capability.
  */
 val setCapFlags : (Capability, CapFlagsBits) -> Capability
 function setCapFlags(cap, flags) = {cap with flag_cap_mode = bit_to_bool(flags[0])}
@@ -241,9 +242,11 @@ function setCapFlags(cap, flags) = {cap with flag_cap_mode = bit_to_bool(flags[0
 val isCapSealed : Capability -> bool
 function isCapSealed(cap) = signed(cap.otype) != otype_unsealed
 
-/*! Tests whether the capability has a reserved otype (larger than max_otype).
-    Note that this includes both sealed (e.g. sentry) and unsealed (all ones)
-    otypes. */
+/*!
+ * Tests whether the capability has a reserved otype (larger than max_otype).
+ * Note that this includes both sealed (e.g. sentry) and unsealed (all ones)
+ * otypes.
+ */
 val hasReservedOType : Capability -> bool
 function hasReservedOType(cap) = unsigned(cap.otype) > max_otype
 

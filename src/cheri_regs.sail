@@ -150,9 +150,9 @@ function ext_init_regs () = {
 }
 
 /*!
-This function is called after above when running rvfi and allows the model
-to be initialised differently. For RVFI we initialise cap regs to default
-instead of null.
+ * This function is called after above when running rvfi and allows the model
+ * to be initialised differently. For RVFI we initialise cap regs to default
+ * instead of null.
  */
 val ext_rvfi_init : unit -> unit effect {wreg}
 function ext_rvfi_init () = {
