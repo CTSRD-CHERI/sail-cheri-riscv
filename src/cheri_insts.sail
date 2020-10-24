@@ -1305,6 +1305,20 @@ function handle_load_data_via_cap(rd, auth_idx, auth_val, vaddrBits, is_unsigned
 }
 
 union clause ast = LoadDataDDC : (regidx, regidx, bool, word_width)
+/*!
+ * Integer register *rd* is replaced with the signed or unsigned byte,
+ * halfword, word or doubleword located in memory at **DDC**.**address** $+$
+ * *rs1*.
+ *
+ * ## Exceptions
+ *
+ * An exception is raised if:
+ *   - **DDC**.**tag** is not set.
+ *   - **DDC** is sealed.
+ *   - **DDC**.**perms** does not grant **Permit_Load**.
+ *   - **DDC**.**address** $+$ *rs1* $\lt$ **DDC**.**base**.
+ *   - **DDC**.**address** $+$ *rs1* $+$ *size* $\gt$ **DDC**.**top**.
+ */
 function clause execute (LoadDataDDC(rd, rs1, is_unsigned, width)) = {
   let ddc_val = DDC;
   let vaddr = ddc_val.address + X(rs1);
@@ -1312,6 +1326,19 @@ function clause execute (LoadDataDDC(rd, rs1, is_unsigned, width)) = {
 }
 
 union clause ast = LoadDataCap : (regidx, regidx, bool, word_width)
+/*!
+ * Integer register *rd* is replaced with the signed or unsigned byte,
+ * halfword, word or doubleword located in memory at *cs1*.**address**.
+ *
+ * ## Exceptions
+ *
+ * An exception is raised if:
+ *   - *cs1*.**tag** is not set.
+ *   - *cs1* is sealed.
+ *   - *cs1*.**perms** does not grant **Permit_Load**.
+ *   - *cs1*.**address** $\lt$ *cs1*.**base**.
+ *   - *cs1*.**address** $+$ *size* $\gt$ *cs1*.**top**.
+ */
 function clause execute (LoadDataCap(rd, cs1, is_unsigned, width)) = {
   let cs1_val = C(cs1);
   let vaddr = cs1_val.address;
@@ -1357,6 +1384,22 @@ function handle_load_cap_via_cap(cd, auth_idx, auth_val, vaddrBits) = {
 }
 
 union clause ast = LoadCapDDC : (regidx, regidx)
+/*!
+ * Capability register *cd* is replaced with the capability located in memory
+ * at **DDC**.**address** $+$ *rs1*, and if **DDC**.**perms** does not grant
+ * **Permit_Load_Capability** then *cd*.**tag** is cleared.
+ *
+ * ## Exceptions
+ *
+ * An exception is raised if:
+ *   - **DDC**.**tag** is not set.
+ *   - **DDC** is sealed.
+ *   - **DDC**.**perms** does not grant **Permit_Load**.
+ *   - **DDC**.**address** $+$ *rs1* $\lt$ **DDC**.**base**.
+ *   - **DDC**.**address** $+$ *rs1* $+$ **CLEN** $/$ 8 $\gt$ **DDC**.**top**.
+ *   - **DDC**.**address** $+$ *rs1* is unaligned, regardless of whether the
+ *   implementation supports unaligned data accesses.
+ */
 function clause execute (LoadCapDDC(cd, rs1)) = {
   let ddc_val = DDC;
   let vaddr = ddc_val.address + X(rs1);
@@ -1364,6 +1407,22 @@ function clause execute (LoadCapDDC(cd, rs1)) = {
 }
 
 union clause ast = LoadCapCap : (regidx, regidx)
+/*!
+ * Capability register *cd* is replaced with the capability located in memory
+ * at *cs1*.**address**, and if *cs1*.**perms** does not grant
+ * **Permit_Load_Capability** then *cd*.**tag** is cleared.
+ *
+ * ## Exceptions
+ *
+ * An exception is raised if:
+ *   - *cs1*.**tag** is not set.
+ *   - *cs1* is sealed.
+ *   - *cs1*.**perms** does not grant **Permit_Load**.
+ *   - *cs1*.**address** $\lt$ *cs1*.**base**.
+ *   - *cs1*.**address** $+$ **CLEN** $/$ 8 $\gt$ *cs1*.**top**.
+ *   - *cs1*.**address** is unaligned, regardless of whether the implementation
+ *   supports unaligned data accesses.
+ */
 function clause execute (LoadCapCap(cd, cs1)) = {
   let cs1_val = C(cs1);
   let vaddr = cs1_val.address;
@@ -1551,6 +1610,19 @@ function handle_store_data_via_cap(rs2, auth_idx, auth_val, vaddrBits, width) = 
 }
 
 union clause ast = StoreDataDDC : (regidx, regidx, word_width)
+/*!
+ * The byte, halfword, word or doubleword located in memory at
+ * **DDC**.**address** $+$ *rs1* is replaced with integer register *rs2*.
+ *
+ * ## Exceptions
+ *
+ * An exception is raised if:
+ *   - **DDC**.**tag** is not set.
+ *   - **DDC** is sealed.
+ *   - **DDC**.**perms** does not grant **Permit_Store**.
+ *   - **DDC**.**address** $+$ *rs1* $\lt$ **DDC**.**base**.
+ *   - **DDC**.**address** $+$ *rs1* $+$ *size* $\gt$ **DDC**.**top**.
+ */
 function clause execute (StoreDataDDC(rs2, rs1, width)) = {
   let ddc_val = DDC;
   let vaddr = ddc_val.address + X(rs1);
@@ -1558,6 +1630,19 @@ function clause execute (StoreDataDDC(rs2, rs1, width)) = {
 }
 
 union clause ast = StoreDataCap : (regidx, regidx, word_width)
+/*!
+ * The byte, halfword, word or doubleword located in memory at
+ * *cs1*.**address** is replaced with integer register *rs2*.
+ *
+ * ## Exceptions
+ *
+ * An exception is raised if:
+ *   - *cs1*.**tag** is not set.
+ *   - *cs1* is sealed.
+ *   - *cs1*.**perms** does not grant **Permit_Store**.
+ *   - *cs1*.**address** $\lt$ *cs1*.**base**.
+ *   - *cs1*.**address** $+$ *size* $\gt$ *cs1*.**top**.
+ */
 function clause execute (StoreDataCap(rs2, cs1, width)) = {
   let cs1_val = C(cs1);
   let vaddr = cs1_val.address;
@@ -1610,6 +1695,23 @@ function handle_store_cap_via_cap(cs2, auth_idx, auth_val, vaddrBits) = {
 }
 
 union clause ast = StoreCapDDC : (regidx, regidx)
+/*!
+ * The capability located in memory at **DDC**.**address** $+$ *rs1* is
+ * replaced with capability register *cs2*.
+ *
+ * ## Exceptions
+ *
+ * An exception is raised if:
+ *   - **DDC**.**tag** is not set.
+ *   - **DDC** is sealed.
+ *   - **DDC**.**perms** does not grant **Permit_Store**.
+ *   - **DDC**.**perms** does not grant **Permit_Store_Capability** and
+ *   *cs2*.**tag** is set.
+ *   - **DDC**.**perms** does not grant **Permit_Store_Local_Capability**,
+ *   *cs2*.**tag** is set and *cs2*.**perms** does not grant **Global**.
+ *   - **DDC**.**address** $+$ *rs1* $\lt$ **DDC**.**base**.
+ *   - **DDC**.**address** $+$ *rs1* $+$ **CLEN** $/$ 8 $\gt$ **DDC**.**top**.
+ */
 function clause execute (StoreCapDDC(cs2, rs1)) = {
   let ddc_val = DDC;
   let vaddr = ddc_val.address + X(rs1);
@@ -1617,6 +1719,23 @@ function clause execute (StoreCapDDC(cs2, rs1)) = {
 }
 
 union clause ast = StoreCapCap : (regidx, regidx)
+/*!
+ * The capability located in memory at *cs1*.**address** is replaced with
+ * capability register *cs2*.
+ *
+ * ## Exceptions
+ *
+ * An exception is raised if:
+ *   - *cs1*.**tag** is not set.
+ *   - *cs1* is sealed.
+ *   - *cs1*.**perms** does not grant **Permit_Store**.
+ *   - *cs1*.**perms** does not grant **Permit_Store_Capability** and
+ *   *cs2*.**tag** is set.
+ *   - *cs1*.**perms** does not grant **Permit_Store_Local_Capability**,
+ *   *cs2*.**tag** is set and *cs2*.**perms** does not grant **Global**.
+ *   - *cs1*.**address** $\lt$ *cs1*.**base**.
+ *   - *cs1*.**address** $+$ **CLEN** $\gt$ *cs1*.**top**.
+ */
 function clause execute (StoreCapCap(cs2, cs1)) = {
   let cs1_val = C(cs1);
   let vaddr = cs1_val.address;
@@ -1639,6 +1758,36 @@ function clause execute AUIPCC(imm, cd) = {
 }
 
 union clause ast = LoadCapImm : (regidx, regidx, bits(12))
+/*!
+ * In integer mode, capability register *cd* is replaced with the capability
+ * located in memory at **DDC**.**address** $+$ *rs1* $+$ *imm*, and if
+ * **DDC**.**perms** does not grant **Permit_Load_Capability** then
+ * *cd*.**tag** is cleared. In capability mode, capability register *cd* is
+ * replaced with the capability located in memory at *cs1*.**address** $+$
+ * *imm*, and if *cs1*.**perms** does not grant **Permit_Load_Capability** then
+ * *cd*.**tag** is cleared.
+ *
+ * ## Exceptions
+ *
+ * In integer mode, an exception is raised if:
+ *   - **DDC**.**tag** is not set.
+ *   - **DDC** is sealed.
+ *   - **DDC**.**perms** does not grant **Permit_Load**.
+ *   - **DDC**.**address** $+$ *rs1* $+$ *imm* $\lt$ **DDC**.**base**.
+ *   - **DDC**.**address** $+$ *rs1* $+$ *imm* $+$ **CLEN** $/$ 8 $\gt$
+ *   **DDC**.**top**.
+ *   - **DDC**.**address** $+$ *rs1* $+$ *imm* is unaligned, regardless of
+ *   whether the implementation supports unaligned data accesses.
+ *
+ * In capability mode, an exception is raised if:
+ *   - *cs1*.**tag** is not set.
+ *   - *cs1* is sealed.
+ *   - *cs1*.**perms** does not grant **Permit_Load**.
+ *   - *cs1*.**address** $+$ *imm* $\lt$ *cs1*.**base**.
+ *   - *cs1*.**address** $+$ *imm* $+$ **CLEN** $/$ 8 $\gt$ *cs1*.**top**.
+ *   - *cs1*.**address** $+$ *imm* is unaligned, regardless of whether the
+ *   implementation supports unaligned data accesses.
+ */
 function clause execute LoadCapImm(cd, rs1_cs1, imm) = {
   let offset : xlenbits = EXTS(imm);
   let (auth_val, vaddr, auth_idx) = get_cheri_mode_cap_addr(rs1_cs1, offset);
@@ -1646,6 +1795,37 @@ function clause execute LoadCapImm(cd, rs1_cs1, imm) = {
 }
 
 union clause ast = StoreCapImm : (regidx, regidx, bits(12))
+/*!
+ * In integer mode, the capability located in memory at **DDC**.**address** $+$
+ * *rs1* $+$ *imm* is replaced with capability register *cs2*. In capability
+ * mode, the capability located in memory at *cs1*.**address** $+$ *imm* is
+ * replaced with capability register *cs2*.
+ *
+ * ## Exceptions
+ *
+ * In integer mode, an exception is raised if:
+ *   - **DDC**.**tag** is not set.
+ *   - **DDC** is sealed.
+ *   - **DDC**.**perms** does not grant **Permit_Store**.
+ *   - **DDC**.**perms** does not grant **Permit_Store_Capability** and
+ *   *cs2*.**tag** is set.
+ *   - **DDC**.**perms** does not grant **Permit_Store_Local_Capability**,
+ *   *cs2*.**tag** is set and *cs2*.**perms** does not grant **Global**.
+ *   - **DDC**.**address** $+$ *rs1* $+$ *imm* $\lt$ **DDC**.**base**.
+ *   - **DDC**.**address** $+$ *rs1* $+$ *imm* $+$ **CLEN** $/$ 8 $\gt$
+ *   **DDC**.**top**.
+ *
+ * In capability mode, an exception is raised if:
+ *   - *cs1*.**tag** is not set.
+ *   - *cs1* is sealed.
+ *   - *cs1*.**perms** does not grant **Permit_Store**.
+ *   - *cs1*.**perms** does not grant **Permit_Store_Capability** and
+ *   *cs2*.**tag** is set.
+ *   - *cs1*.**perms** does not grant **Permit_Store_Local_Capability**,
+ *   *cs2*.**tag** is set and *cs2*.**perms** does not grant **Global**.
+ *   - *cs1*.**address** $+$ *imm* $\lt$ *cs1*.**base**.
+ *   - *cs1*.**address** $+$ *imm* $+$ **CLEN** $/$ 8 $\gt$ *cs1*.**top**.
+ */
 function clause execute StoreCapImm(cs2, rs1_cs1, imm) = {
   let offset : xlenbits = EXTS(imm);
   let (auth_val, vaddr, auth_idx) = get_cheri_mode_cap_addr(rs1_cs1, offset);
