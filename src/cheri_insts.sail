@@ -109,9 +109,9 @@ function clause execute (CGetOffset(rd, cs1)) = {
  *
  * ## Notes
  *
- * Due to the compressed representation of capabilities, the actual length
- * of capabilities can be $2^{[{xlen}][xlen]}$; [CGetLen] will return the maximum
- * value of $2^{[{xlen}][xlen]}-1$ in this case.
+ * - Due to the compressed representation of capabilities, the actual length
+ *   of capabilities can be $2^{[{xlen}][xlen]}$; [CGetLen] will return the
+ *   maximum value of $2^{[{xlen}][xlen]}-1$ in this case.
  */
 function clause execute (CGetLen(rd, cs1)) = {
   let capVal = C(cs1);
@@ -167,13 +167,13 @@ union clause ast = CSpecialRW : (regidx, screg, regidx)
  *
  * ## Notes
  *
- * Writing **NULL** to a special capability register cannot be done with **C0**
- * as that only performs a read. An alternative implementation would allocate a
- * separate two-operand CSpecialR instruction and interpret *cs1* being **C0**
- * as a write of **NULL** if the need to use a temporary capability register
- * proves to be overly problematic for software. For U-mode transitions to
- * domains without **Permit_Access_System_Registers** only **DDC** should need
- * clearing, which can be done with [CClear].
+ * - Writing **NULL** to a special capability register cannot be done with **C0**
+ *   as that only performs a read. An alternative implementation would allocate
+ *   a separate two-operand CSpecialR instruction and interpret *cs1* being
+ *   **C0** as a write of **NULL** if the need to use a temporary capability
+ *   register proves to be overly problematic for software. For U-mode
+ *   transitions to domains without **Permit_Access_System_Registers** only
+ *   **DDC** should need clearing, which can be done with [CClear].
  */
 function clause execute (CSpecialRW(cd, scr, cs1)) = {
   let (specialExists, ro, priv, needASR) : (bool, bool, Privilege, bool) = match unsigned(scr) {
@@ -316,8 +316,8 @@ union clause ast = CToPtr : (regidx, regidx, regidx)
  *
  * ## Notes
  *
- *   - *cs2* being sealed will not cause an exception to be raised. This is for
- *     further study.
+ * - *cs2* being sealed will not cause an exception to be raised. This is for
+ *   further study.
  */
 function clause execute(CToPtr(rd, cs1, cs2)) = {
   let cs2_val = if unsigned(cs2) == 0 then DDC else C(cs2);
@@ -616,11 +616,11 @@ union clause ast = Clear : (bits(2), bits(8))
  *
  * ## Notes
  *
- * This instruction is designed to accelerate the register clearing that is
- * required for secure domain transitions. It is expected that it can be
- * implemented efficiently in hardware using a single \`valid' bit per register
- * that is cleared by this instruction and set on any subsequent write to the
- * register.
+ * - This instruction is designed to accelerate the register clearing that is
+ *   required for secure domain transitions. It is expected that it can be
+ *   implemented efficiently in hardware using a single \`valid' bit per
+ *   register that is cleared by this instruction and set on any subsequent
+ *   write to the register.
  */
 function clause execute (Clear(q, m)) = {
   let q_u = unsigned(q);
@@ -638,11 +638,11 @@ union clause ast = CClear : (bits(2), bits(8))
  *
  * ## Notes
  *
- * This instruction is designed to accelerate the register clearing that is
- * required for secure domain transitions. It is expected that it can be
- * implemented efficiently in hardware using a single \`valid' bit per register
- * that is cleared by this instruction and set on any subsequent write to the
- * register.
+ * - This instruction is designed to accelerate the register clearing that is
+ *   required for secure domain transitions. It is expected that it can be
+ *   implemented efficiently in hardware using a single \`valid' bit per
+ *   register that is cleared by this instruction and set on any subsequent
+ *   write to the register.
  */
 function clause execute (CClear(q, m)) = {
   let q_u = unsigned(q);
@@ -662,15 +662,15 @@ union clause ast = FPClear : (bits(2), bits(8))
  *
  * ## Notes
  *
- * This instruction is designed to accelerate the register clearing that is
- * required for secure domain transitions. It is expected that it can be
- * implemented efficiently in hardware using a single \`valid' bit per register
- * that is cleared by this instruction and set on any subsequent write to the
- * register.
+ * - This instruction is designed to accelerate the register clearing that is
+ *   required for secure domain transitions. It is expected that it can be
+ *   implemented efficiently in hardware using a single \`valid' bit per
+ *   register that is cleared by this instruction and set on any subsequent
+ *   write to the register.
  *
- * The 0 value written is FLEN bits wide, the largest supported by the
- * implementation, such that the in-memory representation of the register is 0,
- * rather than a NaN-boxed narrower value.
+ * - The 0 value written is FLEN bits wide, the largest supported by the
+ *   implementation, such that the in-memory representation of the register is
+ *   0, rather than a NaN-boxed narrower value.
  */
 function clause execute (FPClear(q, m)) = {
   if haveFExt() then {
@@ -743,9 +743,10 @@ union clause ast = CBuildCap : (regidx, regidx, regidx)
  *
  * ## Notes
  *
- * Implementations may instead choose to set *cd* to *cs2* with its **tag** set
- * after performing all checks, but the specification derives the result from
- * *cs1* in order to convey the provenance associated with this operation.
+ * - Implementations may instead choose to set *cd* to *cs2* with its **tag**
+ *   set after performing all checks, but the specification derives the result
+ *   from *cs1* in order to convey the provenance associated with this
+ *   operation.
  */
 function clause execute (CBuildCap(cd, cs1, cs2)) = {
   let cs1_val = if unsigned(cs1) == 0 then DDC else C(cs1);
@@ -805,10 +806,10 @@ union clause ast = CCopyType : (regidx, regidx, regidx)
  *
  * ## Notes
  *
- * Reserved otypes always get turned into derived-from-**NULL** capabilities,
- * regardless of the authority given in *cs1*, as, at the moment, all reserved
- * otypes are constructed using ambiently-available actions. [CCSeal] knows how
- * to work with these.
+ * - Reserved otypes always get turned into derived-from-**NULL** capabilities,
+ *   regardless of the authority given in *cs1*, as, at the moment, all
+ *   reserved otypes are constructed using ambiently-available actions.
+ *   [CCSeal] knows how to work with these.
  */
 function clause execute (CCopyType(cd, cs1, cs2)) = {
   let cs1_val = C(cs1);
@@ -1163,13 +1164,13 @@ union clause ast = CInvoke : (regidx, regidx)
  *
  * ## Notes
  *
- * From the point of view of security, this needs to be an atomic operation
- * (i.e. the caller cannot decide to just do some of it, because partial
- * execution could put the system into an insecure state). From a hardware
- * perspective, more complex domain-transition implementations (e.g., to
- * implement function-call semantics or message passing) may need to perform
- * multiple memory reads and writes, which might take multiple cycles and
- * complicate control logic.
+ * - From the point of view of security, this needs to be an atomic operation
+ *   (i.e. the caller cannot decide to just do some of it, because partial
+ *   execution could put the system into an insecure state). From a hardware
+ *   perspective, more complex domain-transition implementations (e.g., to
+ *   implement function-call semantics or message passing) may need to perform
+ *   multiple memory reads and writes, which might take multiple cycles and
+ *   complicate control logic.
  */
 function clause execute (CInvoke(cs1, cs2)) = {
   let cs1_val = C(cs1);
