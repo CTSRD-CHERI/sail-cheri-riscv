@@ -1399,7 +1399,7 @@ union clause ast = LoadCapDDC : (regidx, regidx)
  *   - **DDC**.**address** $+$ *rs1* $\lt$ **DDC**.**base**.
  *   - **DDC**.**address** $+$ *rs1* $+$ **CLEN** $/$ 8 $\gt$ **DDC**.**top**.
  *   - **DDC**.**address** $+$ *rs1* is unaligned, regardless of whether the
- *   implementation supports unaligned data accesses.
+ *     implementation supports unaligned data accesses.
  */
 function clause execute (LoadCapDDC(cd, rs1)) = {
   let ddc_val = DDC;
@@ -1422,7 +1422,7 @@ union clause ast = LoadCapCap : (regidx, regidx)
  *   - *cs1*.**address** $\lt$ *cs1*.**base**.
  *   - *cs1*.**address** $+$ **CLEN** $/$ 8 $\gt$ *cs1*.**top**.
  *   - *cs1*.**address** is unaligned, regardless of whether the implementation
- *   supports unaligned data accesses.
+ *     supports unaligned data accesses.
  */
 function clause execute (LoadCapCap(cd, cs1)) = {
   let cs1_val = C(cs1);
@@ -1707,9 +1707,9 @@ union clause ast = StoreCapDDC : (regidx, regidx)
  *   - **DDC** is sealed.
  *   - **DDC**.**perms** does not grant **Permit_Store**.
  *   - **DDC**.**perms** does not grant **Permit_Store_Capability** and
- *   *cs2*.**tag** is set.
+ *     *cs2*.**tag** is set.
  *   - **DDC**.**perms** does not grant **Permit_Store_Local_Capability**,
- *   *cs2*.**tag** is set and *cs2*.**perms** does not grant **Global**.
+ *     *cs2*.**tag** is set and *cs2*.**perms** does not grant **Global**.
  *   - **DDC**.**address** $+$ *rs1* $\lt$ **DDC**.**base**.
  *   - **DDC**.**address** $+$ *rs1* $+$ **CLEN** $/$ 8 $\gt$ **DDC**.**top**.
  */
@@ -1731,9 +1731,9 @@ union clause ast = StoreCapCap : (regidx, regidx)
  *   - *cs1* is sealed.
  *   - *cs1*.**perms** does not grant **Permit_Store**.
  *   - *cs1*.**perms** does not grant **Permit_Store_Capability** and
- *   *cs2*.**tag** is set.
+ *     *cs2*.**tag** is set.
  *   - *cs1*.**perms** does not grant **Permit_Store_Local_Capability**,
- *   *cs2*.**tag** is set and *cs2*.**perms** does not grant **Global**.
+ *     *cs2*.**tag** is set and *cs2*.**perms** does not grant **Global**.
  *   - *cs1*.**address** $\lt$ *cs1*.**base**.
  *   - *cs1*.**address** $+$ **CLEN** $\gt$ *cs1*.**top**.
  */
@@ -1776,9 +1776,9 @@ union clause ast = LoadCapImm : (regidx, regidx, bits(12))
  *   - **DDC**.**perms** does not grant **Permit_Load**.
  *   - **DDC**.**address** $+$ *rs1* $+$ *imm* $\lt$ **DDC**.**base**.
  *   - **DDC**.**address** $+$ *rs1* $+$ *imm* $+$ **CLEN** $/$ 8 $\gt$
- *   **DDC**.**top**.
+ *     **DDC**.**top**.
  *   - **DDC**.**address** $+$ *rs1* $+$ *imm* is unaligned, regardless of
- *   whether the implementation supports unaligned data accesses.
+ *     whether the implementation supports unaligned data accesses.
  *
  * In capability mode, an exception is raised if:
  *   - *cs1*.**tag** is not set.
@@ -1787,7 +1787,7 @@ union clause ast = LoadCapImm : (regidx, regidx, bits(12))
  *   - *cs1*.**address** $+$ *imm* $\lt$ *cs1*.**base**.
  *   - *cs1*.**address** $+$ *imm* $+$ **CLEN** $/$ 8 $\gt$ *cs1*.**top**.
  *   - *cs1*.**address** $+$ *imm* is unaligned, regardless of whether the
- *   implementation supports unaligned data accesses.
+ *     implementation supports unaligned data accesses.
  */
 function clause execute LoadCapImm(cd, rs1_cs1, imm) = {
   let offset : xlenbits = EXTS(imm);
@@ -1809,21 +1809,21 @@ union clause ast = StoreCapImm : (regidx, regidx, bits(12))
  *   - **DDC** is sealed.
  *   - **DDC**.**perms** does not grant **Permit_Store**.
  *   - **DDC**.**perms** does not grant **Permit_Store_Capability** and
- *   *cs2*.**tag** is set.
+ *     *cs2*.**tag** is set.
  *   - **DDC**.**perms** does not grant **Permit_Store_Local_Capability**,
- *   *cs2*.**tag** is set and *cs2*.**perms** does not grant **Global**.
+ *     *cs2*.**tag** is set and *cs2*.**perms** does not grant **Global**.
  *   - **DDC**.**address** $+$ *rs1* $+$ *imm* $\lt$ **DDC**.**base**.
  *   - **DDC**.**address** $+$ *rs1* $+$ *imm* $+$ **CLEN** $/$ 8 $\gt$
- *   **DDC**.**top**.
+ *     **DDC**.**top**.
  *
  * In capability mode, an exception is raised if:
  *   - *cs1*.**tag** is not set.
  *   - *cs1* is sealed.
  *   - *cs1*.**perms** does not grant **Permit_Store**.
  *   - *cs1*.**perms** does not grant **Permit_Store_Capability** and
- *   *cs2*.**tag** is set.
+ *     *cs2*.**tag** is set.
  *   - *cs1*.**perms** does not grant **Permit_Store_Local_Capability**,
- *   *cs2*.**tag** is set and *cs2*.**perms** does not grant **Global**.
+ *     *cs2*.**tag** is set and *cs2*.**perms** does not grant **Global**.
  *   - *cs1*.**address** $+$ *imm* $\lt$ *cs1*.**base**.
  *   - *cs1*.**address** $+$ *imm* $+$ **CLEN** $/$ 8 $\gt$ *cs1*.**top**.
  */
