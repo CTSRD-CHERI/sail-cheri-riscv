@@ -842,8 +842,8 @@ function clause execute (CCopyType(cd, cs1, cs2)) = {
 union clause ast = CRRL : (regidx, regidx)
 /*!
  * Integer register *rd* is set to the smallest value greater or equal to *rs1*
- * that can be used as a length to set precise bounds on a capability that has a suitably
- * aligned base.
+ * that can be used as a length to set exact bounds on a capability that has a
+ * suitably aligned base (as obtained with the help of [CRAM]).
  */
 function clause execute(CRRL(rd, rs1)) = {
   let len = X(rs1);
@@ -854,8 +854,8 @@ function clause execute(CRRL(rd, rs1)) = {
 union clause ast = CRAM : (regidx, regidx)
 /*!
  * Integer register *rd* is set to a mask that can be used to round addresses
- * down to to a value that is sufficiently aligned to set precise bounds for
- * the nearest representable length of *rs1* (as obtained by [CRRL]).
+ * down to to a value that is sufficiently aligned to set exact bounds for the
+ * nearest representable length of *rs1* (as obtained by [CRRL]).
  */
 function clause execute(CRAM(rd, rs1)) = {
   let len = X(rs1);
