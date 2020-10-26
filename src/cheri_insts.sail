@@ -1430,6 +1430,109 @@ function clause execute (LoadCapCap(cd, cs1)) = {
   handle_load_cap_via_cap(cd, 0b0 @ cs1, cs1_val, vaddr)
 }
 
+union clause ast = CLoadTags : (regidx, regidx)
+/*
+ * XXX: [LC] should be [LC](LoadCapImm) but that syntax does not generate
+ * valspec links, it always uses the argument literally.
+ */
+/*!
+ * Integer register *rd* is replaced with the tags of the capabilities located
+ * in memory at and above *cs1*.**address**. The 0th bit corresponds to the
+ * first capability in memory. The result is coherent with other processors, as
+ * if the corresponding data words had also been loaded. The number of tags
+ * loaded is implementation-defined; typical implementations are expected to
+ * return the tags held in an L1 cache line, and so we use the constant
+ * [caps_per_cache_line]. The number of tags loaded must be a power of two, at
+ * least 1, and no more than **XLEN**.
+ *
+ * ## Exceptions
+ *
+ * An exception is raised if:
+ *   - *cs1*.**tag** is not set.
+ *   - *cs1* is sealed.
+ *   - *cs1*.**perms** does not grant both **Permit_Load** and
+ *     **Permit_Load_Capability**.
+ *   - *cs1*.**address** $\lt$ *cs1*.**base**.
+ *   - *cs1*.**address** $+$ [caps_per_cache_line] $\times$ **CLEN** $/$ 8
+ *     $\gt$ *cs1*.**top**.
+ *   - *cs1*.**address** is unaligned.
+ *   - The page table entry for *cs1*.**address** would cause the tag to be
+ *     cleared.
+ *
+ * ## Notes
+ *
+ * - In order to reduce DRAM traffic, implementations may choose to load only
+ *   the tags and not the corresponding data, and may wish to not evict other
+ *   cache lines by treating it as a non-temporal/streaming load.
+ *
+ * - Software can easily discover the number of tags loaded by an
+ *   implementation by storing a series of **XLEN** capabilities to an aligned
+ *   array and performing a [CLoadTags] operation. This need only be done once.
+ *
+ * - For heterogeneous multi-core or multi-processor systems, all cores must
+ *   return the same number of tags, which will often be based on the smallest
+ *   cache line size in the system.
+ *
+ * - Unlike [LC], this instuction traps if tags will always be unset due to
+ *   lacking **Permit_Load_Capability** or page table entry permissions, since
+ *   that is likely indicative of a software bug that could lead to temporal
+ *   safety vulnerabilities if capabilities are erroneously missed.
+ */
+function clause execute (CLoadTags(rd, cs1)) = {
+  let cs1_val = C(cs1);
+  let vaddr = cs1_val.address;
+  let aq : bool = false;
+  let rl : bool = false;
+  if not (cs1_val.tag) then {
+    handle_cheri_reg_exception(CapEx_TagViolation, cs1);
+    RETIRE_FAIL
+  } else if isCapSealed(cs1_val) then {
+    handle_cheri_reg_exception(CapEx_SealViolation, cs1);
+    RETIRE_FAIL
+  } else if not (cs1_val.permit_load) then {
+    handle_cheri_reg_exception(CapEx_PermitLoadViolation, cs1);
+    RETIRE_FAIL
+  } else if not (cs1_val.permit_load_cap) then {
+    handle_cheri_reg_exception(CapEx_PermitLoadCapViolation, cs1);
+    RETIRE_FAIL
+  } else if not (inCapBounds(cs1_val, vaddr, caps_per_cache_line * cap_size)) then {
+    handle_cheri_reg_exception(CapEx_LengthViolation, cs1);
+    RETIRE_FAIL
+  } else if not (unsigned(vaddr) % (caps_per_cache_line * cap_size) == 0) then {
+    handle_mem_exception(vaddr, E_Load_Addr_Align());
+    RETIRE_FAIL
+  } else match translateAddr(vaddr, Read(Cap)) {
+    TR_Failure(E_Extension(_), _) => { internal_error("unexpected cheri exception for tags load") },
+    TR_Failure(e, _) => { handle_mem_exception(vaddr, e); RETIRE_FAIL },
+    TR_Address(addr, ptw_info) => {
+      if ptw_info.ptw_lc != PTW_LC_OK then {
+        handle_mem_exception(vaddr, E_Extension(EXC_LOAD_CAP_PAGE_FAULT));
+        RETIRE_FAIL
+      } else {
+        mtags : MemoryOpResult(bits(caps_per_cache_line)) = MemValue(zeros());
+
+        foreach (i from 0 to (caps_per_cache_line - 1)) {
+          match mtags {
+            MemException(_) => (),
+            MemValue(tags) => {
+              match mem_read_cap(addr + i * cap_size, aq, rl, false) {
+                MemException(e) => mtags = MemException(e),
+                MemValue(v) =>
+                  mtags = MemValue([tags with i = bool_to_bit(v.tag)])
+              }
+            }
+          }
+        };
+
+        match mtags {
+          MemException(e) => { handle_mem_exception(vaddr, e); RETIRE_FAIL },
+          MemValue(v) => { X(rd) = EXTZ(v); RETIRE_SUCCESS }
+        }
+      }
+    }
+  }
+}
+
 /* avoid platform checks for reservation address misalignment */
 function check_res_misaligned(vaddr : xlenbits, width : word_width) -> bool =
   match width {
@@ -2045,6 +2148,8 @@ mapping clause encdec = CClearTag(cd, cs1)  if (haveXcheri()) <-> 0b1111111 @ 0b
 mapping clause encdec = CJALR(cd, cs1)      if (haveXcheri()) <-> 0b1111111 @ 0b01100 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CSealEntry(cd, cs1) if (haveXcheri()) <-> 0b1111111 @ 0b10001 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
 
+mapping clause encdec = CLoadTags(rd, cs1) if (haveXcheri()) <-> 0b1111111 @ 0b10010 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
+
 mapping clause encdec = CRRL(rd, rs1) if (haveXcheri()) <-> 0b1111111 @ 0b01000 @ rs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CRAM(rd, rs1) if (haveXcheri()) <-> 0b1111111 @ 0b01001 @ rs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 
@@ -2067,6 +2172,8 @@ mapping clause assembly = CClearTag(cd, cs1)  <-> "ccleartag"  ^ spc() ^ cap_reg
 mapping clause assembly = CJALR(0b00000, cs1) <-> "cjr"        ^ spc() ^ cap_reg_name(cs1)
 mapping clause assembly = CJALR(cd, cs1)      <-> "cjalr"      ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1)
 mapping clause assembly = CSealEntry(cd, cs1) <-> "csealentry" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1)
+
+mapping clause assembly = CLoadTags(rd, cs1) <-> "cloadtags" ^ spc() ^ reg_name(rd) ^ sep() ^ "(" ^ cap_reg_name(cs1) ^ ")"
 
 mapping clause assembly = CRRL(rd, rs1) <-> "crrl" ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1)
 mapping clause assembly = CRAM(rd, rs1) <-> "cram" ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1)

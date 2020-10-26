@@ -52,6 +52,10 @@ let  cap_len_width  = sizeof(cap_len_width)
 type cap_mantissa_width : Int = 8
 let cap_mantissa_width = sizeof(cap_mantissa_width)
 
+/* For CLoadTags and CClearTags, which operate at cache line granularity */
+type caps_per_cache_line : Int = 8
+let  caps_per_cache_line = sizeof(caps_per_cache_line)
+
 let MAX_ADDR = MAX(cap_addr_width)
 type CapAddrInt = range(0, (2 ^ cap_addr_width) - 1)
 type CapLen = range(0, 2 ^ 33) /* XXX sail can't handle if this is expressed as cap_len_width */
