@@ -252,7 +252,7 @@ union clause ast = CAndPerm : (regidx, regidx, regidx)
  * register *cs1* with the **perms** field set to the bitwise and of its
  * previous value and bits 0 to [cap_hperms_width]-1 of integer register *rs2*
  * and the **uperms** field set to the bitwise and of its previous value and
- * bits [cap_uperms_shift] to [cap_uperms_shift]+[cap_uperms_width]-1 of *rd*.
+ * bits [cap_uperms_shift] to [cap_uperms_shift]+[cap_uperms_width]-1 of *rs2*.
  *
  * ## Exceptions
  *
