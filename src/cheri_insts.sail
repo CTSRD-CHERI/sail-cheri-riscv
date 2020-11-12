@@ -1495,11 +1495,25 @@ function handle_load_cap_via_cap(cd, auth_idx, auth_val, vaddrBits) = {
       let c = mem_read_cap(addr, aq, aq & rl, false);
       match c {
         MemValue(v) => {
-          let cr = if ptw_info.ptw_lc == PTW_LC_CLEAR
-                   then {v with tag = false} /* strip the tag */
-                   else {v with tag = v.tag & auth_val.permit_load_cap};
-          C(cd) = cr;
-          RETIRE_SUCCESS
+          match ptw_info.ptw_lc {
+            PTW_LC_OK => {
+              C(cd) = { v with tag = v.tag & auth_val.permit_load_cap };
+              RETIRE_SUCCESS
+            },
+            PTW_LC_CLEAR => {
+              C(cd) = { v with tag = false };
+              RETIRE_SUCCESS
+            },
+            PTW_LC_TRAP  => {
+              if v.tag then {
+                handle_mem_exception(vaddrBits, E_Extension(EXC_LOAD_CAP_PAGE_FAULT));
+                RETIRE_FAIL
+              } else {
+                C(cd) = v;
+                RETIRE_SUCCESS
+              }
+            }
+          }
         },
         MemException(e) => {handle_mem_exception(vaddrBits, e); RETIRE_FAIL }
       }
@@ -1724,15 +1738,28 @@ if not(auth_val.tag) then {
       let c = mem_read_cap(addr, aq, aq & rl, false);
       match c {
         MemValue(v) => {
-          let cr = if ptw_info.ptw_lc == PTW_LC_CLEAR
-                   then {v with tag = false} /* strip the tag */
-                   else {
-                     /* the Sail model currently reserves virtual addresses */
-                     load_reservation(addr);
-                     {v with tag = v.tag & auth_val.permit_load_cap}
-                   };
-          C(cd) = cr;
-          RETIRE_SUCCESS
+          match ptw_info.ptw_lc {
+            PTW_LC_OK => {
+              load_reservation(addr);
+              C(cd) = { v with tag = v.tag & auth_val.permit_load_cap };
+              RETIRE_SUCCESS
+            },
+            PTW_LC_CLEAR => {
+              load_reservation(addr);
+              C(cd) = { v with tag = false };
+              RETIRE_SUCCESS
+            },
+            PTW_LC_TRAP  => {
+              if v.tag then {
+                handle_mem_exception(vaddrBits, E_Extension(EXC_LOAD_CAP_PAGE_FAULT));
+                RETIRE_FAIL
+              } else {
+                load_reservation(addr);
+                C(cd) = v;
+                RETIRE_SUCCESS
+              }
+            }
+          }
         },
         MemException(e) => {handle_mem_exception(vaddrBits, e); RETIRE_FAIL }
       }

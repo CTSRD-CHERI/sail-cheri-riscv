@@ -65,6 +65,8 @@
 /* Capability control csr */
 
 bitfield ccsr : xlenbits = {
+  ugclg   :  3,      /* Global Cap Load Gen bit for User pages */
+  sgclg   :  2,      /* Global Cap Load Gen bit for System (not User) pages */
   d       :  1,      /* dirty  */
   e       :  0       /* enable */
 }
@@ -78,6 +80,20 @@ register uccsr : ccsr
 function legalize_ccsr(csrp : Privilege, c : ccsr, v : xlenbits) -> ccsr = {
   // write only the defined bits, leaving the other bits untouched
   let v = Mk_ccsr(v);
+
+  let c : ccsr = match csrp {
+    User => {
+      // No bits defined for uccsr
+      c
+    },
+    _ => {
+      // GCLG bits defined for both m- and s-ccsr
+      let c = update_ugclg(c, v.ugclg());
+      let c = update_sgclg(c, v.sgclg());
+      c
+    }
+  };
+
   /* For now these bits are not really supported so hardwired to true */
   let c = update_d(c, 0b1);
   let c = update_e(c, 0b1);
