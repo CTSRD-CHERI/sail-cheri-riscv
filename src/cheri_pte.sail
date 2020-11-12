@@ -16,23 +16,39 @@ bitfield PTE_Bits : pteAttribs = {
 /*
  * Reserved PTE bits used by extensions on RV64.
  *
- * There are no such bits on RV32/SV32, so we hard-code both CapWrite=1
- * and CapRead=1 (i.e., there is no ability to disable capability loads
- * from or stores to pages in the SV32 MMU).
+ * For capability store the behaviors are as follows.
+ *
+ *   CW  CD  Action
+ *
+ *    0   X    Trap on tagged capability store
+ *    1   0    CAS the PTE to CW=1, CD=1 (i.e., set both bits) or trap
+ *    1   1    Permit tagged capability store
+ *
+ * The CW/CD pair is akin to Sv{32,48,...}'s W/D bits.
+ *
+ * The CW=1 CD=0 behavior is described as a CAS (and not an AMO OR) of the PTE
+ * to close race conditions, much as with W and D.  Should the TLB have this
+ * state cached and then observe a CW=1 CD=1 PTE, no PTE write is necessary.
+ * On the other hand, if CW=0 is observed, the store operation must trap.
+ *
+ * SV32: There are no extension bits available, so we hard-code the result to
+ * CW=1 CR=1 CD=1.
  */
 type extPte = bits(10)
 
 bitfield Ext_PTE_Bits : extPte = {
   CapWrite     : 9, /* Permit capability stores */
   CapRead      : 8, /* Permit capability loads */
+  CapDirty     : 7, /* Capability Dirty flag */
 }
 
 /*
  * CapWrite     = 1,
  * CapRead      = 1,
- * bits 0 .. 7  = 0
+ * CapDirty     = 1,
+ * bits 0 .. 6  = 0
  */
-let default_sv32_ext_pte : extPte = 0b1100000000
+let default_sv32_ext_pte : extPte = 0b1110000000
 
 function isPTEPtr(p : pteAttribs, ext : extPte) -> bool = {
   let a = Mk_PTE_Bits(p);
@@ -114,9 +130,21 @@ function update_PTE_Bits(p : PTE_Bits, a : AccessType(ext_access_type), ext : ex
   // accessed bit
   let update_a = p.A() == 0b0;
 
-  if update_d | update_a then {
+  let pte_ext = Mk_Ext_PTE_Bits(ext);
+
+  // store cap bits
+  let update_cd = pte_ext.CapWrite() == 0b1 &
+                  pte_ext.CapDirty() == 0b0 &
+                  (match a {
+                    Write(Cap)        => true,
+                    ReadWrite(_, Cap) => true,
+                    _                 => false
+                  });
+
+  if update_d | update_a | update_cd then {
     let np = update_A(p, 0b1);
     let np = if update_d then update_D(np, 0b1) else np;
-    Some(np, ext)
+    let npte_ext = if update_cd then update_CapDirty(pte_ext, 0b1) else pte_ext;
+    Some(np, npte_ext.bits())
   } else None()
 }
