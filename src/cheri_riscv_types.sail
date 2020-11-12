@@ -13,17 +13,8 @@ enum ext_ptw_lc = {
   PTW_LC_CLEAR
 }
 
-enum ext_ptw_sc = {
-  /* Tag stores are permitted */
-  PTW_SC_OK,
-
-  /* Tag-asserting stores trap */
-  PTW_SC_TRAP
-}
-
 struct ext_ptw = {
-  ptw_lc : ext_ptw_lc,
-  ptw_sc : ext_ptw_sc
+  ptw_lc : ext_ptw_lc
 }
 
 function ext_ptw_lc_join(e : ext_ptw, l : ext_ptw_lc) -> ext_ptw =
@@ -34,18 +25,9 @@ function ext_ptw_lc_join(e : ext_ptw, l : ext_ptw_lc) -> ext_ptw =
       }
   }
 
-function ext_ptw_sc_join(e : ext_ptw, s : ext_ptw_sc) -> ext_ptw =
-  { e with ptw_sc =
-      match s {
-        PTW_SC_OK => e.ptw_sc,
-        PTW_SC_TRAP => s
-      }
-  }
-
 /* initial value of the PTW accumulator */
 let init_ext_ptw : ext_ptw = struct {
-  ptw_lc = PTW_LC_OK,
-  ptw_sc = PTW_SC_OK
+  ptw_lc = PTW_LC_OK
 }
 
 /* Address translation failures */

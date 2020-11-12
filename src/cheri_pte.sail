@@ -65,6 +65,14 @@ union PTE_Check = {
   PTE_Check_Failure : (ext_ptw, ext_ptw_fail)
 }
 
+/* Gate Cap-transporting stores on the CapWrite PTE bit */
+val checkPTEPermission_SC : (Ext_PTE_Bits, ext_ptw) -> PTE_Check effect { rreg }
+function checkPTEPermission_SC(e, ext_ptw) = {
+  if   e.CapWrite() == 0b1
+  then PTE_Check_Success(ext_ptw)
+  else PTE_Check_Failure(ext_ptw, EPTWF_CAP_ERR)
+}
+
 function checkPTEPermission(ac : AccessType(ext_access_type), priv : Privilege, mxr : bool, do_sum : bool, p : PTE_Bits, ext : extPte, ext_ptw : ext_ptw) -> PTE_Check = {
   /*
    * Although in many cases MXR doesn't make sense for capabilities, we honour
@@ -78,7 +86,7 @@ function checkPTEPermission(ac : AccessType(ext_access_type), priv : Privilege, 
    *
    * 3. It's simpler to implement yet still safe (LC is unaffected by MXR).
    */
-  let base_succ : bool =
+  let succ : bool =
   match (ac, priv) {
     (Read(_),      User)       => p.U() == 0b1 & (p.R() == 0b1 | (p.X() == 0b1 & mxr)),
     (Write(_),     User)       => p.U() == 0b1 & p.W() == 0b1,
@@ -93,29 +101,43 @@ function checkPTEPermission(ac : AccessType(ext_access_type), priv : Privilege, 
     (_,            Machine)    => internal_error("m-mode mem perm check")
   };
 
+  let res =
+    if   succ
+    then PTE_Check_Success(ext_ptw)
+    else PTE_Check_Failure(ext_ptw, EPTWF_NO_PERM);
+
   let e = Mk_Ext_PTE_Bits(ext);
-  let ptw_lc = if e.CapRead()  == 0b1 then PTW_LC_OK else PTW_LC_CLEAR;
-  let ptw_sc = if e.CapWrite() == 0b1 then PTW_SC_OK else PTW_SC_TRAP;
-  let (succ, ext_ptw') : (bool, ext_ptw) =
-  match (base_succ, ac) {
-    /* Base translation exceptions take priority over CHERI exceptions */
-    (false, _)                     => (false, init_ext_ptw),
 
-    (true,  Read(Cap))             => (true, ext_ptw_lc_join(ext_ptw, ptw_lc)),
-    (true,  Write(Cap))            => (true, ext_ptw_sc_join(ext_ptw, ptw_sc)),
-    (true,  ReadWrite(Data, Cap))  => (true, ext_ptw_sc_join(ext_ptw, ptw_sc)),
-    (true,  ReadWrite(Cap, Data))  => (true, ext_ptw_lc_join(ext_ptw, ptw_lc)),
-    (true,  ReadWrite(Cap, Cap))   => (true, ext_ptw_sc_join(ext_ptw_lc_join(ext_ptw, ptw_lc), ptw_sc)),
+  /* Store side */
+  let res : PTE_Check = match res {
+    PTE_Check_Failure(_, _) => res,
+    PTE_Check_Success(ext_ptw) => match ac {
+      Execute()          => res,
+      Read(_)            => res,
+      Write(Data)        => res,
+      ReadWrite(_, Data) => res,
 
-    (true,  Read(Data))            => (true, ext_ptw),
-    (true,  Write(Data))           => (true, ext_ptw),
-    (true,  ReadWrite(Data, Data)) => (true, ext_ptw),
-    (true,  Execute())             => (true, ext_ptw)
+      Write(Cap)         => checkPTEPermission_SC(e, ext_ptw),
+      ReadWrite(_, Cap)  => checkPTEPermission_SC(e, ext_ptw)
+    }
   };
 
-  if succ
-  then PTE_Check_Success(ext_ptw')
-  else PTE_Check_Failure(ext_ptw', if ext_ptw'.ptw_sc == PTW_SC_TRAP then EPTWF_CAP_ERR else EPTWF_NO_PERM)
+  /* Load side */
+  let ptw_lc = if e.CapRead()  == 0b1 then PTW_LC_OK else PTW_LC_CLEAR;
+  let res : PTE_Check = match res {
+    PTE_Check_Failure(_, _) => res,
+    PTE_Check_Success(ext_ptw) => match ac {
+      Execute()          => res,
+      Read(Data)         => res,
+      Write(_)           => res,
+      ReadWrite(Data, _) => res,
+
+      Read(Cap)          => PTE_Check_Success(ext_ptw_lc_join(ext_ptw, ptw_lc)),
+      ReadWrite(Cap, _)  => PTE_Check_Success(ext_ptw_lc_join(ext_ptw, ptw_lc))
+    }
+  };
+
+  res
 }
 
 function update_PTE_Bits(p : PTE_Bits, a : AccessType(ext_access_type), ext : extPte) -> option((PTE_Bits, extPte)) = {
