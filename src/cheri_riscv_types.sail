@@ -10,7 +10,10 @@ enum ext_ptw_lc = {
   PTW_LC_OK,
 
   /* PTE settings require clearing tags */
-  PTW_LC_CLEAR
+  PTW_LC_CLEAR,
+
+  /* PTE settings require us to trap */
+  PTW_LC_TRAP
 }
 
 struct ext_ptw = {
@@ -21,7 +24,12 @@ function ext_ptw_lc_join(e : ext_ptw, l : ext_ptw_lc) -> ext_ptw =
   { e with ptw_lc =
       match l {
         PTW_LC_OK => e.ptw_lc,
-        PTW_LC_CLEAR => l
+        PTW_LC_CLEAR => match e.ptw_lc {
+                          PTW_LC_OK    => PTW_LC_CLEAR,
+                          PTW_LC_CLEAR => PTW_LC_CLEAR,
+                          PTW_LC_TRAP  => PTW_LC_TRAP
+                        },
+        PTW_LC_TRAP => PTW_LC_TRAP
       }
   }
 
