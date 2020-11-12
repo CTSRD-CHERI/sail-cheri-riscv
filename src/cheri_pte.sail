@@ -93,8 +93,21 @@ bitfield PTE_Bits : pteAttribs = {
  * state cached and then observe a CW=1 CD=1 PTE, no PTE write is necessary.
  * On the other hand, if CW=0 is observed, the store operation must trap.
  *
- * SV32: There are no extension bits available, so we hard-code the result to
- * CW=1 CR=1 CD=1.
+ * The intended semantics for capability loads are as follows.
+ *
+ *   CR  CR_Trap CR_Gen Action
+ *
+ *    0     0      0    Capability loads strip tags
+ *    0     1      0    Capability loads trap (on set tag)
+ *    0     X      1    [Reserved]
+ *
+ *    1     0      0    Capability loads succeed: no traps or tag clearing
+ *    1     0      1    [Reserved]
+ *    1     1      G    Capability loads trap if G mismatches sccsr.[su]gclg,
+ *                      where the compared bit is keyed off of this PTE's U.
+ *
+ * Sv32: There are no extension bits available, so we hard-code the result to
+ * CW=1 CR=1 CD=1 CR_Trap=0 CR_Gen=0
  */
 type extPte = bits(10)
 
@@ -102,13 +115,17 @@ bitfield Ext_PTE_Bits : extPte = {
   CapWrite     : 9, /* Permit capability stores */
   CapRead      : 8, /* Permit capability loads */
   CapDirty     : 7, /* Capability Dirty flag */
+  CapRead_Trap : 6, /* Trap on capability loads; see above table */
+  CapRead_Gen  : 5, /* When load-cap gens. are in use, the "local" gen. bit */
 }
 
 /*
  * CapWrite     = 1,
  * CapRead      = 1,
  * CapDirty     = 1,
- * bits 0 .. 6  = 0
+ * CapRead_Trap = 0,
+ * CapRead_Gen  = 0,
+ * bits 0 .. 4  = 0
  */
 let default_sv32_ext_pte : extPte = 0b1110000000
 
@@ -119,7 +136,10 @@ function isPTEPtr(p : pteAttribs, ext : extPte) -> bool = {
 
 function isInvalidPTE(p : pteAttribs, ext : extPte) -> bool = {
   let a = Mk_PTE_Bits(p);
-  a.V() == 0b0 | (a.W() == 0b1 & a.R() == 0b0)
+  let e = Mk_Ext_PTE_Bits(ext);
+  a.V() == 0b0 | (a.W() == 0b1 & a.R() == 0b0) |
+  (e.CapRead() == 0b0 & e.CapRead_Gen() == 0b1) |
+  (e.CapRead() == 0b1 & e.CapRead_Gen() == 0b1 & e.CapRead_Trap() == 0b0)
 }
 
 union PTE_Check = {
@@ -134,6 +154,25 @@ function checkPTEPermission_SC(e, ext_ptw) = {
   then PTE_Check_Success(ext_ptw)
   else PTE_Check_Failure(ext_ptw, EPTWF_CAP_ERR)
 }
+
+/*
+ * Assuming we're allowed to load from this page, modulate our cap response
+ */
+val checkPTEPermission_LC : (PTE_Bits, Ext_PTE_Bits, ext_ptw) -> PTE_Check effect { escape, rreg }
+function checkPTEPermission_LC(p, e, ext_ptw) =
+  match (e.CapRead(), e.CapRead_Trap(), e.CapRead_Gen()) {
+    (0b0, 0b0, 0b0)  => PTE_Check_Success(ext_ptw_lc_join(ext_ptw, PTW_LC_CLEAR)), /* Clear tag for "unmodified" no-LC case */
+    (0b0, 0b1, 0b0)  => PTE_Check_Success(ext_ptw_lc_join(ext_ptw, PTW_LC_TRAP)),  /* Trap on tag load for "modified" no-LC case */
+    (0b0, _  , 0b1)  => internal_error("Bad PTE not caught by isInvalidPTE"),
+    (0b1, 0b0, 0b0)  => PTE_Check_Success(ext_ptw_lc_join(ext_ptw, PTW_LC_OK)), /* Unmodified LC case: go ahead */
+    (0b1, 0b0, 0b1)  => internal_error("Bad PTE not caught by isInvalidPTE"),
+    (0b1, 0b1, lclg) => {
+      /* Compare local CLG against the pte.U-selected, not mode-selected, global CLG bit */
+      let gclg : bits(1) = if p.U() == 0b1 then sccsr.ugclg() else sccsr.sgclg();
+      let ptwl = if lclg == gclg then PTW_LC_OK else PTW_LC_TRAP;
+      PTE_Check_Success(ext_ptw_lc_join(ext_ptw, ptwl))
+    }
+  }
 
 function checkPTEPermission(ac : AccessType(ext_access_type), priv : Privilege, mxr : bool, do_sum : bool, p : PTE_Bits, ext : extPte, ext_ptw : ext_ptw) -> PTE_Check = {
   /*
@@ -185,7 +224,6 @@ function checkPTEPermission(ac : AccessType(ext_access_type), priv : Privilege, 
   };
 
   /* Load side */
-  let ptw_lc = if e.CapRead()  == 0b1 then PTW_LC_OK else PTW_LC_CLEAR;
   let res : PTE_Check = match res {
     PTE_Check_Failure(_, _) => res,
     PTE_Check_Success(ext_ptw) => match ac {
@@ -194,8 +232,8 @@ function checkPTEPermission(ac : AccessType(ext_access_type), priv : Privilege, 
       Write(_)           => res,
       ReadWrite(Data, _) => res,
 
-      Read(Cap)          => PTE_Check_Success(ext_ptw_lc_join(ext_ptw, ptw_lc)),
-      ReadWrite(Cap, _)  => PTE_Check_Success(ext_ptw_lc_join(ext_ptw, ptw_lc))
+      Read(Cap)          => checkPTEPermission_LC(p, e, ext_ptw),
+      ReadWrite(Cap, _)  => checkPTEPermission_LC(p, e, ext_ptw)
     }
   };
 
