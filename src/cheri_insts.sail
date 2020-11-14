@@ -740,6 +740,7 @@ union clause ast = CBuildCap : (regidx, regidx, regidx)
  *     *cs1*.**perms**.
  *   - *cs2*.**uperms** grants a permission that is not granted by
  *     *cs1*.**uperms**.
+ *   - Any reserved bits are set in *cs2*.
  *
  * ## Notes
  *
@@ -773,6 +774,10 @@ function clause execute (CBuildCap(cd, cs1, cs2)) = {
     RETIRE_FAIL
   } else if (cs2_perms & cs1_perms) != cs2_perms then {
     handle_cheri_reg_exception(CapEx_UserDefViolation, cs1);
+    RETIRE_FAIL
+  } else if cs2_val.reserved != zeros() then {
+    /* TODO: we may want to allocate a separate exception code for this case. */
+    handle_cheri_reg_exception(CapEx_LengthViolation, cs2);
     RETIRE_FAIL
   } else {
     let (exact, cd1) = setCapBounds(cs1_val, to_bits(cap_addr_width, cs2_base), to_bits(cap_len_width, cs2_top));
