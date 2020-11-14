@@ -10,7 +10,7 @@ function handle_cheri_cap_exception(capEx, regnum) =
     };
     let t : sync_exception = struct {
       trap    = E_Extension(EXC_CHERI),
-      excinfo = (None() : option(xlenbits)),
+      excinfo = Some(EXTZ(regnum @ CapExCode(capEx)) : xlenbits),
       ext     = Some(cause)
     };
     set_next_pc(exception_handler(cur_privilege, CTL_TRAP(t), PC))
