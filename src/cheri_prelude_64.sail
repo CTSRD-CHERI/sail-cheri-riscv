@@ -34,29 +34,29 @@
 
 /* width of capability in bytes (excluding tag) */
 type cap_size : Int = 8
-let cap_size = sizeof(cap_size)
+let  cap_size = sizeof(cap_size)
 type log2_cap_size : Int = 3
-let log2_cap_size = sizeof(log2_cap_size)
+let  log2_cap_size = sizeof(log2_cap_size)
 type CapBits = bits(8 * cap_size)
 /* width of otype field in bits */
 type cap_otype_width : Int = 4
-let cap_otype_width = sizeof(cap_otype_width)
+let  cap_otype_width = sizeof(cap_otype_width)
 type cap_hperms_width : Int = 12
-let cap_hperms_width = sizeof(cap_hperms_width)
+let  cap_hperms_width = sizeof(cap_hperms_width)
 type cap_uperms_width : Int = 0
-let cap_uperms_width = sizeof(cap_uperms_width)
+let  cap_uperms_width = sizeof(cap_uperms_width)
 type cap_addr_width : Int = xlen
 let  cap_addr_width = sizeof(cap_addr_width)
 type cap_len_width : Int = xlen + 1
 let  cap_len_width  = sizeof(cap_len_width)
 type cap_mantissa_width : Int = 8
-let cap_mantissa_width = sizeof(cap_mantissa_width)
+let  cap_mantissa_width = sizeof(cap_mantissa_width)
 
 /* For CLoadTags and CClearTags, which operate at cache line granularity */
 type caps_per_cache_line : Int = 8
 let  caps_per_cache_line = sizeof(caps_per_cache_line)
 
-let MAX_ADDR = MAX(cap_addr_width)
+let  cap_max_addr = MAX(cap_addr_width)
 type CapAddrInt = range(0, (2 ^ cap_addr_width) - 1)
 type CapLen = range(0, 2 ^ 33) /* XXX sail can't handle if this is expressed as cap_len_width */
 
@@ -81,7 +81,7 @@ struct Capability = {
   global                 : bool,
   reserved               : bits(0),
   flag_cap_mode          : bool,
-  internal_e             : bool,
+  internal_E             : bool,
   E                      : bits(6),
   B                      : bits(cap_mantissa_width),
   T                      : bits(cap_mantissa_width),
@@ -90,10 +90,10 @@ struct Capability = {
 }
 
 /* Reset E and T calculated to make top 2**32. */
-let maxE = 26
-let internal_exponent_take_bits = 3
-let resetE = to_bits(6, maxE)
-let resetT = 0b01000000 /* bit 6 set */
+let cap_max_E = 26
+let internal_E_take_bits = 3
+let cap_reset_E = to_bits(6, cap_max_E)
+let cap_reset_T = 0b01000000 /* bit 6 set */
 
 let null_cap : Capability = struct {
   tag                    = false,
@@ -112,10 +112,10 @@ let null_cap : Capability = struct {
   global                 = false,
   reserved               = zeros(),
   flag_cap_mode          = false,
-  internal_e             = true,
-  E                      = resetE,
+  internal_E             = true,
+  E                      = cap_reset_E,
   B                      = zeros(),
-  T                      = resetT,
+  T                      = cap_reset_T,
   otype                  = to_bits(cap_otype_width, otype_unsealed),
   address                = zeros()
 }
@@ -137,23 +137,23 @@ let default_cap : Capability = struct {
   global                 = true,
   reserved               = zeros(),
   flag_cap_mode          = false,
-  internal_e             = true,
-  E                      = resetE,
+  internal_E             = true,
+  E                      = cap_reset_E,
   B                      = zeros(),
-  T                      = resetT,
+  T                      = cap_reset_T,
   otype                  = to_bits(cap_otype_width, otype_unsealed),
   address                = zeros()
 }
 
 /* Convert from capabilty bits (64 bits with tag) to a more convenient struct. */
 function capBitsToCapability(t, c) : (bool, CapBits) -> Capability = {
-  internal_exponent : bool = bit_to_bool(c[46]);
+  internal_E : bool = bit_to_bool(c[46]);
   otype : bits(4) = c[50..47];
   E : bits(6)  = zeros();
   Bs : bits(8) = zeros();
   T : bits(6) = zeros();
   lenMSBs : bits(2) = zeros();
-  if internal_exponent then {
+  if internal_E then {
     /* Exponent stored instead of T[2..0] and B[2..0] */
     E = c[42..40] @ c [34..32];
     /* Exponent chosen so that length MSBs is 01 */
@@ -190,7 +190,7 @@ function capBitsToCapability(t, c) : (bool, CapBits) -> Capability = {
     global                 = bit_to_bool(c[52]),
     reserved               = [],
     flag_cap_mode          = bit_to_bool(c[51]),
-    internal_e             = internal_exponent,
+    internal_E             = internal_E,
     E                      = E,
     B                      = Bs,
     T                      = Ttop2 @ T,
@@ -202,10 +202,10 @@ function capBitsToCapability(t, c) : (bool, CapBits) -> Capability = {
 /*
 function fastRepCheck(c, i) : (Capability, bits(64)) -> bool=
     let 'E = unsigned(c.E) in
-    if (E >= maxE) then
+    if (E >= cap_max_E) then
         true /* in this case representable region is whole address space */
     else
-        let E'       = min(E, maxE) in
+        let E'       = min(E, cap_max_E) in
         let i_top    = signed(i >>_s (E+23)) in
         let i_mid : bits(23) = truncate(i >>_s E)in
         let a_mid : bits(23) = truncate(c.address >> E) in

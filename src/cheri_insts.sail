@@ -116,7 +116,7 @@ function clause execute (CGetOffset(rd, cs1)) = {
 function clause execute (CGetLen(rd, cs1)) = {
   let capVal = C(cs1);
   let len = getCapLength(capVal);
-  X(rd) = to_bits(sizeof(xlen), if len > MAX_ADDR then MAX_ADDR else len);
+  X(rd) = to_bits(sizeof(xlen), if len > cap_max_addr then cap_max_addr else len);
   RETIRE_SUCCESS
 }
 
@@ -932,7 +932,7 @@ union clause ast = CSeal : (regidx, regidx, regidx)
  *   - *cs2*.**perms** does not grant **Permit_Seal**.
  *   - *cs2*.**address** $\lt$ *cs2*.**base**.
  *   - *cs2*.**address** $\ge$ *cs2*.**top**.
- *   - *cs2*.**address** $\gt$ [max_otype].
+ *   - *cs2*.**address** $\gt$ [cap_max_otype].
  */
 function clause execute (CSeal(cd, cs1, cs2)) = {
   let cs1_val = C(cs1);
@@ -960,7 +960,7 @@ function clause execute (CSeal(cd, cs1, cs2)) = {
   } else if cs2_cursor >= cs2_top then {
     handle_cheri_reg_exception(CapEx_LengthViolation, cs2);
     RETIRE_FAIL
-  } else if cs2_cursor > max_otype then {
+  } else if cs2_cursor > cap_max_otype then {
     handle_cheri_reg_exception(CapEx_LengthViolation, cs2);
     RETIRE_FAIL
   } else {
@@ -985,7 +985,7 @@ union clause ast = CCSeal : (regidx, regidx, regidx)
  *   - *cs1*.**tag** is not set.
  *   - *cs2*.**sealed** is set.
  *   - *cs2*.**perms** does not grant **Permit_Seal**.
- *   - *cs2*.**address** $\gt$ [max_otype].
+ *   - *cs2*.**address** $\gt$ [cap_max_otype].
  *
  * ## Notes
  *
@@ -1042,7 +1042,7 @@ function clause execute (CCSeal(cd, cs1, cs2)) = {
   } else if not (cs2_val.permit_seal) then {
     handle_cheri_reg_exception(CapEx_PermitSealViolation, cs2);
     RETIRE_FAIL
-  } else if cs2_cursor > max_otype then {
+  } else if cs2_cursor > cap_max_otype then {
     handle_cheri_reg_exception(CapEx_LengthViolation, cs2);
     RETIRE_FAIL
   } else {

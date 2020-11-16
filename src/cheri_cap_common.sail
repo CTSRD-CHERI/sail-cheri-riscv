@@ -33,12 +33,12 @@
 /*========================================================================*/
 
 
-let max_otype = MAX(cap_otype_width) - reserved_otypes
+let cap_max_otype = MAX(cap_otype_width) - reserved_otypes
 
 type cap_flags_width : Int = 1
-let cap_flags_width = sizeof(cap_flags_width)
+let  cap_flags_width = sizeof(cap_flags_width)
 type cap_uperms_shift : Int = 15
-let cap_uperms_shift = sizeof(cap_uperms_shift)
+let  cap_uperms_shift = sizeof(cap_uperms_shift)
 type cap_perms_width : Int = cap_uperms_shift + cap_uperms_width
 let  cap_perms_width = sizeof(cap_perms_width)
 
@@ -67,7 +67,7 @@ function capToBits(cap) : Capability -> CapBits = {
   t_lo : bits(3)  = cap.T[2..0];
   b_hi : bits(cap_mantissa_width - 3) = cap.B[cap_mantissa_width - 1..3];
   b_lo : bits(3)  = cap.B[2..0];
-  if cap.internal_e then {
+  if cap.internal_E then {
     t_lo = cap.E[5..3];
     b_lo = cap.E[2..0];
   };
@@ -76,7 +76,7 @@ function capToBits(cap) : Capability -> CapBits = {
     @ cap.reserved
     @ bool_to_bits(cap.flag_cap_mode)
     @ cap.otype
-    @ bool_to_bits(cap.internal_e)
+    @ bool_to_bits(cap.internal_E)
     @ t_hi
     @ t_lo
     @ b_hi
@@ -101,7 +101,7 @@ function memBitsToCapability(tag, b) : (bool, CapBits) -> Capability =
 
 
 function getCapBoundsBits(c) : Capability -> (CapAddrBits, CapLenBits) =
-  let E = min(maxE, unsigned(c.E)) in
+  let E = min(cap_max_E, unsigned(c.E)) in
   let a : CapAddrBits = c.address in
   /* Extract bits we need to make the top correction and calculate representable limit */
   let a3 = truncate(a >> (E + cap_mantissa_width - 3), 3) in
@@ -123,11 +123,11 @@ function getCapBoundsBits(c) : Capability -> (CapAddrBits, CapLenBits) =
        representable space wraps the address space. */
     let base2 : bits(2) = 0b0 @ [base[cap_addr_width - 1]];
     let top2  : bits(2) = top[cap_addr_width .. cap_addr_width - 1];
-    if (E < (maxE - 1)) & (unsigned(top2 - base2) > 1) then {
+    if (E < (cap_max_E - 1)) & (unsigned(top2 - base2) > 1) then {
       top[cap_addr_width] = ~(top[cap_addr_width]);
     };
     /* TODO The following top MSB correction was thought to be equivalent
-       to the one above, but differs at least in some cases where E >= maxE - 1
+       to the one above, but differs at least in some cases where E >= cap_max_E - 1
     if (base[cap_addr_width] == bitone) then {
        top[cap_addr_width] = if (aHi == 1) & (tHi == 1) then bitone else bitzero;
     };
@@ -148,7 +148,7 @@ function setCapBounds(cap, base, top) : (Capability, CapAddrBits, CapLenBits) ->
    * second from the top as assumed during decoding. We ignore the bottom
    * MW bits because those are handled by the ie = 0 format.
    */
-  let e = maxE - count_leading_zeros(length[cap_addr_width..cap_mantissa_width - 1]);
+  let e = cap_max_E - count_leading_zeros(length[cap_addr_width..cap_mantissa_width - 1]);
   // Use use internal exponent if e is non-zero or if e is zero but
   // but the implied bit of length is not zero (denormal vs. normal case)
   let ie = (e != 0) | length[cap_mantissa_width - 2] == bitone;
@@ -199,7 +199,7 @@ function setCapBounds(cap, base, top) : (Capability, CapAddrBits, CapLenBits) ->
     Bbits = B_ie @ 0b000;
     Tbits = T_ie @ 0b000;
   };
-  let newCap = {cap with address=base, E=to_bits(6, if incE then e + 1 else e), B=Bbits, T=Tbits, internal_e=ie};
+  let newCap = {cap with address=base, E=to_bits(6, if incE then e + 1 else e), B=Bbits, T=Tbits, internal_E=ie};
   let exact = not(lostSignificantBase | lostSignificantTop);
   (exact, newCap)
 }
@@ -243,12 +243,12 @@ val isCapSealed : Capability -> bool
 function isCapSealed(cap) = signed(cap.otype) != otype_unsealed
 
 /*!
- * Tests whether the capability has a reserved otype (larger than [max_otype]).
+ * Tests whether the capability has a reserved otype (larger than [cap_max_otype]).
  * Note that this includes both sealed (e.g. sentry) and unsealed (all ones)
  * otypes.
  */
 val hasReservedOType : Capability -> bool
-function hasReservedOType(cap) = unsigned(cap.otype) > max_otype
+function hasReservedOType(cap) = unsigned(cap.otype) > cap_max_otype
 
 function sealCap(cap, otyp) : (Capability, bits(cap_otype_width)) -> Capability =
     {cap with otype=otyp}
@@ -320,7 +320,7 @@ overload operator >>_s = {sail_arith_shiftright}
 
 function fastRepCheck(c, i) : (Capability, CapAddrBits) -> bool=
     let E = unsigned(c.E) in
-    if (E >= maxE - 2) then
+    if (E >= cap_max_E - 2) then
         true /* in this case representable region is whole address space */
     else
         let i_top    = signed(i >>_s (E + cap_mantissa_width)) in
@@ -385,8 +385,8 @@ function capToString (cap) = {
 }
 function getRepresentableAlignmentMask(len) : xlenbits -> xlenbits = {
   let (exact, c) = setCapBounds(default_cap, to_bits(sizeof(xlen), 0), 0b0 @ len);
-  let e = min(unsigned(c.E), maxE);
-  let e' = if c.internal_e then e + internal_exponent_take_bits else 0;
+  let e = min(unsigned(c.E), cap_max_E);
+  let e' = if c.internal_E then e + internal_E_take_bits else 0;
   ones(sizeof(xlen)-e') @ zeros(e')
 }
 
