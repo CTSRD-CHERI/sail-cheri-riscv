@@ -32,20 +32,104 @@
 /*  SUCH DAMAGE.                                                          */
 /*========================================================================*/
 
-
+let cap_max_addr = MAX(cap_addr_width)
 let cap_max_otype = MAX(cap_otype_width) - reserved_otypes
 
-type cap_flags_width : Int = 1
-let  cap_flags_width = sizeof(cap_flags_width)
 type cap_uperms_shift : Int = 15
 let  cap_uperms_shift = sizeof(cap_uperms_shift)
 type cap_perms_width : Int = cap_uperms_shift + cap_uperms_width
 let  cap_perms_width = sizeof(cap_perms_width)
 
 type CapAddrBits  = bits(cap_addr_width)
+type CapAddrInt   = range(0, (2 ^ cap_addr_width) - 1)
 type CapLenBits   = bits(cap_len_width)
+type CapLen       = range(0, (2 ^ cap_len_width))
 type CapPermsBits = bits(cap_perms_width)
 type CapFlagsBits = bits(cap_flags_width)
+
+/* Reset E and T calculated to make top 2**xlen. */
+let cap_max_E   = cap_len_width - cap_mantissa_width
+let cap_reset_E = to_bits(cap_E_width, cap_max_E)
+let cap_reset_T = 0b01 @ zeros(cap_mantissa_width - 2)
+
+/*! A partially decompressed version of a capability -- E, B, T,
+ * lenMSB, sealed and otype fields are not present in all formats and are
+ * populated by capBitsToCapability.
+ */
+struct Capability = {
+  tag                    : bool,
+  uperms                 : bits(cap_uperms_width),
+  permit_set_CID         : bool,
+  access_system_regs     : bool,
+  permit_unseal          : bool,
+  permit_cinvoke         : bool,
+  permit_seal            : bool,
+  permit_store_local_cap : bool,
+  permit_store_cap       : bool,
+  permit_load_cap        : bool,
+  permit_store           : bool,
+  permit_load            : bool,
+  permit_execute         : bool,
+  global                 : bool,
+  reserved               : bits(cap_reserved_width),
+  flag_cap_mode          : bool,
+  internal_E             : bool,
+  E                      : bits(cap_E_width),
+  B                      : bits(cap_mantissa_width),
+  T                      : bits(cap_mantissa_width),
+  otype                  : bits(cap_otype_width),
+  address                : bits(cap_addr_width)
+}
+
+let null_cap : Capability = struct {
+  tag                    = false,
+  uperms                 = zeros(),
+  permit_set_CID         = false,
+  access_system_regs     = false,
+  permit_unseal          = false,
+  permit_cinvoke         = false,
+  permit_seal            = false,
+  permit_store_local_cap = false,
+  permit_store_cap       = false,
+  permit_load_cap        = false,
+  permit_store           = false,
+  permit_load            = false,
+  permit_execute         = false,
+  global                 = false,
+  reserved               = zeros(),
+  flag_cap_mode          = false,
+  internal_E             = true,
+  E                      = cap_reset_E,
+  B                      = zeros(),
+  T                      = cap_reset_T,
+  otype                  = to_bits(cap_otype_width, otype_unsealed),
+  address                = zeros()
+}
+
+let default_cap : Capability = struct {
+  tag                    = true,
+  uperms                 = ones(),
+  permit_set_CID         = true,
+  access_system_regs     = true,
+  permit_unseal          = true,
+  permit_cinvoke         = true,
+  permit_seal            = true,
+  permit_store_local_cap = true,
+  permit_store_cap       = true,
+  permit_load_cap        = true,
+  permit_store           = true,
+  permit_load            = true,
+  permit_execute         = true,
+  global                 = true,
+  reserved               = zeros(),
+  flag_cap_mode          = false,
+  internal_E             = true,
+  E                      = cap_reset_E,
+  B                      = zeros(),
+  T                      = cap_reset_T,
+  otype                  = to_bits(cap_otype_width, otype_unsealed),
+  address                = zeros()
+}
 
 function getCapHardPerms(cap) : Capability -> bits(cap_hperms_width) =
    (bool_to_bits(cap.permit_set_CID)
@@ -61,29 +145,83 @@ function getCapHardPerms(cap) : Capability -> bits(cap_hperms_width) =
   @ bool_to_bits(cap.permit_execute)
   @ bool_to_bits(cap.global))
 
-/* Convert from capability struct to bits (no tag) */
-function capToBits(cap) : Capability -> CapBits = {
-  t_hi : bits(cap_mantissa_width - 5) = cap.T[cap_mantissa_width - 3..3];
-  t_lo : bits(3)  = cap.T[2..0];
-  b_hi : bits(cap_mantissa_width - 3) = cap.B[cap_mantissa_width - 1..3];
-  b_lo : bits(3)  = cap.B[2..0];
-  if cap.internal_E then {
-    t_lo = cap.E[5..3];
-    b_lo = cap.E[2..0];
+/* Convert from capability bits (128 bits with tag) to a more convenient struct. */
+function encCapabilityToCapability(t,c) : (bool, EncCapability) -> Capability = {
+  internal_E : bool = bit_to_bool(c.internal_E);
+  E : bits(cap_E_width)  = zeros();
+  Bs : bits(cap_mantissa_width) = zeros();
+  T : bits(cap_mantissa_width - 2) = zeros();
+  lenMSBs : bits(2) = zeros();
+  if internal_E then {
+    E = c.T[internal_E_take_bits - 1..0] @ c.B[internal_E_take_bits - 1..0];
+    /* Exponent chosen so that length MSBs is 01 */
+    lenMSBs = 0b01;
+    T = c.T[cap_mantissa_width - 3..3] @ zeros(internal_E_take_bits);
+    Bs = c.B[cap_mantissa_width - 1..3] @ zeros(internal_E_take_bits);
+  } else {
+    /* Exponent zero */
+    lenMSBs = 0b00;
+    T = c.T;
+    Bs = c.B;
   };
-  return (cap.uperms
-    @ getCapHardPerms(cap)
-    @ cap.reserved
-    @ bool_to_bits(cap.flag_cap_mode)
-    @ cap.otype
-    @ bool_to_bits(cap.internal_E)
-    @ t_hi
-    @ t_lo
-    @ b_hi
-    @ b_lo
-    @ cap.address
-  );
+  /* Reconstruct top two bits of T given T = B + len and:
+   * 1) the top two bits of B
+   * 2) most significant two bits of length derived from format above
+   * 3) carry out of B[20..0] + len[20..0] that is implied if T[20..0] < B[20..0]
+   */
+  carry_out = if T <_u Bs[cap_mantissa_width - 3..0] then 0b01 else 0b00;
+  Ttop2 = Bs[cap_mantissa_width - 1..cap_mantissa_width - 2] + lenMSBs + carry_out;
+  return struct {
+    tag                    = t,
+    uperms                 = if cap_uperms_width > 0 then c.perms[cap_hperms_width + cap_uperms_width - 1..cap_hperms_width] else [],
+    permit_set_CID         = bit_to_bool(c.perms[11]),
+    access_system_regs     = bit_to_bool(c.perms[10]),
+    permit_unseal          = bit_to_bool(c.perms[9]),
+    permit_cinvoke         = bit_to_bool(c.perms[8]),
+    permit_seal            = bit_to_bool(c.perms[7]),
+    permit_store_local_cap = bit_to_bool(c.perms[6]),
+    permit_store_cap       = bit_to_bool(c.perms[5]),
+    permit_load_cap        = bit_to_bool(c.perms[4]),
+    permit_store           = bit_to_bool(c.perms[3]),
+    permit_load            = bit_to_bool(c.perms[2]),
+    permit_execute         = bit_to_bool(c.perms[1]),
+    global                 = bit_to_bool(c.perms[0]),
+    reserved               = c.reserved,
+    flag_cap_mode          = bit_to_bool(c.flags[0]),
+    internal_E             = internal_E,
+    E                      = E,
+    B                      = Bs,
+    T                      = Ttop2 @ T,
+    otype                  = c.otype,
+    address                = c.address
+  }
 }
+
+function capBitsToCapability(t, c) : (bool, CapBits) -> Capability = encCapabilityToCapability(t, capBitsToEncCapability(c))
+
+function capToEncCap(cap) : Capability -> EncCapability = {
+  t_hi : bits(cap_mantissa_width - 2 - internal_E_take_bits) = cap.T[cap_mantissa_width - 3..internal_E_take_bits];
+  t_lo : bits(internal_E_take_bits)  = cap.T[internal_E_take_bits - 1..0];
+  b_hi : bits(cap_mantissa_width - internal_E_take_bits) = cap.B[cap_mantissa_width - 1..internal_E_take_bits];
+  b_lo : bits(internal_E_take_bits)  = cap.B[internal_E_take_bits - 1..0];
+  if cap.internal_E then {
+    t_lo = cap.E[2 * internal_E_take_bits - 1..internal_E_take_bits];
+    b_lo = cap.E[internal_E_take_bits - 1..0];
+  };
+  return struct {
+    perms = cap.uperms @ getCapHardPerms(cap),
+    reserved = cap.reserved,
+    flags = bool_to_bits(cap.flag_cap_mode),
+    otype = cap.otype,
+    internal_E = bool_to_bits(cap.internal_E)[0],
+    T = t_hi @ t_lo,
+    B = b_hi @ b_lo,
+    address = cap.address
+  };
+}
+
+/* Convert from capability struct to bits (no tag) */
+function capToBits(cap) : Capability -> CapBits = encCapToBits(capToEncCap(cap))
 
 /* When saving/restoring capabilities xor them with bits of null_cap --
  * this ensures that canonical null_cap is always all-zeros in memory
