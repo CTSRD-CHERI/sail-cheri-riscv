@@ -61,7 +61,7 @@ function getCapHardPerms(cap) : Capability -> bits(cap_hperms_width) =
   @ bool_to_bits(cap.permit_execute)
   @ bool_to_bits(cap.global))
 
-/* Convert from capabilty struct to bits (no tag) */
+/* Convert from capability struct to bits (no tag) */
 function capToBits(cap) : Capability -> CapBits = {
   t_hi : bits(cap_mantissa_width - 5) = cap.T[cap_mantissa_width - 3..3];
   t_lo : bits(3)  = cap.T[2..0];
