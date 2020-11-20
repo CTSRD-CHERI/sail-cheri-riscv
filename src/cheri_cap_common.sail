@@ -48,7 +48,7 @@ type CapPermsBits = bits(cap_perms_width)
 type CapFlagsBits = bits(cap_flags_width)
 
 /* Reset E and T calculated to make top 2**xlen. */
-let cap_max_E   = cap_len_width - cap_mantissa_width
+let cap_max_E   = cap_len_width - cap_mantissa_width + 1
 let cap_reset_E = to_bits(cap_E_width, cap_max_E)
 let cap_reset_T = 0b01 @ zeros(cap_mantissa_width - 2)
 
