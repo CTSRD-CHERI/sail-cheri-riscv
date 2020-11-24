@@ -18,7 +18,7 @@ function handle_cheri_cap_exception(capEx, regnum) =
 
 /*!
  * Causes the processor to raise a capability exception by writing the given
- * capability exception cause and register number to the xccsr register then
+ * capability exception cause and register number to the xtval register then
  * signalling an exception.
  */
 val handle_cheri_reg_exception : (CapEx, regidx) -> unit effect {escape, rreg, wreg}
