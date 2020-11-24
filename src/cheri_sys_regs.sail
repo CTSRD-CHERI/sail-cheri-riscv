@@ -3,8 +3,6 @@
 /* Capability control csr */
 
 bitfield ccsr : xlenbits = {
-  cap_idx : 15 .. 10,
-  cause   :  9 .. 5, /* cap cause */
   d       :  1,      /* dirty  */
   e       :  0       /* enable */
 }
@@ -21,8 +19,6 @@ function legalize_ccsr(c : ccsr, v : xlenbits) -> ccsr = {
   // Technically, WPRI does not need a legalizer, since software is
   // assumed to legalize; so we could remove this function.
   let v = Mk_ccsr(v);
-  let c = update_cap_idx(c, v.cap_idx());
-  let c = update_cause(c, v.cause());
   /* For now these bits are not really supported so hardwired to true */
   let c = update_d(c, 0b1);
   let c = update_e(c, 0b1);
