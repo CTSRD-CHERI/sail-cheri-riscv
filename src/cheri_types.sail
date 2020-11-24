@@ -139,9 +139,4 @@ type capreg_idx = bits(6)
 let PCC_IDX : capreg_idx = 0b100000
 let DDC_IDX : capreg_idx = 0b100001
 
-struct cheri_cause = {
-  cap_idx : capreg_idx,
-  capEx   : CapEx
-}
-
 type screg = bits(5)

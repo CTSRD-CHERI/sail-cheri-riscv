@@ -4,14 +4,10 @@ val handle_cheri_cap_exception : (CapEx, capreg_idx) -> unit effect {escape, rre
 function handle_cheri_cap_exception(capEx, regnum) =
   {
     print("CHERI " ^ string_of_capex(capEx) ^ " Reg=" ^ BitStr(regnum));
-    let cause : cheri_cause = struct {
-        cap_idx = regnum,
-        capEx   = capEx
-    };
     let t : sync_exception = struct {
       trap    = E_Extension(EXC_CHERI),
       excinfo = Some(EXTZ(regnum @ CapExCode(capEx)) : xlenbits),
-      ext     = Some(cause)
+      ext     = None()
     };
     set_next_pc(exception_handler(cur_privilege, CTL_TRAP(t), PC))
   }

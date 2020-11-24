@@ -1,12 +1,12 @@
 /* CHERI exception model */
 
-type ext_exception = cheri_cause
+type ext_exception = unit
 
 /*
  * On traps, EPCC comes to hold PCC verbatim.  Notably, PCC is not sealed under
  * otype_sentry (contrast, for example, CJALR).
  */
-function handle_trap_extension(p : Privilege, pc : xlenbits, ccause : option(cheri_cause)) -> unit = {
+function handle_trap_extension(p : Privilege, pc : xlenbits, u : option(unit)) -> unit = {
   match p {
     Machine => {
       let (representable, mepcc) = setCapAddr(PCC, pc);
