@@ -13,6 +13,10 @@ make c_emulator/cheri_riscv_sim_RV64
 make c_emulator/cheri_riscv_rvfi_RV64
 ```
 
+The
+[sail-cheri-riscv-verif](https://github.com/CTSRD-CHERI/sail-cheri-riscv-verif/)
+repository contains a number of SMT-checked properties of the compressed
+capability helper functions.
 
 ## Funding
 
