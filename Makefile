@@ -403,16 +403,8 @@ generated_definitions/lem-for-rmem/riscv.lem: $(SAIL_RMEM_SRCS)
 #	We do not need the isabelle .thy files, but sail always generates them
 	$(SAIL) $(SAIL_FLAGS) -lem -lem_mwords -lem_output_dir $(dir $@) -isa_output_dir $(dir $@) -o $(notdir $(basename $@)) -no_effects $^
 
-SMT=cvc4
-SMT_FLAGS=--lang=smt2.6
-smt:
-	$(SAIL) $(SAIL_FLAGS) -smt $(PRELUDE_SRCS) src/cheri_properties.sail
-
-smt_auto:
-	$(SAIL) $(SAIL_FLAGS) -smt_auto $(PRELUDE_SRCS) src/cheri_properties.sail
-
 isail:
-	$(SAIL) $(SAIL_FLAGS) -i $(PRELUDE_SRCS) src/cheri_properties.sail
+	$(SAIL) $(SAIL_FLAGS) -i $(PRELUDE_SRCS)
 
 #$(SMT) $(SMT_FLAGS) *.smt2
 
