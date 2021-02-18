@@ -14,7 +14,8 @@
  */
 enum ext_access_type = {
   Data,
-  Cap
+  Cap,
+  Version
 }
 
 let default_write_acc : ext_access_type = Data
@@ -30,6 +31,9 @@ function accessType_to_str (a) =
     ReadWrite(Cap, Cap)   => "RCWC",
     ReadWrite(Data, Cap)  => "RWC",
     ReadWrite(Cap, Data)  => "RCW",
+    Read(Version)         => "RV",
+    Write(Version)        => "WV",
+    ReadWrite(Version, Version) => "RVWV",
     Execute()             => "X"
   }
 

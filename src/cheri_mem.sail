@@ -25,3 +25,24 @@ function mem_write_cap (addr, cap, aq, rl, con) = {
   assert(memBitsToCapability(cap.tag, cap_bits) == cap);
   mem_write_value_meta(addr, cap_size, cap_bits, Cap, cap.tag, aq, rl, con)
 }
+
+val mem_read_version : xlenbits -> MemoryOpResult(CapVersionBits)
+function mem_read_version(addr) = {
+  if   ~(is_aligned_addr(addr, version_granule_size))
+  then MemException(E_SAMO_Addr_Align())
+  else MemValue(0b0000) /* XXX TODO */
+}
+
+val mem_write_ea_version : xlenbits -> MemoryOpResult(unit)
+function mem_write_ea_version(addr) = {
+  if   ~(is_aligned_addr(addr, version_granule_size))
+  then MemException(E_SAMO_Addr_Align())
+  else MemValue() /* XXX TODO */
+}
+
+val mem_write_version : (xlenbits, CapVersionBits) -> MemoryOpResult(unit)
+function mem_write_version(addr, v) = {
+  if   ~(is_aligned_addr(addr, version_granule_size))
+  then MemException(E_SAMO_Addr_Align())
+  else MemValue() /* XXX TODO */
+}

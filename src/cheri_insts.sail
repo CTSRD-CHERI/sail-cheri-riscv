@@ -311,7 +311,7 @@ union clause ast = CToPtr : (regidx, regidx, regidx)
  * ## Exceptions
  *
  * An exception is raised if:
- *   - *cs2*.**tag** is not set.
+ *   - *cs2*.**tag** is unset.
  *   - *cs1*.**tag** is set and *cs1* is sealed.
  *
  * ## Notes
@@ -696,7 +696,7 @@ union clause ast = CFromPtr : (regidx, regidx, regidx)
  * ## Exceptions
  *
  * An exception is raised if:
- *   - *cs1*.**tag** is not set.
+ *   - *cs1*.**tag** is set.
  *   - *cs1* is sealed.
  */
 function clause execute (CFromPtr(cd, cs1, rs2)) = {
@@ -2124,6 +2124,373 @@ function clause execute StoreCondCapCap(cs2, cs1) = {
   } else {
     handle_illegal();
     RETIRE_FAIL
+  }
+}
+
+union clause ast = CGetVersion : (regidx, regidx)
+/*!
+ * The **version** field of capability register *cs1* is zero extended and 
+ * placed in *rd*. Version zero has the special meaning of **unversioned**,
+ * which is the initial value for the root capability and the null capability.
+ * The width of the version field, **version_bits**, is an 
+ * architectural parameter subject to experimentation but is likely to be four 
+ * bits in initial prototypes.
+ */
+function clause execute CGetVersion(rd, cs1) = {
+  let capVal = C(cs1);
+  X(rd) = EXTZ(getCapVersion(capVal));
+  RETIRE_SUCCESS
+}
+
+union clause ast = CSetVersion : (regidx, regidx, regidx)
+/*!
+ * Capability register *cd* is set to capability register *cs1* with its
+ * **version** replaced with the least significant bits of integer register
+ * *rs2*.
+ *
+ * ## Exceptions
+ *
+ * An exception is raised if:
+ *   - *cs1*.**tag** is not set.
+ *   - *cs1* is sealed.
+ *   - *cs1*.**version** is not **unversioned**
+ *
+ * ## Notes
+ *
+ * The version field of a capability is `sticky': once set it cannot be changed.
+ * A versioned capability can only be used to load or store from memory with a
+ * matching version (TODO what about instruction fetches?).
+ * Unversioned capabilities can be used to load and store from memory with any
+ * version and for authorizing \insnriscvref{CStoreVersion}.
+ */
+function clause execute CSetVersion(cd, cs1, rs2) = {
+  let cs1_val = C(cs1);
+  let rs2_val = X(rs2);
+  if not (cs1_val.tag) then {
+    handle_cheri_reg_exception(CapEx_TagViolation, cs1);
+    RETIRE_FAIL
+  } else if isCapSealed(cs1_val) then {
+    handle_cheri_reg_exception(CapEx_SealViolation, cs1);
+    RETIRE_FAIL
+  } else if getCapVersion(cs1_val) != CAP_UNVERSIONED then {
+    handle_cheri_reg_exception(CapEx_VersionViolation, cs1);
+    RETIRE_FAIL
+  } else {
+    let new_version : CapVersionBits = truncate(rs2_val, cap_version_width);
+    C(cd) = setCapVersion(cs1_val, new_version);
+    RETIRE_SUCCESS
+  }
+}
+
+union clause ast = CLoadVersion : (regidx, regidx)
+/*!
+ * The version tag of the memory granule at *cs1*.**address** is zero extended
+ * and placed in *rd*. Memory granules are naturally aligned memory regions of 
+ * **version_granule_size** bytes. This is an architectural parameter subject
+ * to experimentation but is likely to be 16 bytes in initial prototypes.
+ *
+ * ## Exceptions
+ * 
+ * An exception is raised if:
+ *   - *cs1*.**tag** is not set.
+ *   - *cs1* is sealed.
+ *   - *cs1*.**perms** does not grant **Permit_Load**.
+ *   - *cs1*.**address** is not aligned to **version_granule_size**.
+ *   - *cs1*.**address** $\lt$ *cs1*.**base**.
+ *   - *cs1*.**address** $+$ **version_granule_size** $\gt$ *cs1*.**top**.
+ *   - *cs1*.**version** is not **Unversioned**.
+ */
+function clause execute CLoadVersion(rd, cs1) = {
+  let cs1_val = C(cs1);
+  let vaddr = cs1_val.address;
+  if not(cs1_val.tag) then {
+    handle_cheri_reg_exception(CapEx_TagViolation, cs1);
+    RETIRE_FAIL
+  } else if isCapSealed(cs1_val) then {
+    handle_cheri_reg_exception(CapEx_SealViolation, cs1);
+    RETIRE_FAIL
+  } else if getCapVersion(cs1_val) != CAP_UNVERSIONED then {
+    handle_cheri_reg_exception(CapEx_VersionViolation, cs1);
+    RETIRE_FAIL
+  } else if not (cs1_val.permit_load) then {
+    handle_cheri_reg_exception(CapEx_PermitLoadViolation, cs1);
+    RETIRE_FAIL
+  } else if not(inCapBounds(cs1_val, vaddr, version_granule_size)) then {
+    handle_cheri_reg_exception(CapEx_LengthViolation, cs1);
+    RETIRE_FAIL
+  } else if not(is_aligned_addr(vaddr, version_granule_size)) then {
+    handle_mem_exception(vaddr, E_Load_Addr_Align());
+    RETIRE_FAIL
+  } else match translateAddr(vaddr, Read(Version)) {
+    TR_Failure(E_Extension(_), _) => { internal_error("unexpected cheri exception for version load") },
+    TR_Failure(e, _) => { handle_mem_exception(vaddr, e); RETIRE_FAIL },
+    TR_Address(addr, _) => {
+      let c : MemoryOpResult(CapVersionBits) = mem_read_version(addr);
+      match c {
+        MemValue(v)=> {
+          X(rd) = EXTZ(v);
+          RETIRE_SUCCESS
+        },
+        MemException(e) => {handle_mem_exception(vaddr, e); RETIRE_FAIL }
+      }
+    }
+  }
+}
+
+union clause ast = CLoadVersions : (regidx, regidx)
+/*!
+ * The version tags of the **version_granules_per_cache_line** memory granules at 
+ * *cs1*.**address** are loaded into *rd*. The version tag for the granule at
+ * *cs1*.**address** $+$ n $\times$
+ * **version_granule_size** is put in bits $(n + 1) \times $
+ * **version_bits** $ - 1$ \dots 
+ * n $\times$ **version_bits** of *rd*. Unused upper bits of *rd* are
+ * set to zero. Similar to \insnriscvref{CLoadTags} the number of granules loaded is 
+ * implementation defined but at least 1 and no more than 
+ * **XLEN** $/$ **version_bits**.
+ *
+ * ## Exceptions
+ * 
+ * An exception is raised if:
+ *   - *cs1*.**tag** is not set.
+ *   - *cs1* is sealed.
+ *   - *cs1*.**perms** does not grant **Permit_Load**.
+ *   - *cs1*.**address** is not aligned to **version_granule_size** $\times$
+ *        **version_granules_per_cache_line**.
+ *   - *cs1*.**address** $\lt$ *cs1*.**base**.
+ *   - *cs1*.**address** $+$ **version_granule_size** $\times$
+ *     **version_granules_per_cache_line** $\gt$ *cs1*.**top**.
+ *   - *cs1*.**version** is not **Unversioned**.
+ */
+function clause execute CLoadVersions(rd, cs1) = {
+  let cs1_val = C(cs1);
+  let vaddr = cs1_val.address;
+  let load_size = version_granule_size * version_granules_per_cache_line;
+  if not(cs1_val.tag) then {
+    handle_cheri_reg_exception(CapEx_TagViolation, cs1);
+    RETIRE_FAIL
+  } else if isCapSealed(cs1_val) then {
+    handle_cheri_reg_exception(CapEx_SealViolation, cs1);
+    RETIRE_FAIL
+  } else if getCapVersion(cs1_val) != CAP_UNVERSIONED then {
+    handle_cheri_reg_exception(CapEx_VersionViolation, cs1);
+    RETIRE_FAIL
+  } else if not (cs1_val.permit_load) then {
+    handle_cheri_reg_exception(CapEx_PermitLoadViolation, cs1);
+    RETIRE_FAIL
+  } else if not (inCapBounds(cs1_val, vaddr, load_size)) then {
+    handle_cheri_reg_exception(CapEx_LengthViolation, cs1);
+    RETIRE_FAIL
+  } else if not (is_aligned_addr(vaddr, load_size)) then {
+    handle_mem_exception(vaddr, E_Load_Addr_Align());
+    RETIRE_FAIL
+  } else match translateAddr(vaddr, Read(Version)) {
+    TR_Failure(E_Extension(_), _) => { internal_error("unexpected cheri exception for version load") },
+    TR_Failure(e, _) => { handle_mem_exception(vaddr, e); RETIRE_FAIL },
+    TR_Address(addr, _) => {
+      mversions : MemoryOpResult(bits(cap_version_width * 
+        version_granules_per_cache_line)) = MemValue(zeros());
+      foreach (i from 0 to (version_granules_per_cache_line - 1)) {
+        match mversions {
+          MemException(_) => (),
+          MemValue(versions) => {
+            match mem_read_version(addr + i * version_granule_size) {
+              MemException(e) => mversions = MemException(e),
+              MemValue(v) =>
+                mversions = MemValue([versions with 
+                  ((i+1)*cap_version_width - 1) .. (i * cap_version_width) = v])
+            }
+          }
+        }
+      };
+      match mversions {
+        MemException(e) => { handle_mem_exception(vaddr, e); RETIRE_FAIL },
+        MemValue(v) => { X(rd) = EXTZ(v); RETIRE_SUCCESS }
+      }
+    }
+  }
+}
+
+union clause ast = CStoreVersion : (regidx, regidx)
+/*!
+ * The version tag of the memory granule at *cs1*.**address** is set to
+ * the version contained in the least significant bits of *rs2*.
+ *
+ * ## Exceptions
+ * 
+ * An exception is raised if:
+ *   - *cs1*.**tag** is not set.
+ *   - *cs1* is sealed.
+ *   - *cs1*.**perms** does not grant **Permit_Store**.
+ *   - *cs1*.**address** is not aligned to **version_granule_size**.
+ *   - *cs1*.**address** $lt$ *cs1*.**base**.
+ *   - *cs1*.**address** $+$ **version_granule_size** $\gt$ *cs1*.**top**.
+ *   - *cs1*.**version** is not **Unversioned**.
+ */
+function clause execute CStoreVersion(cs1, rs2) = {
+  let cs1_val = C(cs1);
+  let vaddr = cs1_val.address;
+  if not (cs1_val.tag) then {
+    handle_cheri_reg_exception(CapEx_TagViolation, cs1);
+    RETIRE_FAIL
+  } else if isCapSealed(cs1_val) then {
+    handle_cheri_reg_exception(CapEx_SealViolation, cs1);
+    RETIRE_FAIL
+  } else if getCapVersion(cs1_val) != CAP_UNVERSIONED then {
+    handle_cheri_reg_exception(CapEx_VersionViolation, cs1);
+    RETIRE_FAIL
+  } else if not (cs1_val.permit_store) then {
+    handle_cheri_reg_exception(CapEx_PermitStoreViolation, cs1);
+    RETIRE_FAIL
+  } else if not (inCapBounds(cs1_val, vaddr, version_granule_size)) then {
+    handle_cheri_reg_exception(CapEx_LengthViolation, cs1);
+    RETIRE_FAIL
+  } else if not (is_aligned_addr(vaddr, version_granule_size)) then {
+    handle_mem_exception(vaddr, E_SAMO_Addr_Align());
+    RETIRE_FAIL
+  } else match translateAddr(vaddr, Write(Version)) {
+    TR_Failure(e, _) => { handle_mem_exception(vaddr, e); RETIRE_FAIL },
+    TR_Address(addr, _) => {
+      let eares : MemoryOpResult(unit) = mem_write_ea_version(addr);
+      match (eares) {
+        MemException(e) => { handle_mem_exception(vaddr, e); RETIRE_FAIL },
+        MemValue(_) => {
+          let new_version : CapVersionBits = truncate(X(rs2), cap_version_width);
+          let res : MemoryOpResult(unit) = mem_write_version(addr, new_version);
+          match (res) {
+            MemValue()  => RETIRE_SUCCESS,
+            MemException(e) => { handle_mem_exception(vaddr, e); RETIRE_FAIL }
+          }
+        }
+      }
+    }
+  }
+}
+
+union clause ast = CAmoCDecVersion : (regidx, regidx, regidx)
+/*!
+ * Atomicallly compare and decrement the version tag of the memory granule at 
+ * *cs1*.**address**. The current version tag is compared with
+ * *cs2*.**version**. If the versions match 
+ * then the memory granule's version is decremented. The result is set in *rd*
+ * as follows:
+ *
+ *  - 1  -- success (granule version decremented)
+ *  - -1 -- success, and the granule version has reached zero (unversioned)
+ *  - 0  -- version mismatch (granule version unchanged)
+ * 
+ * If the granule version is zero to start with then successful completion 
+ * will set the version to the value of the *vmax* field from the xccsr register.
+ * If *vmax* is set to zero then the instruction will always set *rd* to 
+ * -1 (reached zero).
+ *
+ * ## Exceptions
+ *
+ * An exception is raised if:
+ *   - *cs1*.**tag** is not set.
+ *   - *cs1* is sealed.
+ *   - *cs1*.**perms** does not grant **Permit_Store**.
+ *   - *cs1*.**address** is not aligned to **version_granule_size**.
+ *   - *cs1*.**address** $\lt$ *cs1*.**base**.
+ *   - *cs1*.**address** $+$ **version_granule_size** $\gt$ *cs1*.**top**.
+ *   - *cs1*.**version** is not **Unversioned**.
+ *   - *cs2*.**tag** is not set.
+ *   - *cs2* is sealed
+ *   - *cs2*.**perms** does not grant **Permit_Store**.
+ *
+ * ## Notes
+ *
+ *   - This instruction is designed to allow safe management of version tags in
+ * a multithreaded environment without mutexes. A memory allocator could use 
+ * this instruction on deallocation to decrement the version of the first granule 
+ * of an allocation. The result of the instruction allows the allocator to 
+ * efficiently detect exceptional conditions such as duplicate frees (potentially 
+ * simultaneously from multiple threads) or exceeding the available
+ * number of versions (triggering quarantine pending a revocation sweep). 
+ * The remainder of the allocation can be protected using \insnriscvref{CSetVersion} 
+ * and may then be used to safely store inline allocator metadata (e.g. free lists).
+ * We chose decrement and not increment for this instruction because it allows the
+ * choice of the maximum version to occur on the first allocation of a large
+ * region (e.g. a slab), which is already a slow path compared to suballocation,
+ * deallocation and reallocation. It would be equal feasible to design an
+ * incrementing version of this instruction but for this experimental extension
+ * only decrement is defined.
+ *   - Software can use this instruction on an unversioned granule to set the 
+ * version to the maximum available, and optionally to discover the value of this
+ * via a subsquent \insnriscvref{CLoadVersion}.
+ *   - The address and bounds of *cs2* are ignored. Typically they would 
+ *     correspond to the region being deallocated and so will be a subset of 
+ *     *cs1*, but this is expected to be checked by software prior to 
+ *     using CAmoCDecVersion: requiring a capability subset test and a bounds
+ *     check in the same instruction might cause microarchitectural problems.
+ *     Initial proposals for this instruction used an integer register for
+ *     the expected version but this gave rise to a potential race between
+ *     CGetVersion and CAmoCDecVersion if a revocation occurs between them.
+ */
+function clause execute CAmoCDecVersion(rd, cs1, cs2) = {
+  let cs1_val = C(cs1);
+  let cs2_val = C(cs2);
+  let vaddr = cs1_val.address;
+  if not (cs1_val.tag) then {
+    handle_cheri_reg_exception(CapEx_TagViolation, cs1);
+    RETIRE_FAIL
+  } else if not (cs2_val.tag) then {
+    handle_cheri_reg_exception(CapEx_TagViolation, cs2);
+    RETIRE_FAIL
+  } else if isCapSealed(cs1_val) then {
+    handle_cheri_reg_exception(CapEx_SealViolation, cs1);
+    RETIRE_FAIL
+  } else if isCapSealed(cs2_val) then {
+    handle_cheri_reg_exception(CapEx_SealViolation, cs2);
+    RETIRE_FAIL
+  } else if getCapVersion(cs1_val) != CAP_UNVERSIONED then {
+    handle_cheri_reg_exception(CapEx_VersionViolation, cs1);
+    RETIRE_FAIL
+  } else if not (cs1_val.permit_store) then {
+    handle_cheri_reg_exception(CapEx_PermitStoreViolation, cs1);
+    RETIRE_FAIL
+  } else if not (cs2_val.permit_store) then {
+    handle_cheri_reg_exception(CapEx_PermitStoreViolation, cs2);
+    RETIRE_FAIL
+  } else if not (inCapBounds(cs1_val, vaddr, version_granule_size)) then {
+    handle_cheri_reg_exception(CapEx_LengthViolation, cs1);
+    RETIRE_FAIL
+  } else if not (is_aligned_addr(vaddr, version_granule_size)) then {
+    handle_mem_exception(vaddr, E_SAMO_Addr_Align());
+    RETIRE_FAIL
+  } else match translateAddr(vaddr, ReadWrite(Version,Version)) {
+    TR_Failure(e, _) => { handle_mem_exception(vaddr, e); RETIRE_FAIL },
+    TR_Address(addr, _) => {
+      /* XXX announce write even though it might not happen -- will have to 
+          be careful here if integrating RMEM */
+      let eares : MemoryOpResult(unit) = mem_write_ea_version(addr);
+      match (eares) {
+        MemException(e) => { handle_mem_exception(vaddr, e); RETIRE_FAIL },
+        MemValue(_) => {
+          let mver = mem_read_version(addr);
+          match (mver) {
+            MemException(e) => { handle_mem_exception(vaddr, e); RETIRE_FAIL },
+            MemValue(mem_ver) => {
+              let expected_version = getCapVersion(cs2_val);
+              if (mem_ver == expected_version) then {
+                let new_version = expected_version - 1;
+                let res : MemoryOpResult(unit) = mem_write_version(addr, new_version);
+                match (res) {
+                  MemException(e) => { handle_mem_exception(vaddr, e); RETIRE_FAIL },
+                  MemValue()  => {
+                    X(rd) = if new_version == CAP_UNVERSIONED then ones() else EXTZ(0b1);
+                    RETIRE_SUCCESS
+                  }
+                }
+              } else {
+                X(rd) = zeros();
+                RETIRE_SUCCESS
+              }
+            }
+          }
+        }
+      }
+    }
   }
 }
 

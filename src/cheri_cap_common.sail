@@ -39,6 +39,8 @@ type cap_uperms_shift : Int = 15
 let  cap_uperms_shift = sizeof(cap_uperms_shift)
 type cap_perms_width : Int = cap_uperms_shift + cap_uperms_width
 let  cap_perms_width = sizeof(cap_perms_width)
+type cap_version_width : Int = 4
+let  cap_version_width = sizeof(cap_version_width)
 
 type CapAddrBits  = bits(cap_addr_width)
 type CapAddrInt   = range(0, (2 ^ cap_addr_width) - 1)
@@ -46,6 +48,8 @@ type CapLenBits   = bits(cap_len_width)
 type CapLen       = range(0, (2 ^ cap_len_width))
 type CapPermsBits = bits(cap_perms_width)
 type CapFlagsBits = bits(cap_flags_width)
+type CapVersionBits = bits(cap_version_width)
+let CAP_UNVERSIONED = 0b0000 
 
 /* Reset E and T calculated to make top 2**xlen. */
 let cap_max_E   = cap_len_width - cap_mantissa_width + 1
@@ -531,4 +535,16 @@ function getRepresentableAlignmentMask(len) : xlenbits -> xlenbits = {
 function getRepresentableLength(len) : xlenbits -> xlenbits = {
   let m = getRepresentableAlignmentMask(len);
   (len + ~(m)) & m
+}
+
+val getCapVersion : (Capability) -> CapVersionBits
+function getCapVersion(c) = {
+  /* XXX TODO */
+  return 0b0000;
+}
+
+val setCapVersion : (Capability, CapVersionBits) -> Capability
+function setCapVersion(c, v) = {
+  /* XXX TODO */
+  return c;
 }

@@ -3,6 +3,9 @@
 type mem_meta = bool
 
 let default_meta : mem_meta = false
+let version_granule_size = 16
+type version_granules_per_cache_line : Int = 4
+let version_granules_per_cache_line = sizeof(version_granules_per_cache_line)
 
 /* address LSB truncation/extension */
 type tagaddrbits = bits(xlen - log2_cap_size)
