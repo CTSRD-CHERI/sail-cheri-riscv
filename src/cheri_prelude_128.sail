@@ -38,13 +38,14 @@ let  cap_size = sizeof(cap_size)
 type log2_cap_size : Int = 4
 let  log2_cap_size = sizeof(log2_cap_size)
 type CapBits = bits(8 * cap_size)
-/* width of otype field in bits */
 type cap_hperms_width : Int = 12
 let  cap_hperms_width = sizeof(cap_hperms_width)
 type cap_uperms_width : Int = 4
 let  cap_uperms_width = sizeof(cap_uperms_width)
-type cap_otype_width : Int = 18
+type cap_otype_width : Int = 14
 let  cap_otype_width = sizeof(cap_otype_width)
+type cap_version_width : Int = 4
+let  cap_version_width = sizeof(cap_version_width)
 type cap_reserved_width : Int = 2
 let  cap_reserved_width = sizeof(cap_reserved_width)
 type cap_flags_width : Int = 1
@@ -68,6 +69,7 @@ let  internal_E_take_bits = sizeof(internal_E_take_bits)
 /* Capability format completely compressed. Tag is out of band */
 struct EncCapability = {
   perms      : bits(cap_uperms_width + cap_hperms_width),
+  version    : bits(cap_version_width),
   otype      : bits(cap_otype_width),
   reserved   : bits(cap_reserved_width),
   flags      : bits(cap_flags_width),
@@ -81,7 +83,8 @@ function capBitsToEncCapability(c) : CapBits -> EncCapability = struct {
   perms      = c[127..112],
   reserved   = c[111..110],
   flags      = c[109..109],
-  otype      = c[108..91],
+  version    = c[108..105],
+  otype      = c[104..91],
   internal_E = c[90],
   T          = c[89..78],
   B          = c[77..64],
@@ -92,6 +95,7 @@ function encCapToBits(cap) : EncCapability -> CapBits =
   cap.perms @
   cap.reserved @
   cap.flags @
+  cap.version @
   cap.otype @
   [cap.internal_E] @
   cap.T @

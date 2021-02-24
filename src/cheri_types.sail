@@ -36,6 +36,9 @@ let reserved_otypes = 4
 let otype_unsealed = -1
 let otype_sentry   = -2 /* Sealed erstwhile or prospective PCC */
 
+/* Special value of version field used to indicate 'no version' */
+let cap_unversioned_val = 0
+
 enum CPtrCmpOp = {
   CEQ,
   CNE,

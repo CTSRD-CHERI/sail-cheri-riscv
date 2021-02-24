@@ -2172,7 +2172,7 @@ function clause execute CSetVersion(cd, cs1, rs2) = {
   } else if isCapSealed(cs1_val) then {
     handle_cheri_reg_exception(CapEx_SealViolation, cs1);
     RETIRE_FAIL
-  } else if getCapVersion(cs1_val) != CAP_UNVERSIONED then {
+  } else if getCapVersion(cs1_val) != cap_unversioned then {
     handle_cheri_reg_exception(CapEx_VersionViolation, cs1);
     RETIRE_FAIL
   } else {
@@ -2209,7 +2209,7 @@ function clause execute CLoadVersion(rd, cs1) = {
   } else if isCapSealed(cs1_val) then {
     handle_cheri_reg_exception(CapEx_SealViolation, cs1);
     RETIRE_FAIL
-  } else if getCapVersion(cs1_val) != CAP_UNVERSIONED then {
+  } else if getCapVersion(cs1_val) != cap_unversioned then {
     handle_cheri_reg_exception(CapEx_VersionViolation, cs1);
     RETIRE_FAIL
   } else if not (cs1_val.permit_load) then {
@@ -2272,7 +2272,7 @@ function clause execute CLoadVersions(rd, cs1) = {
   } else if isCapSealed(cs1_val) then {
     handle_cheri_reg_exception(CapEx_SealViolation, cs1);
     RETIRE_FAIL
-  } else if getCapVersion(cs1_val) != CAP_UNVERSIONED then {
+  } else if getCapVersion(cs1_val) != cap_unversioned then {
     handle_cheri_reg_exception(CapEx_VersionViolation, cs1);
     RETIRE_FAIL
   } else if not (cs1_val.permit_load) then {
@@ -2336,7 +2336,7 @@ function clause execute CStoreVersion(cs1, rs2) = {
   } else if isCapSealed(cs1_val) then {
     handle_cheri_reg_exception(CapEx_SealViolation, cs1);
     RETIRE_FAIL
-  } else if getCapVersion(cs1_val) != CAP_UNVERSIONED then {
+  } else if getCapVersion(cs1_val) != cap_unversioned then {
     handle_cheri_reg_exception(CapEx_VersionViolation, cs1);
     RETIRE_FAIL
   } else if not (cs1_val.permit_store) then {
@@ -2443,7 +2443,7 @@ function clause execute CAmoCDecVersion(rd, cs1, cs2) = {
   } else if isCapSealed(cs2_val) then {
     handle_cheri_reg_exception(CapEx_SealViolation, cs2);
     RETIRE_FAIL
-  } else if getCapVersion(cs1_val) != CAP_UNVERSIONED then {
+  } else if getCapVersion(cs1_val) != cap_unversioned then {
     handle_cheri_reg_exception(CapEx_VersionViolation, cs1);
     RETIRE_FAIL
   } else if not (cs1_val.permit_store) then {
@@ -2478,7 +2478,7 @@ function clause execute CAmoCDecVersion(rd, cs1, cs2) = {
                 match (res) {
                   MemException(e) => { handle_mem_exception(vaddr, e); RETIRE_FAIL },
                   MemValue()  => {
-                    X(rd) = if new_version == CAP_UNVERSIONED then ones() else EXTZ(0b1);
+                    X(rd) = if new_version == cap_unversioned then ones() else EXTZ(0b1);
                     RETIRE_SUCCESS
                   }
                 }

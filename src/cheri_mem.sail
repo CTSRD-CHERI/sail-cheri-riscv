@@ -30,7 +30,7 @@ val mem_read_version : xlenbits -> MemoryOpResult(CapVersionBits)
 function mem_read_version(addr) = {
   if   ~(is_aligned_addr(addr, version_granule_size))
   then MemException(E_SAMO_Addr_Align())
-  else MemValue(0b0000) /* XXX TODO */
+  else MemValue(cap_unversioned) /* XXX TODO */
 }
 
 val mem_write_ea_version : xlenbits -> MemoryOpResult(unit)

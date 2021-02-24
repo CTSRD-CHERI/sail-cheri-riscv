@@ -39,8 +39,6 @@ type cap_uperms_shift : Int = 15
 let  cap_uperms_shift = sizeof(cap_uperms_shift)
 type cap_perms_width : Int = cap_uperms_shift + cap_uperms_width
 let  cap_perms_width = sizeof(cap_perms_width)
-type cap_version_width : Int = 4
-let  cap_version_width = sizeof(cap_version_width)
 
 type CapAddrBits  = bits(cap_addr_width)
 type CapAddrInt   = range(0, (2 ^ cap_addr_width) - 1)
@@ -49,7 +47,7 @@ type CapLen       = range(0, (2 ^ cap_len_width))
 type CapPermsBits = bits(cap_perms_width)
 type CapFlagsBits = bits(cap_flags_width)
 type CapVersionBits = bits(cap_version_width)
-let CAP_UNVERSIONED = 0b0000 
+let cap_unversioned : CapVersionBits = to_bits(cap_version_width, cap_unversioned_val) 
 
 /* Reset E and T calculated to make top 2**xlen. */
 let cap_max_E   = cap_len_width - cap_mantissa_width + 1
@@ -82,6 +80,7 @@ struct Capability = {
   B                      : bits(cap_mantissa_width),
   T                      : bits(cap_mantissa_width),
   otype                  : bits(cap_otype_width),
+  version                : bits(cap_version_width),
   address                : bits(cap_addr_width)
 }
 
@@ -107,6 +106,7 @@ let null_cap : Capability = struct {
   B                      = zeros(),
   T                      = cap_reset_T,
   otype                  = to_bits(cap_otype_width, otype_unsealed),
+  version                = cap_unversioned,
   address                = zeros()
 }
 
@@ -132,6 +132,7 @@ let default_cap : Capability = struct {
   B                      = zeros(),
   T                      = cap_reset_T,
   otype                  = to_bits(cap_otype_width, otype_unsealed),
+  version                = cap_unversioned,
   address                = zeros()
 }
 
@@ -197,6 +198,7 @@ function encCapabilityToCapability(t,c) : (bool, EncCapability) -> Capability = 
     B                      = Bs,
     T                      = Ttop2 @ T,
     otype                  = c.otype,
+    version                = c.version,
     address                = c.address
   }
 }
@@ -216,6 +218,7 @@ function capToEncCap(cap) : Capability -> EncCapability = {
     perms = cap.uperms @ getCapHardPerms(cap),
     reserved = cap.reserved,
     flags = bool_to_bits(cap.flag_cap_mode),
+    version = cap.version,
     otype = cap.otype,
     internal_E = bool_to_bits(cap.internal_E)[0],
     T = t_hi @ t_lo,
@@ -381,6 +384,23 @@ function getCapFlags(cap) = bool_to_bits(cap.flag_cap_mode)
 val setCapFlags : (Capability, CapFlagsBits) -> Capability
 function setCapFlags(cap, flags) = {cap with flag_cap_mode = bit_to_bool(flags[0])}
 
+
+/*!
+ * THIS`(cap)` returns the version field of `cap`.
+ */
+val getCapVersion : (Capability) -> CapVersionBits
+function getCapVersion(c) = {
+  return c.version;
+}
+
+/*!
+ * THIS`(cap, v)` returns a copy of `cap`with the version field set to `v`.
+ */
+val setCapVersion : (Capability, CapVersionBits) -> Capability
+function setCapVersion(c, v) = {
+  return {c with version=v};
+}
+
 val isCapSealed : Capability -> bool
 function isCapSealed(cap) = signed(cap.otype) != otype_unsealed
 
@@ -515,6 +535,8 @@ function capToString (cap) = {
   concat_str(if cap.tag then "1" else "0",
   concat_str(" s:",
   concat_str(if isCapSealed(cap) then "1" else "0",
+  concat_str(" v:",
+  concat_str(BitStr(getCapVersion(cap)),
   concat_str(" perms:",
   concat_str(BitStr(0b0 @ getCapPerms(cap)),
   concat_str(" type:",
@@ -523,7 +545,7 @@ function capToString (cap) = {
   concat_str(BitStr(getCapOffsetBits(cap)),
   concat_str(" base:",
   concat_str(BitStr(getCapBaseBits(cap)),
-  concat_str(" length:", len_str)))))))))))))
+  concat_str(" length:", len_str)))))))))))))))
 }
 function getRepresentableAlignmentMask(len) : xlenbits -> xlenbits = {
   let (exact, c) = setCapBounds(default_cap, to_bits(sizeof(xlen), 0), 0b0 @ len);
@@ -535,16 +557,4 @@ function getRepresentableAlignmentMask(len) : xlenbits -> xlenbits = {
 function getRepresentableLength(len) : xlenbits -> xlenbits = {
   let m = getRepresentableAlignmentMask(len);
   (len + ~(m)) & m
-}
-
-val getCapVersion : (Capability) -> CapVersionBits
-function getCapVersion(c) = {
-  /* XXX TODO */
-  return 0b0000;
-}
-
-val setCapVersion : (Capability, CapVersionBits) -> Capability
-function setCapVersion(c, v) = {
-  /* XXX TODO */
-  return c;
 }
