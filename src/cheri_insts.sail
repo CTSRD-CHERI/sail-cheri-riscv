@@ -762,6 +762,9 @@ function clause execute (CBuildCap(cd, cs1, cs2)) = {
   } else if isCapSealed(cs1_val) then {
     handle_cheri_reg_exception(CapEx_SealViolation, cs1);
     RETIRE_FAIL
+  } else if getCapVersion(cs1_val) != cap_unversioned then {
+    handle_cheri_reg_exception(CapEx_VersionViolation, cs1);
+    RETIRE_FAIL
   } else if cs2_base < cs1_base then {
     handle_cheri_reg_exception(CapEx_LengthViolation, cs1);
     RETIRE_FAIL
@@ -779,14 +782,15 @@ function clause execute (CBuildCap(cd, cs1, cs2)) = {
     let (_, cd2) = setCapOffset(cd1, getCapOffsetBits(cs2_val)); // Ignore representability check, since Fast Rep Check not relevant
     let cd3 = setCapPerms(cd2, cs2_perms);
     let cd4 = setCapFlags(cd3, cs2_flags);
-    if cd4 != {unsealCap(cs2_val) with tag=true} then
+    let cd5 = setCapVersion(cd4, getCapVersion(cs2_val));
+    if cd5 != {unsealCap(cs2_val) with tag=true} then
     {
       handle_cheri_reg_exception(CapEx_LengthViolation, cs2);
       RETIRE_FAIL
     } else {
       assert(exact, "CBuildCap: setCapBounds was not exact"); /* base and top came from cs2 originally so will be exact */
-      let cd5 = if signed(cs2_val.otype) == otype_sentry then sealCap(cd4, to_bits(cap_otype_width, otype_sentry)) else cd4;
-      C(cd) = cd5;
+      let cd6 = if signed(cs2_val.otype) == otype_sentry then sealCap(cd5, to_bits(cap_otype_width, otype_sentry)) else cd5;
+      C(cd) = cd6;
       RETIRE_SUCCESS
     }
   }
