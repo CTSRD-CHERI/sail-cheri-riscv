@@ -885,6 +885,11 @@ union clause ast = CTestSubset : (regidx, regidx, regidx)
  * - The **otype** field is ignored for this instruction, but an alternative
  *   implementation might wish to consider capabilities with distinct
  *   **otype**s as unordered as is done for the **tag** field.
+ *
+ * - TODO it is not clear what it is best to do for versions: a versioned
+ *   capability is clearly a subset of an unversioned one and differing versions
+ *   indicate incompatibility but perhaps they should be ignored like otypes
+ *   (probably preferred for GC usage).
  */
 function clause execute (CTestSubset(rd, cs1, cs2)) = {
   let cs1_val = if unsigned(cs1) == 0 then DDC else C(cs1);
@@ -893,6 +898,8 @@ function clause execute (CTestSubset(rd, cs1, cs2)) = {
   let (cs1_base, cs1_top) = getCapBounds(cs1_val);
   let cs2_perms = getCapPerms(cs2_val);
   let cs1_perms = getCapPerms(cs1_val);
+  let cs2_version = getCapVersion(cs2_val);
+  let cs1_version = getCapVersion(cs1_val);
   let result = if cs1_val.tag != cs2_val.tag then
                  0b0
                else if cs2_base < cs1_base then
@@ -900,6 +907,9 @@ function clause execute (CTestSubset(rd, cs1, cs2)) = {
                else if cs2_top > cs1_top then
                  0b0
                else if (cs2_perms & cs1_perms) != cs2_perms then
+                 0b0
+               else if (cs1_version != cap_unversioned) &
+                       (cs1_version != cs2_version) then
                  0b0
                else
                  0b1;
