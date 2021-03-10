@@ -3,6 +3,9 @@
 val MEMr_tag = "read_tag_bool"  : bits(64) -> bool effect { rmemt }
 val MEMw_tag = "write_tag_bool" : (bits(64) , bool) -> unit effect { wmvt }
 
+val MEMr_tag_byte = "read_tag_byte"  : bits(64) -> bits(8) effect { rmemt }
+val MEMw_tag_byte = "write_tag_byte" : (bits(64) , bits(8)) -> unit effect { wmvt }
+
 val MAX : forall 'n, 'n >= 0 . atom('n) -> atom(2 ^ 'n - 1) effect pure
 function MAX(n) = pow2(n) - 1
 

@@ -1313,13 +1313,15 @@ function handle_load_data_via_cap(rd, auth_idx, auth_val, vaddrBits, is_unsigned
   } else match translateAddr(vaddrBits, Read(Data)) {
     TR_Failure(E_Extension(_), _) => { internal_error("unexpected cheri exception for data load") },
     TR_Failure(e, _) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
-    TR_Address(addr, _) =>
+    TR_Address(addr, _) => {
+      CAP_AUTH_VERSION = Some(getCapVersion(auth_val));
       match (width, sizeof(xlen)) {
         (BYTE, _)    => process_load(rd, vaddrBits, mem_read(Read(Data), addr, 1, aq, rl, false), is_unsigned),
         (HALF, _)    => process_load(rd, vaddrBits, mem_read(Read(Data), addr, 2, aq, rl, false), is_unsigned),
         (WORD, _)    => process_load(rd, vaddrBits, mem_read(Read(Data), addr, 4, aq, rl, false), is_unsigned),
         (DOUBLE, 64) => process_load(rd, vaddrBits, mem_read(Read(Data), addr, 8, aq, rl, false), is_unsigned)
       }
+    }
   }
 }
 
@@ -1387,6 +1389,7 @@ function handle_load_cap_via_cap(cd, auth_idx, auth_val, vaddrBits) = {
     TR_Failure(E_Extension(_), _) => { internal_error("unexpected cheri exception for cap load") },
     TR_Failure(e, _) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
     TR_Address(addr, ptw_info) => {
+      CAP_AUTH_VERSION = Some(getCapVersion(auth_val));
       let c = mem_read_cap(addr, aq, rl, false);
       match c {
         MemValue(v) => {
@@ -1528,7 +1531,7 @@ function clause execute (CLoadTags(rd, cs1)) = {
         RETIRE_FAIL
       } else {
         mtags : MemoryOpResult(bits(caps_per_cache_line)) = MemValue(zeros());
-
+        CAP_AUTH_VERSION = Some(getCapVersion(cs1_val));
         foreach (i from 0 to (caps_per_cache_line - 1)) {
           match mtags {
             MemException(_) => (),
@@ -1584,13 +1587,15 @@ function handle_loadres_data_via_cap(rd, auth_idx, auth_val, vaddrBits, width) =
   } else match translateAddr(vaddrBits, Read(Data)) {
     TR_Failure(E_Extension(_), _) => { internal_error("unexpected cheri exception for data load") },
     TR_Failure(e, _) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
-    TR_Address(addr, _) =>
+    TR_Address(addr, _) => {
+      CAP_AUTH_VERSION = Some(getCapVersion(auth_val));
       match (width, sizeof(xlen)) {
         (BYTE, _)    => process_loadres(rd, vaddrBits, mem_read(Read(Data), addr, 1, aq, rl, false), is_unsigned),
         (HALF, _)    => process_loadres(rd, vaddrBits, mem_read(Read(Data), addr, 2, aq, rl, false), is_unsigned),
         (WORD, _)    => process_loadres(rd, vaddrBits, mem_read(Read(Data), addr, 4, aq, rl, false), is_unsigned),
         (DOUBLE, 64) => process_loadres(rd, vaddrBits, mem_read(Read(Data), addr, 8, aq, rl, false), is_unsigned)
       }
+    }
   }
 }
 
@@ -1618,6 +1623,7 @@ if not(auth_val.tag) then {
     TR_Failure(E_Extension(_), _) => { internal_error("unexpected cheri exception for cap load") },
     TR_Failure(e, _) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
     TR_Address(addr, ptw_info) => {
+      CAP_AUTH_VERSION = Some(getCapVersion(auth_val));
       let c = mem_read_cap(addr, aq, rl, false);
       match c {
         MemValue(v) => {
@@ -1709,6 +1715,7 @@ function handle_store_data_via_cap(rs2, auth_idx, auth_val, vaddrBits, width) = 
     TR_Failure(E_Extension(_), _) => { internal_error("unexpected cheri exception for data store") },
     TR_Failure(e, _) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
     TR_Address(addr, _) => {
+      CAP_AUTH_VERSION = Some(getCapVersion(auth_val));
       let eares : MemoryOpResult(unit) = mem_write_ea(addr, size, aq, rl, false);
       match (eares) {
         MemException(e) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
@@ -1800,6 +1807,7 @@ function handle_store_cap_via_cap(cs2, auth_idx, auth_val, vaddrBits) = {
   } else match translateAddr(vaddrBits, Write(if cs2_val.tag then Cap else Data)) {
     TR_Failure(e, _) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
     TR_Address(addr, _) => {
+      CAP_AUTH_VERSION = Some(getCapVersion(auth_val));
       let eares : MemoryOpResult(unit) = mem_write_ea_cap(addr, aq, rl, false);
       match (eares) {
         MemException(e) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
@@ -1983,6 +1991,7 @@ function handle_store_cond_data_via_cap(rs2, auth_idx, auth_val, vaddrBits, widt
       TR_Failure(E_Extension(_), _) => { internal_error("unexpected cheri exception for data store") },
       TR_Failure(e, _) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
       TR_Address(addr, _) => {
+        CAP_AUTH_VERSION = Some(getCapVersion(auth_val));
         let eares : MemoryOpResult(unit) = mem_write_ea(addr, size, aq, rl, false);
         match (eares) {
           MemException(e) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
@@ -2041,6 +2050,7 @@ function handle_store_cond_cap_via_cap(cs2, auth_idx, auth_val, vaddrBits) = {
     match translateAddr(vaddrBits, Write(if cs2_val.tag then Cap else Data)) {
       TR_Failure(e, _) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
       TR_Address(addr, _) => {
+        CAP_AUTH_VERSION = Some(getCapVersion(auth_val));
         let eares : MemoryOpResult(unit) = mem_write_ea_cap(addr, aq, rl, false);
         match (eares) {
           MemException(e) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },

@@ -1,5 +1,7 @@
 /* Error handlers for address check errors */
 
+register CAP_AUTH_VERSION : option(CapVersionBits)
+
 val handle_cheri_cap_exception : (CapEx, capreg_idx) -> unit effect {escape, rreg, wreg}
 function handle_cheri_cap_exception(capEx, regnum) =
   {
@@ -39,6 +41,8 @@ type ext_fetch_addr_error = CapEx
 
 val ext_fetch_check_pc : (xlenbits, xlenbits) -> Ext_FetchAddr_Check(ext_fetch_addr_error) effect {rreg}
 function ext_fetch_check_pc(start_pc, pc) = {
+  /* this resets the auth version on every instruction */
+  CAP_AUTH_VERSION = None();
   if   start_pc == pc
   then {
     pcc_base = getCapBaseBits(PCC);
@@ -141,8 +145,11 @@ function ext_data_get_addr(base_reg : regidx, offset : xlenbits, acc : AccessTyp
     Ext_DataAddr_Error(CapEx_PermitStoreViolation, auth_idx)
   else if not(inCapBounds(auth_val, newAddr, word_width_bytes(width))) then
     Ext_DataAddr_Error(CapEx_LengthViolation, auth_idx)
-  else
+  else {
+    /* stash the version of authorising cap for later comparison with memory version */
+    CAP_AUTH_VERSION = Some(getCapVersion(auth_val));
     Ext_DataAddr_OK(newAddr)
+  }
 }
 
 function ext_handle_data_check_error(err : ext_data_addr_error) -> unit = {

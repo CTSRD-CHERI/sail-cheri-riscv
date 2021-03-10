@@ -62,7 +62,8 @@ enum ext_ptw_error = {AT_CAP_ERR}
 enum ext_exc_type = {
   EXC_LOAD_CAP_PAGE_FAULT,
   EXC_SAMO_CAP_PAGE_FAULT,
-  EXC_CHERI
+  EXC_CHERI,
+  EXC_VERSION_FAULT
 }
 
 /* CHERI conversion of extension exceptions to bits */
@@ -71,7 +72,8 @@ function ext_exc_type_to_bits(e) =
   match (e) {
     EXC_LOAD_CAP_PAGE_FAULT => 0x1a,
     EXC_SAMO_CAP_PAGE_FAULT => 0x1b,
-    EXC_CHERI               => 0x1c
+    EXC_CHERI               => 0x1c,
+    EXC_VERSION_FAULT       => 0x1d
   }
 
 /* CHERI conversion of extension exceptions to integers */
@@ -80,7 +82,8 @@ function num_of_ext_exc_type(e) =
   match (e) {
     EXC_LOAD_CAP_PAGE_FAULT => 26,
     EXC_SAMO_CAP_PAGE_FAULT => 27,
-    EXC_CHERI               => 28
+    EXC_CHERI               => 28,
+    EXC_VERSION_FAULT       => 29
   }
 
 /* CHERI conversion of extension exceptions to strings */
@@ -89,5 +92,6 @@ function ext_exc_type_to_str(e) =
   match (e) {
     EXC_LOAD_CAP_PAGE_FAULT => "load-cap-page-fault",
     EXC_SAMO_CAP_PAGE_FAULT => "store/amo-cap-page-fault",
-    EXC_CHERI               => "cheri"
+    EXC_CHERI               => "cheri",
+    EXC_VERSION_FAULT       => "version-fault"
   }
