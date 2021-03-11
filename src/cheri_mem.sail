@@ -98,7 +98,9 @@ function is_memory_version_OK(paddr : xlenbits, width : int) -> bool = {
 }
 
 function ext_check_phys_mem_read(t, paddr, width, aq, rl, res, meta) = {
-  if is_memory_version_OK(paddr, width)
+  if t == Execute() 
+  then Ext_PhysAddr_OK() /* Instruction fetch exempt from version checks */
+  else if is_memory_version_OK(paddr, width)
   then Ext_PhysAddr_OK()
   else Ext_PhysAddr_Error(E_Extension(EXC_VERSION_FAULT))
 }
