@@ -1,8 +1,12 @@
 /* CHERI uses a boolean tag and version as metadata in memory. 
    Options so that we can independently write tag and version. */
-type mem_meta = (option(bool), option(CapVersionBits))
+union mem_meta = {
+  Meta_Tag : bool,
+  Meta_Ver : CapVersionBits,
+  Meta_TagVer   : (bool, CapVersionBits)
+}
 
-let default_meta : mem_meta = (Some(false) : option(bool), None() : option(CapVersionBits))
+let default_meta : mem_meta = Meta_Tag(false)
 let version_granule_size = cap_size
 type version_granules_per_cache_line : Int = caps_per_cache_line
 let version_granules_per_cache_line = sizeof(version_granules_per_cache_line)
@@ -12,25 +16,31 @@ type tagaddrbits = bits(xlen - log2_cap_size)
 function addr_to_tag_addr(addr : xlenbits) -> tagaddrbits = truncateLSB(addr, sizeof(xlen) - log2_cap_size)
 function tag_addr_to_addr(tag_addr : tagaddrbits) -> xlenbits = tag_addr @ zeros(log2_cap_size)
 
+function write_tag_with_log(tag_addr: tagaddrbits, t : bool) -> unit = {
+  if get_config_print_mem() then
+    print_mem("tag[" ^ BitStr(tag_addr_to_addr(tag_addr)) ^ "] <- " ^ (if t then "1" else "0"));
+  MEMw_tag(EXTZ(tag_addr), t);
+}
+
+function write_ver_with_log(tag_addr: tagaddrbits, v :CapVersionBits) -> unit = {
+  if get_config_print_mem() then
+    print_mem("ver[" ^ BitStr(tag_addr_to_addr(tag_addr)) ^ "] <- " ^ BitStr(v));
+  MEMw_tag_byte(EXTZ(tag_addr), EXTZ(v));
+}
+
 /**
   * Writes tag and version to aligned granule.
   */
-function write_ram_mtag_mver(tag_addr : tagaddrbits, (mtag, mver) : mem_meta) -> unit = {
-  match(mtag) {
-    Some(t) => {
-      if get_config_print_mem() then
-        print_mem("tag[" ^ BitStr(tag_addr_to_addr(tag_addr)) ^ "] <- " ^ (if t then "1" else "0"));
-      MEMw_tag(EXTZ(tag_addr), t);
-    },
-    None() => ()
+function write_ram_mtag_mver(tag_addr : tagaddrbits, meta : mem_meta) -> unit = {
+  match(meta) {
+    Meta_Tag(t)       => write_tag_with_log(tag_addr, t),
+    Meta_TagVer(t, _) => write_tag_with_log(tag_addr, t),
+    _ => ()
   };
-  match (mver) {
-    Some(v) => {
-      if get_config_print_mem() then
-        print_mem("ver[" ^ BitStr(tag_addr_to_addr(tag_addr)) ^ "] <- " ^ BitStr(v));
-      MEMw_tag_byte(EXTZ(tag_addr), EXTZ(v));
-    },
-    None() => ()
+  match (meta) {
+    Meta_Ver(v)       => write_ver_with_log(tag_addr, v),
+    Meta_TagVer(_, v) => write_ver_with_log(tag_addr, v),
+    _ => ()
   }
 }
 
@@ -60,5 +70,5 @@ function __ReadRAM_Meta(addr, width) = {
     print_mem("tag[R," ^ tag_addr_str ^ "] -> " ^ (if tag then "1" else "0"));
     print_mem("ver[R," ^ tag_addr_str ^ "] -> " ^ BitStr(ver));
   };
-  (Some(tag), Some(ver))
+  Meta_TagVer(tag, ver)
 }

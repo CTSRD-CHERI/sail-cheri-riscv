@@ -4,7 +4,7 @@ val mem_read_cap : (xlenbits, bool, bool, bool) -> MemoryOpResult(Capability) ef
 function mem_read_cap (addr, aq, rl, res) = {
   let result : MemoryOpResult((CapBits, mem_meta)) = mem_read_meta(Read(Data), addr, cap_size, aq, rl, res, true);
   match result {
-    MemValue(v, (Some(tag), _)) => MemValue(memBitsToCapability(tag, v)),
+    MemValue(v, Meta_TagVer(tag, _)) => MemValue(memBitsToCapability(tag, v)),
     MemException(e)  => MemException(e) : MemoryOpResult(Capability),
     _ => internal_error("mem_read_meta didn't return cap+tag or exception")
   }
@@ -24,7 +24,7 @@ function mem_write_cap (addr, cap, aq, rl, con) = {
      TODO: State closed-form normalised-ness criterion that implies this,
      and prove it as an invariant of capabilities in the system. */
   assert(memBitsToCapability(cap.tag, cap_bits) == cap);
-  mem_write_value_meta(addr, cap_size, cap_bits, Cap, (Some(cap.tag), None()), aq, rl, con)
+  mem_write_value_meta(addr, cap_size, cap_bits, Cap, Meta_Tag(cap.tag), aq, rl, con)
 }
 
 val mem_read_version : xlenbits -> MemoryOpResult(CapVersionBits)
@@ -34,7 +34,7 @@ function mem_read_version(addr) = {
   else {
     let result : MemoryOpResult((CapBits, mem_meta)) = mem_read_meta(Read(Version), addr, version_granule_size, false, false, false, true);
     match result {
-      MemValue(_, (_, Some(v))) => MemValue(v),
+      MemValue(_, Meta_TagVer(_, v)) => MemValue(v),
       MemException(e)  => MemException(e) : MemoryOpResult(CapVersionBits),
       _ => internal_error("mem_read_meta didn't to return version or exception")
     }
@@ -59,7 +59,7 @@ function mem_write_version(addr, v) = {
       mem_read_meta(Read(Version), addr, version_granule_size, false, false, false, true);
     match result {
       MemValue(cap_bits, _) => {
-        let _ = mem_write_value_meta(addr, cap_size, cap_bits, Version, (None(), Some(v)), false, false, false);
+        let _ = mem_write_value_meta(addr, cap_size, cap_bits, Version, Meta_Ver(v), false, false, false);
         MemValue()
       },
       MemException(e)  => internal_error("read of version during write failed")
@@ -99,12 +99,12 @@ function is_memory_version_OK(paddr : xlenbits, width : int) -> bool = {
 
 function ext_check_phys_mem_read(t, paddr, width, aq, rl, res, meta) = {
   if is_memory_version_OK(paddr, width)
-  then None()
-  else Some(E_Extension(EXC_VERSION_FAULT))
+  then Ext_PhysAddr_OK()
+  else Ext_PhysAddr_Error(E_Extension(EXC_VERSION_FAULT))
 }
 
 function ext_check_phys_mem_write(wk, paddr, width, data, meta) = {
   if is_memory_version_OK(paddr, width)
-  then None()
-  else Some(E_Extension(EXC_VERSION_FAULT))
+  then Ext_PhysAddr_OK()
+  else Ext_PhysAddr_Error(E_Extension(EXC_VERSION_FAULT))
 }
