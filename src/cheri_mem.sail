@@ -93,7 +93,7 @@ function is_memory_version_OK(paddr : xlenbits, width : int) -> bool = {
         else false
       }
     },
-    None()  => internal_error("No cap auth version to check in read")
+    None() => internal_error("No cap auth version to check.")
   }
 }
 

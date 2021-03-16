@@ -2249,6 +2249,7 @@ function clause execute CLoadVersion(rd, cs1) = {
     TR_Failure(E_Extension(_), _) => { internal_error("unexpected cheri exception for version load") },
     TR_Failure(e, _) => { handle_mem_exception(vaddr, e); RETIRE_FAIL },
     TR_Address(addr, _) => {
+      CAP_AUTH_VERSION = Some(cap_unversioned);
       let c : MemoryOpResult(CapVersionBits) = mem_read_version(addr);
       match c {
         MemValue(v)=> {
@@ -2318,6 +2319,7 @@ function clause execute CLoadVersions(rd, cs1) = {
         match mversions {
           MemException(_) => (),
           MemValue(versions) => {
+            CAP_AUTH_VERSION = Some(cap_unversioned);
             match mem_read_version(addr + i * version_granule_size) {
               MemException(e) => mversions = MemException(e),
               MemValue(v) =>
@@ -2375,6 +2377,7 @@ function clause execute CStoreVersion(cs1, rs2) = {
   } else match translateAddr(vaddr, Write(Version)) {
     TR_Failure(e, _) => { handle_mem_exception(vaddr, e); RETIRE_FAIL },
     TR_Address(addr, _) => {
+      CAP_AUTH_VERSION = Some(cap_unversioned);
       let eares : MemoryOpResult(unit) = mem_write_ea_version(addr);
       match (eares) {
         MemException(e) => { handle_mem_exception(vaddr, e); RETIRE_FAIL },
@@ -2491,6 +2494,7 @@ function clause execute CAmoCDecVersion(rd, cs1, cs2) = {
       match (eares) {
         MemException(e) => { handle_mem_exception(vaddr, e); RETIRE_FAIL },
         MemValue(_) => {
+          CAP_AUTH_VERSION = Some(cap_unversioned);
           let mver = mem_read_version(addr);
           match (mver) {
             MemException(e) => { handle_mem_exception(vaddr, e); RETIRE_FAIL },
