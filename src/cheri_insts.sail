@@ -2548,6 +2548,9 @@ mapping clause encdec = CJALR(cd, cs1)      if (haveXcheri()) <-> 0b1111111 @ 0b
 mapping clause encdec = CSealEntry(cd, cs1) if (haveXcheri()) <-> 0b1111111 @ 0b10001 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
 
 mapping clause encdec = CLoadTags(rd, cs1) if (haveXcheri()) <-> 0b1111111 @ 0b10010 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CGetVersion(rd, cs1) if (haveXcheri()) <-> 0b1111111 @ 0b10011 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CLoadVersion(rd, cs1) if (haveXcheri()) <-> 0b1111111 @ 0b10100 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CLoadVersions(rd, cs1) if (haveXcheri()) <-> 0b1111111 @ 0b10101 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 
 mapping clause encdec = CRRL(rd, rs1) if (haveXcheri()) <-> 0b1111111 @ 0b01000 @ rs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CRAM(rd, rs1) if (haveXcheri()) <-> 0b1111111 @ 0b01001 @ rs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
@@ -2573,6 +2576,9 @@ mapping clause assembly = CJALR(cd, cs1)      <-> "cjalr"      ^ spc() ^ cap_reg
 mapping clause assembly = CSealEntry(cd, cs1) <-> "csealentry" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1)
 
 mapping clause assembly = CLoadTags(rd, cs1) <-> "cloadtags" ^ spc() ^ reg_name(rd) ^ sep() ^ "(" ^ cap_reg_name(cs1) ^ ")"
+mapping clause assembly = CGetVersion(rd, cs1) <-> "cgetversion" ^ spc() ^ reg_name(rd) ^ sep() ^ cap_reg_name(cs1)
+mapping clause assembly = CLoadVersion(rd, cs1) <-> "cloadversion" ^ spc() ^ reg_name(rd) ^ sep() ^ "(" ^ cap_reg_name(cs1) ^ ")"
+mapping clause assembly = CLoadVersions(rd, cs1) <-> "cloadversions" ^ spc() ^ reg_name(rd) ^ sep() ^ "(" ^ cap_reg_name(cs1) ^ ")"
 
 mapping clause assembly = CRRL(rd, rs1) <-> "crrl" ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1)
 mapping clause assembly = CRAM(rd, rs1) <-> "cram" ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1)
@@ -2602,6 +2608,8 @@ mapping clause encdec = CSub(rd, cs1, cs2)        if (haveXcheri()) <-> 0b001010
 
 mapping clause encdec = CTestSubset(rd, cs1, cs2) if (haveXcheri()) <-> 0b0100000 @ cs2 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CSpecialRW(cd, scr, cs1)  if (haveXcheri()) <-> 0b0000001 @ scr @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CSetVersion(cd, cs1, rs2) if (haveXcheri()) <-> 0b0000010 @ rs2 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CAmoCDecVersion(rd, cs1, cs2) if (haveXcheri()) <-> 0b0000011 @ cs2 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 
 mapping clause encdec = CIncOffsetImmediate(cd, cs1, imm12) if (haveXcheri()) <-> imm12 : bits(12) @ cs1 @ 0b001 @ cd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CSetBoundsImmediate(cd, cs1, imm12) if (haveXcheri()) <-> imm12 : bits(12) @ cs1 @ 0b010 @ cd @ 0b1011011 if (haveXcheri())
@@ -2628,6 +2636,8 @@ mapping clause assembly = CSub(rd, cs1, cs2)      <-> "csub"        ^ spc() ^ re
 mapping clause assembly = CTestSubset(rd, cs1, cs2) <-> "ctestsubset" ^ spc() ^ reg_name(rd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ cap_reg_name(cs2)
 
 mapping clause assembly = CSpecialRW(cd, scr, cs1) <-> "cspecialrw"  ^ spc() ^ cap_reg_name(cd) ^ sep() ^ scr_name_map(scr) ^ sep() ^ cap_reg_name(cs1)
+mapping clause assembly = CSetVersion(cd, cs1, rs2) <-> "csetversion" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ reg_name(rs2)
+mapping clause assembly = CAmoCDecVersion(cd, cs1, cs2) <-> "camocdecversion" ^ spc() ^ reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ cap_reg_name(cs2)
 
 mapping clause assembly = CIncOffsetImmediate(cd, cs1, imm12) <-> "cincoffsetimm" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ hex_bits_12(imm12)
 mapping clause assembly = CSetBoundsImmediate(cd, cs1, imm12) <-> "csetboundsimm" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ hex_bits_12(imm12)
@@ -2636,9 +2646,11 @@ mapping clause assembly = CSEQX(rd, cs1, cs2) <-> "cseqx" ^ spc() ^ reg_name(rd)
 
 /* Two source */
 
-mapping clause encdec = CInvoke(cs1, cs2)   if (haveXcheri()) <-> 0b1111110 @ cs2 @ cs1 @ 0b000 @ 0b00001 @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CInvoke(cs1, cs2) if (haveXcheri())       <-> 0b1111110 @ cs2 @ cs1 @ 0b000 @ 0b00001 @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CStoreVersion(cs1, rs2) if (haveXcheri()) <-> 0b1111110 @ rs2 @ cs1 @ 0b000 @ 0b00010 @ 0b1011011 if (haveXcheri())
 
 mapping clause assembly = CInvoke(cs1, cs2) <-> "cinvoke" ^ spc() ^ cap_reg_name(cs1) ^ sep() ^ cap_reg_name(cs2)
+mapping clause assembly = CStoreVersion(cs1, rs2) <-> "cstoreversion" ^ spc() ^ reg_name(rs2) ^ sep() ^ cap_reg_name(cs1)
 
 /* Loads and stores */
 
