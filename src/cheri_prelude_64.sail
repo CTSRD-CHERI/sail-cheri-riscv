@@ -45,6 +45,15 @@ type cap_uperms_width : Int = 0
 let  cap_uperms_width = sizeof(cap_uperms_width)
 type cap_otype_width : Int = 4
 let  cap_otype_width = sizeof(cap_otype_width)
+/*
+ * Obviously this won't work - it's just a placeholder, I'm only planning to
+ * test this scheme with 128-bit caps.
+ *
+ * [Included for consistency with QEMU, which required a stack_frame_size field
+ * for both 64- and 128-bit caps to make the macros work!]
+ */
+type cap_stack_frame_size_width : Int = 0
+let  cap_stack_frame_size_width = sizeof(cap_stack_frame_size_width)
 type cap_reserved_width : Int = 0
 let  cap_reserved_width = sizeof(cap_reserved_width)
 type cap_flags_width : Int = 1
@@ -67,25 +76,27 @@ let  internal_E_take_bits = sizeof(internal_E_take_bits)
 
 /* Capability format completely compressed. Tag is out of band */
 struct EncCapability = {
-  perms      : bits(cap_uperms_width + cap_hperms_width),
-  otype      : bits(cap_otype_width),
-  reserved   : bits(cap_reserved_width),
-  flags      : bits(cap_flags_width),
-  internal_E : bit,
-  T          : bits(cap_mantissa_width - 2),
-  B          : bits(cap_mantissa_width),
-  address    : bits(cap_addr_width)
+  perms            : bits(cap_uperms_width + cap_hperms_width),
+  otype            : bits(cap_otype_width),
+  stack_frame_size : bits(cap_stack_frame_size_width),
+  reserved         : bits(cap_reserved_width),
+  flags            : bits(cap_flags_width),
+  internal_E       : bit,
+  T                : bits(cap_mantissa_width - 2),
+  B                : bits(cap_mantissa_width),
+  address          : bits(cap_addr_width)
 }
 
 function capBitsToEncCapability(c) : CapBits -> EncCapability = struct {
-  perms      = c[63..52],
-  reserved   = [],
-  flags      = c[51..51],
-  otype      = c[50..47],
-  internal_E = c[46],
-  T          = c[45..40],
-  B          = c[39..32],
-  address    = c[31..0]
+  perms            = c[63..52],
+  reserved         = [],
+  flags            = c[51..51],
+  otype            = c[50..47],
+  stack_frame_size = [],
+  internal_E       = c[46],
+  T                = c[45..40],
+  B                = c[39..32],
+  address          = c[31..0]
 }
 
 function encCapToBits(cap) : EncCapability -> CapBits =
@@ -93,6 +104,7 @@ function encCapToBits(cap) : EncCapability -> CapBits =
   cap.reserved @
   cap.flags @
   cap.otype @
+  cap.stack_frame_size @
   [cap.internal_E] @
   cap.T @
   cap.B @

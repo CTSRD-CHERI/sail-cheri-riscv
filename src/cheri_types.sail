@@ -76,7 +76,8 @@ enum CapEx = {
   CapEx_PermitCInvokeViolation,
   CapEx_AccessCInvokeIDCViolation,
   CapEx_PermitUnsealViolation,
-  CapEx_PermitSetCIDViolation
+  CapEx_PermitSetCIDViolation,
+  CapEx_StackLifetimeViolation
 }
 
 function CapExCode(ex) : CapEx -> bits(5) =
@@ -104,7 +105,8 @@ function CapExCode(ex) : CapEx -> bits(5) =
     CapEx_PermitCInvokeViolation        => 0b11001,
     CapEx_AccessCInvokeIDCViolation     => 0b11010,
     CapEx_PermitUnsealViolation         => 0b11011,
-    CapEx_PermitSetCIDViolation         => 0b11100
+    CapEx_PermitSetCIDViolation         => 0b11100,
+    CapEx_StackLifetimeViolation        => 0b11101
   }
 
 function string_of_capex (ex) : CapEx -> string =
@@ -132,7 +134,8 @@ function string_of_capex (ex) : CapEx -> string =
     CapEx_PermitCInvokeViolation        => "PermitCInvokeViolation"      ,
     CapEx_AccessCInvokeIDCViolation     => "AccessCInvokeIDCViolation"   ,
     CapEx_PermitUnsealViolation         => "PermitUnsealViolation"       ,
-    CapEx_PermitSetCIDViolation         => "PermitSetCIDViolation"
+    CapEx_PermitSetCIDViolation         => "PermitSetCIDViolation"       ,
+    CapEx_StackLifetimeViolation        => "StackLifetimeViolation"
   }
 
 type capreg_idx = bits(6)

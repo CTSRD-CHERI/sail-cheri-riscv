@@ -34,15 +34,16 @@
 
 /* Operations that extract parts of a capability into GPR */
 
-union clause ast = CGetPerm   : (regidx, regidx)
-union clause ast = CGetType   : (regidx, regidx)
-union clause ast = CGetBase   : (regidx, regidx)
-union clause ast = CGetLen    : (regidx, regidx)
-union clause ast = CGetTag    : (regidx, regidx)
-union clause ast = CGetSealed : (regidx, regidx)
-union clause ast = CGetOffset : (regidx, regidx)
-union clause ast = CGetAddr   : (regidx, regidx)
-union clause ast = CGetFlags  : (regidx, regidx)
+union clause ast = CGetPerm           : (regidx, regidx)
+union clause ast = CGetType           : (regidx, regidx)
+union clause ast = CGetBase           : (regidx, regidx)
+union clause ast = CGetLen            : (regidx, regidx)
+union clause ast = CGetTag            : (regidx, regidx)
+union clause ast = CGetSealed         : (regidx, regidx)
+union clause ast = CGetOffset         : (regidx, regidx)
+union clause ast = CGetAddr           : (regidx, regidx)
+union clause ast = CGetFlags          : (regidx, regidx)
+union clause ast = CGetStackFrameSize : (regidx, regidx)
 
 /*!
  * The least significant [cap_hperms_width] bits of integer register *rd* are
@@ -584,6 +585,61 @@ function clause execute (CSetBoundsExact(cd, cs1, rs2)) = {
       C(cd) = newCap;
       RETIRE_SUCCESS
     }
+  }
+}
+
+union clause ast = CSetStackFrameSizeImmediate : (regidx, regidx, bits(12))
+/*!
+ * Capability register *cd* is set to capability register *cs1* with its
+ * **stack_frame_size** field replaced with the three least significant
+ * bits of *uimm*.
+ *
+ * An exception is raised if:
+ *   - *cs1*.**tag** is not set.
+ */
+function clause execute (CSetStackFrameSizeImmediate(cd, cs1, uimm)) = {
+  let cs1_val = C(cs1);
+  if not (cs1_val.tag) then {
+    handle_cheri_reg_exception(CapEx_TagViolation, cs1);
+    RETIRE_FAIL
+  } else {
+    C(cd) = setStackFrameSizeBits(cs1_val, uimm);
+    RETIRE_SUCCESS
+  }
+}
+
+/*!
+ * Integer register *rd* is set equal to the **stack_frame_size** field of
+ * capability register *cs1*.
+ *
+ * An exception is raised if:
+ *   - *cs1*.**tag** is not set.
+ */
+function clause execute (CGetStackFrameSize(rd, cs1)) = {
+  let cs1_val = C(cs1);
+  if not (cs1_val.tag) then {
+    handle_cheri_reg_exception(CapEx_TagViolation, cs1);
+    RETIRE_FAIL
+  } else {
+    X(rd) = EXTZ(getStackFrameSizeBits(cs1_val));
+    RETIRE_SUCCESS
+  }
+}
+
+union clause ast = CGetFrameBase : (regidx, regidx)
+/*!
+ * Capabiltiy register *cd* is set equal to a capability pointing to the lowest
+ * address of the stack frame described by the capability in register *cs1*,
+ * with the same permissions as the capability in register *cs1*.
+ */
+function clause execute (CGetFrameBase(cd, cs1)) = {
+  let cs1_val = C(cs1);
+  if not (cs1_val.tag) then {
+    handle_cheri_reg_exception(CapEx_TagViolation, cs1);
+    RETIRE_FAIL
+  } else {
+    C(cd) = getStackFrameBase(cs1_val);
+    RETIRE_SUCCESS
   }
 }
 
@@ -1802,6 +1858,32 @@ function handle_store_cap_via_cap(cs2, auth_idx, auth_val, vaddrBits) = {
   }
 }
 
+val validate_store_cap_via_cap_lifetimes : (regidx, capreg_idx, Capability, xlenbits)
+    -> Retired effect {escape, rreg, wreg}
+/*!
+ * Validate the implied lifetimes of the operands to a store instruction by
+ * reading the capabilities' stack frame size bits and comparing masked
+ * addresses.
+ *
+ * Assumes a downwards-growing stack. In the event of a lifetime violation,
+ * blames the capability being stored so that its stack frame can be marked for
+ * revocation.
+ */
+function validate_store_cap_via_cap_lifetimes(cs2, auth_idx, auth_val, vaddrBits) = {
+  let cap_source = C(cs2);
+  let cap_destination = auth_val;
+  let source_cap_frame_base = getStackFrameBase(cap_source);
+  let destination_cap_frame_base = getStackFrameBase(cap_destination);
+  let source_lifetime = source_cap_frame_base.address;
+  let destination_lifetime = destination_cap_frame_base.address;
+  if destination_lifetime <_u source_lifetime then {
+    handle_cheri_cap_exception(CapEx_StackLifetimeViolation, 0b0 @ cs2);
+    RETIRE_FAIL
+  } else {
+    RETIRE_SUCCESS
+  }
+}
+
 union clause ast = StoreCapDDC : (regidx, regidx)
 /*!
  * The capability located in memory at **DDC**.**address** $+$ *rs1* is
@@ -1848,6 +1930,22 @@ function clause execute (StoreCapCap(cs2, cs1)) = {
   let cs1_val = C(cs1);
   let vaddr = cs1_val.address;
   handle_store_cap_via_cap(cs2, 0b0 @ cs1, cs1_val, vaddr)
+}
+
+union clause ast = CheckCapStoreCap : (regidx, regidx)
+/*!
+ * Checks that the capability *cs1* is not of a shorter implied lifetime than
+ * the capability *cs2*.
+ *
+ * ## Exceptions
+ *
+ * A StackLifetimeException is raised if:
+ *   - *cs2* is a stack capability of shorter lifetime than *cs1*.
+ */
+function clause execute (CheckCapStoreCap(cs2, cs1)) = {
+  let cs1_val = C(cs1);
+  let vaddr = cs1_val.address;
+  validate_store_cap_via_cap_lifetimes(cs2, 0b0 @ cs1, cs1_val, vaddr)
 }
 
 union clause ast = AUIPCC : (bits(20), regidx)
@@ -1938,6 +2036,22 @@ function clause execute StoreCapImm(cs2, rs1_cs1, imm) = {
   let offset : xlenbits = EXTS(imm);
   let (auth_val, vaddr, auth_idx) = get_cheri_mode_cap_addr(rs1_cs1, offset);
   handle_store_cap_via_cap(cs2, auth_idx, auth_val, vaddr)
+}
+
+union clause ast = CheckStoreCapImm : (regidx, regidx, bits(12))
+/*!
+ * Checks that the capability *cs1* is not of a shorter implied lifetime than
+ * the capability *cs2*.
+ *
+ * ## Exceptions
+ *
+ * A StackLifetimeException is raised if:
+ *   - *cs2* is a stack capability of shorter lifetime than *cs1*.
+ */
+function clause execute CheckStoreCapImm(cs2, rs1_cs1, imm) = {
+  let offset : xlenbits = EXTS(imm);
+  let (auth_val, vaddr, auth_idx) = get_cheri_mode_cap_addr(rs1_cs1, offset);
+  validate_store_cap_via_cap_lifetimes(cs2, auth_idx, auth_val, vaddr)
 }
 
 val handle_store_cond_data_via_cap : (regidx, capreg_idx, Capability, xlenbits, word_width) -> Retired effect {eamem, escape, rmem, rmemt, rreg, wmv, wmvt, wreg}
@@ -2154,6 +2268,9 @@ mapping clause encdec = CSealEntry(cd, cs1) if (haveXcheri()) <-> 0b1111111 @ 0b
 
 mapping clause encdec = CLoadTags(rd, cs1) if (haveXcheri()) <-> 0b1111111 @ 0b10010 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 
+mapping clause encdec = CGetStackFrameSize(rd, cs1) if (haveXcheri()) <-> 0b1111111 @ 0b10011 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CGetFrameBase(cd, cs1)      if (haveXcheri()) <-> 0b1111111 @ 0b10100 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
+
 mapping clause encdec = CRRL(rd, rs1) if (haveXcheri()) <-> 0b1111111 @ 0b01000 @ rs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CRAM(rd, rs1) if (haveXcheri()) <-> 0b1111111 @ 0b01001 @ rs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 
@@ -2176,6 +2293,9 @@ mapping clause assembly = CClearTag(cd, cs1)  <-> "ccleartag"  ^ spc() ^ cap_reg
 mapping clause assembly = CJALR(0b00000, cs1) <-> "cjr"        ^ spc() ^ cap_reg_name(cs1)
 mapping clause assembly = CJALR(cd, cs1)      <-> "cjalr"      ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1)
 mapping clause assembly = CSealEntry(cd, cs1) <-> "csealentry" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1)
+
+mapping clause assembly = CGetStackFrameSize(rd, cs1) <-> "cgfs"          ^ spc() ^ reg_name(rd)     ^ sep() ^ cap_reg_name(cs1)
+mapping clause assembly = CGetFrameBase(rd, cs1)      <-> "cgetframebase" ^ spc() ^ cap_reg_name(rd) ^ sep() ^ cap_reg_name(cs1)
 
 mapping clause assembly = CLoadTags(rd, cs1) <-> "cloadtags" ^ spc() ^ reg_name(rd) ^ sep() ^ "(" ^ cap_reg_name(cs1) ^ ")"
 
@@ -2208,8 +2328,9 @@ mapping clause encdec = CSub(rd, cs1, cs2)        if (haveXcheri()) <-> 0b001010
 mapping clause encdec = CTestSubset(rd, cs1, cs2) if (haveXcheri()) <-> 0b0100000 @ cs2 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CSpecialRW(cd, scr, cs1)  if (haveXcheri()) <-> 0b0000001 @ scr @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
 
-mapping clause encdec = CIncOffsetImmediate(cd, cs1, imm12) if (haveXcheri()) <-> imm12 : bits(12) @ cs1 @ 0b001 @ cd @ 0b1011011 if (haveXcheri())
-mapping clause encdec = CSetBoundsImmediate(cd, cs1, imm12) if (haveXcheri()) <-> imm12 : bits(12) @ cs1 @ 0b010 @ cd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CIncOffsetImmediate(cd, cs1, imm12) if (haveXcheri())         <-> imm12 : bits(12) @ cs1 @ 0b001 @ cd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CSetBoundsImmediate(cd, cs1, imm12) if (haveXcheri())         <-> imm12 : bits(12) @ cs1 @ 0b010 @ cd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CSetStackFrameSizeImmediate(cd, cs1, imm12) if (haveXcheri()) <-> imm12 : bits(12) @ cs1 @ 0b011 @ cd @ 0b1011011 if (haveXcheri())
 
 mapping clause encdec = CSEQX(rd, cs1, cs2) if (haveXcheri()) <-> 0b0100001 @ cs2 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 
@@ -2234,8 +2355,9 @@ mapping clause assembly = CTestSubset(rd, cs1, cs2) <-> "ctestsubset" ^ spc() ^ 
 
 mapping clause assembly = CSpecialRW(cd, scr, cs1) <-> "cspecialrw"  ^ spc() ^ cap_reg_name(cd) ^ sep() ^ scr_name_map(scr) ^ sep() ^ cap_reg_name(cs1)
 
-mapping clause assembly = CIncOffsetImmediate(cd, cs1, imm12) <-> "cincoffsetimm" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ hex_bits_12(imm12)
-mapping clause assembly = CSetBoundsImmediate(cd, cs1, imm12) <-> "csetboundsimm" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ hex_bits_12(imm12)
+mapping clause assembly = CIncOffsetImmediate(cd, cs1, imm12)         <-> "cincoffsetimm" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ hex_bits_12(imm12)
+mapping clause assembly = CSetBoundsImmediate(cd, cs1, imm12)         <-> "csetboundsimm" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ hex_bits_12(imm12)
+mapping clause assembly = CSetStackFrameSizeImmediate(cd, cs1, imm12) <-> "csfs" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ hex_bits_12(imm12)
 
 mapping clause assembly = CSEQX(rd, cs1, cs2) <-> "cseqx" ^ spc() ^ reg_name(rd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ cap_reg_name(cs2)
 
@@ -2299,6 +2421,7 @@ mapping clause encdec = StoreDataCap(rs2, cs1, WORD)    if (haveXcheri()) <-> 0b
 mapping clause encdec = StoreDataCap(rs2, cs1, DOUBLE)  if (haveXcheri() & haveRV64) <-> 0b1111100 @ rs2 @ cs1 @ 0b000 @ 0b01011 @ 0b1011011 if (haveXcheri() & haveRV64) /* sd.cap */
 mapping clause encdec = StoreCapCap(cs2, cs1)           if (haveXcheri() & sizeof(xlen) == 64) <-> 0b1111100 @ cs2 @ cs1 @ 0b000 @ 0b01100 @ 0b1011011 if (haveXcheri() & sizeof(xlen) == 64) /* sc.cap */
 mapping clause encdec = StoreCapCap(cs2, cs1)           if (haveXcheri() & sizeof(xlen) == 32) <-> 0b1111100 @ cs2 @ cs1 @ 0b000 @ 0b01011 @ 0b1011011 if (haveXcheri() & sizeof(xlen) == 32) /* sc.cap */
+mapping clause encdec = CheckCapStoreCap(cs2, cs1)      if (haveXcheri()) <-> 0b1111100 @ cs2 @ cs1 @ 0b000  @ 0b01101 @ 0b1011011 if (haveXcheri()) /* c.sc.cap */
 
 mapping clause encdec = StoreCondDataDDC(rs2, rs1, BYTE)   if (haveXcheri() & haveAtomics()) <-> 0b1111100 @ rs2 @ rs1 @ 0b000 @ 0b10000 @ 0b1011011 if (haveXcheri() & haveAtomics()) /* sc.b.ddc */
 mapping clause encdec = StoreCondDataDDC(rs2, rs1, HALF)   if (haveXcheri() & haveAtomics()) <-> 0b1111100 @ rs2 @ rs1 @ 0b000 @ 0b10001 @ 0b1011011 if (haveXcheri() & haveAtomics()) /* sc.h.ddc */
@@ -2324,10 +2447,11 @@ mapping clause assembly = LoadResCapDDC(cd, cs1)     <-> "lr.c.ddc" ^ spc() ^ ca
 mapping clause assembly = LoadResCap(rd, cs1, w)     <-> "lr." ^ size_mnemonic(w) ^ ".cap" ^ spc() ^ reg_name(rd) ^ sep() ^ "(" ^ opt_spc() ^ cap_reg_name(cs1) ^ opt_spc() ^ ")"
 mapping clause assembly = LoadResCapCap(cd, cs1)     <-> "lr.c.cap" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ "(" ^ opt_spc() ^ cap_reg_name(cs1) ^ opt_spc() ^ ")"
 
-mapping clause assembly = StoreDataDDC(rs2, rs1, w) <-> "s" ^ size_mnemonic(w) ^ ".ddc" ^ spc() ^ reg_name(rs2) ^ sep() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
-mapping clause assembly = StoreDataCap(rs2, cs1, w) <-> "s" ^ size_mnemonic(w) ^ ".cap" ^ spc() ^ reg_name(rs2) ^ sep() ^ "(" ^ opt_spc() ^ cap_reg_name(cs1) ^ opt_spc() ^ ")"
-mapping clause assembly = StoreCapDDC(cs2, rs1)     <-> "sc.ddc" ^ spc() ^ cap_reg_name(cs2) ^ sep() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
-mapping clause assembly = StoreCapCap(cs2, cs1)     <-> "sc.cap" ^ spc() ^ cap_reg_name(cs2) ^ sep() ^ "(" ^ opt_spc() ^ cap_reg_name(cs1) ^ opt_spc() ^ ")"
+mapping clause assembly = StoreDataDDC(rs2, rs1, w)  <-> "s" ^ size_mnemonic(w) ^ ".ddc" ^ spc() ^ reg_name(rs2) ^ sep() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
+mapping clause assembly = StoreDataCap(rs2, cs1, w)  <-> "s" ^ size_mnemonic(w) ^ ".cap" ^ spc() ^ reg_name(rs2) ^ sep() ^ "(" ^ opt_spc() ^ cap_reg_name(cs1) ^ opt_spc() ^ ")"
+mapping clause assembly = StoreCapDDC(cs2, rs1)      <-> "sc.ddc" ^ spc() ^ cap_reg_name(cs2) ^ sep() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
+mapping clause assembly = StoreCapCap(cs2, cs1)      <-> "sc.cap" ^ spc() ^ cap_reg_name(cs2) ^ sep() ^ "(" ^ opt_spc() ^ cap_reg_name(cs1) ^ opt_spc() ^ ")"
+mapping clause assembly = CheckCapStoreCap(cs2, cs1) <-> "c.sc.cap" ^ spc() ^ cap_reg_name(cs2) ^ sep() ^ cap_reg_name(cs1)
 
 mapping clause assembly = StoreCondDataDDC(rs2, rs1, w) <-> "sc." ^ size_mnemonic(w) ^ ".ddc" ^ spc() ^ reg_name(rs2) ^ sep() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
 mapping clause assembly = StoreCondCapDDC(cs2, rs1)     <-> "sc.c.ddc" ^ spc() ^ cap_reg_name(cs2) ^ sep() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
@@ -2337,8 +2461,10 @@ mapping clause assembly = StoreCondCapCap(cs2, cs1)     <-> "sc.c.cap" ^ spc() ^
 mapping clause encdec = LoadCapImm(cd, rs1, offset) if sizeof(xlen) == 64 <-> offset @ rs1 @ 0b010 @ cd @ 0b0001111 if sizeof(xlen) == 64 /* lc */
 mapping clause encdec = LoadCapImm(cd, rs1, offset) if sizeof(xlen) == 32 <-> offset @ rs1 @ 0b011 @ cd @ 0b0000011 if sizeof(xlen) == 32 /* lc */
 
-mapping clause encdec = StoreCapImm(cs2, rs1, off7 @ off5) if sizeof(xlen) == 64 <-> off7 : bits(7) @ cs2 @ rs1 @ 0b100 @ off5 : bits(5) @ 0b0100011 if sizeof(xlen) == 64 /* sc */
-mapping clause encdec = StoreCapImm(cs2, rs1, off7 @ off5) if sizeof(xlen) == 32 <-> off7 : bits(7) @ cs2 @ rs1 @ 0b011 @ off5 : bits(5) @ 0b0100011 if sizeof(xlen) == 32 /* sc */
+mapping clause encdec = StoreCapImm(cs2, rs1, off7 @ off5) if sizeof(xlen) == 64      <-> off7 : bits(7) @ cs2 @ rs1 @ 0b100 @ off5 : bits(5) @ 0b0100011 if sizeof(xlen) == 64 /* sc */
+mapping clause encdec = StoreCapImm(cs2, rs1, off7 @ off5) if sizeof(xlen) == 32      <-> off7 : bits(7) @ cs2 @ rs1 @ 0b011 @ off5 : bits(5) @ 0b0100011 if sizeof(xlen) == 32 /* sc */
+mapping clause encdec = CheckStoreCapImm(cs2, rs1, off7 @ off5) if sizeof(xlen) == 64 <-> off7 : bits(7) @ cs2 @ rs1 @ 0b101 @ off5 : bits(5) @ 0b0100011 if sizeof(xlen) == 64 /* csc */
 
 mapping clause assembly = LoadCapImm(cd, rs1, offset)   <-> "lc" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ hex_bits_12(offset) ^ opt_spc() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
 mapping clause assembly = StoreCapImm(cs2, rs1, offset) <-> "sc" ^ spc() ^ cap_reg_name(cs2) ^ sep() ^ hex_bits_12(offset) ^ opt_spc() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
+mapping clause assembly = CheckStoreCapImm(cs2, rs1, offset) <-> "csc" ^ spc() ^ cap_reg_name(cs2) ^ sep() ^ hex_bits_12(offset) ^ opt_spc() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
