@@ -413,10 +413,11 @@ function clause execute (CIncOffsetImmediate(cd, cs1, imm)) = {
 union clause ast = CSetOffset : (regidx, regidx, regidx)
 /*!
  * Capability register *cd* is set equal to capability register *cs1* with its
- * **offset** replaced with *cs1*.**offset** $+$ *rs2*.
+ * **address** replaced with *cs1*.**base** $+$ *rs2*.
  * If the resulting capability cannot be represented exactly, then *cd*.**tag**
  * is cleared. The remaining capability fields are set to what the in-memory
- * representation of *cs1* with the address set to *cd*.**address** decodes to.
+ * representation of *cs1* with the address set to *cs1*.**base** $+$ *rs2*
+ * decodes to.
  *
  * ## Exceptions
  *
