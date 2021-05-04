@@ -32,6 +32,108 @@
 /*  SUCH DAMAGE.                                                          */
 /*========================================================================*/
 
+/* Capability versions of mode-dependent instructions */
+
+union clause ast = AUIPCC : (bits(20), regidx)
+/*!
+ * Capability register *cd* is replaced with the contents of **PCC**, with the
+ * **address** replaced with **PCC**.**address** $+$ *imm* $\times$ 4096.
+ */
+function clause execute AUIPCC(imm, cd) = {
+  let off : xlenbits = EXTS(imm @ 0x000);
+  let (representable, newCap) = setCapAddr(PCC, PC + off);
+  if representable then
+    C(cd) = newCap
+  else
+    C(cd) = invalidateCap(newCap);
+  RETIRE_SUCCESS
+}
+
+union clause ast = CJAL : (bits(21), regidx)
+/*!
+ * Capability register *cd* is replaced with the next instruction's **PCC** and
+ * sealed as a sentry. **PCC**.**address** is incremented by *imm*.
+ *
+ * ## Exceptions
+ *
+ * An exception is raised if:
+ *   - **PCC**.**address** $+$ *imm* $\lt$ **PCC**.**base**.
+ *   - **PCC**.**address** $+$ *imm* $+$ min_instruction_bytes $\gt$ **PCC**.**top**.
+ *   - **PCC**.**address** $+$ *imm* is unaligned, ignoring bit 0.
+ */
+function clause execute(CJAL(imm, cd)) = {
+  let off : xlenbits = EXTS(imm);
+  let newPC = PCC.address + off;
+  if not(inCapBounds(PCC, newPC, min_instruction_bytes())) then {
+    handle_cheri_cap_exception(CapEx_LengthViolation, PCC_IDX);
+    RETIRE_FAIL
+  } else if newPC[1] == bitone & ~(haveRVC()) then {
+    handle_mem_exception(newPC,  E_Fetch_Addr_Align());
+    RETIRE_FAIL
+  } else {
+    let (success, linkCap) = setCapAddr(PCC, nextPC); /* Note that nextPC accounts for compressed instructions */
+    assert(success, "Link cap should always be representable.");
+    assert(not (isCapSealed(linkCap)), "Link cap should always be unsealed");
+    C(cd) = sealCap(linkCap, to_bits(cap_otype_width, otype_sentry));
+    nextPC = newPC;
+    RETIRE_SUCCESS
+  }
+}
+
+union clause ast = CJALR : (bits(12), regidx, regidx)
+/*!
+ * Capability register *cd* is replaced with the next instruction's **PCC** and
+ * sealed as a sentry. **PCC** is replaced with the value of capability
+ * register *cs1* with its **address** incremented by *imm* and the 0th bit of
+ * its **address** set to 0, and is unsealed if it is a sentry.
+ *
+ * ## Exceptions
+ *
+ * An exception is raised if:
+ *   - *cs1*.**tag** is not set.
+ *   - *cs1* is sealed and is not a sentry.
+ *   - *cs1* is a sentry and *imm* $\ne$ 0.
+ *   - *cs1*.**perms** does not grant **Permit_Execute**.
+ *   - *cs1*.**address** $+$ *imm* $\lt$ *cs1*.**base**.
+ *   - *cs1*.**address** $+$ *imm* $+$ min_instruction_bytes $\gt$ *cs1*.**top**.
+ *   - *cs1*.**base** is unaligned.
+ *   - *cs1*.**address** $+$ *imm* is unaligned, ignoring bit 0.
+ */
+function clause execute(CJALR(imm, cs1, cd)) = {
+  let cs1_val = C(cs1);
+  let off : xlenbits = EXTS(imm);
+  let newPC = [cs1_val.address + off with 0 = bitzero]; /* clear bit zero as for RISCV JALR */
+  let newPCCBase = getCapBaseBits(cs1_val);
+  if not (cs1_val.tag) then {
+    handle_cheri_reg_exception(CapEx_TagViolation, cs1);
+    RETIRE_FAIL
+  } else if isCapSealed(cs1_val) &
+            ((signed(cs1_val.otype) != otype_sentry) | imm != zeros()) then {
+    handle_cheri_reg_exception(CapEx_SealViolation, cs1);
+    RETIRE_FAIL
+  } else if not (cs1_val.permit_execute) then {
+    handle_cheri_reg_exception(CapEx_PermitExecuteViolation, cs1);
+    RETIRE_FAIL
+  } else if not(inCapBounds(cs1_val, newPC, min_instruction_bytes())) then {
+    handle_cheri_reg_exception(CapEx_LengthViolation, cs1);
+    RETIRE_FAIL
+  } else if newPCCBase[0] == bitone | (newPCCBase[1] == bitone & ~(haveRVC())) then {
+    handle_cheri_reg_exception(CapEx_UnalignedBase, cs1);
+    RETIRE_FAIL
+  } else if newPC[1] == bitone & ~(haveRVC()) then {
+    handle_mem_exception(newPC,  E_Fetch_Addr_Align());
+    RETIRE_FAIL
+  } else {
+    let (success, linkCap) = setCapAddr(PCC, nextPC); /* Note that nextPC accounts for compressed instructions */
+    assert(success, "Link cap should always be representable.");
+    assert(not (isCapSealed(linkCap)), "Link cap should always be unsealed");
+    C(cd) = sealCap(linkCap, to_bits(cap_otype_width, otype_sentry));
+    nextPC = newPC;
+    nextPCC = unsealCap(cs1_val);
+    RETIRE_SUCCESS
+  }
+}
+
 /* Operations that extract parts of a capability into GPR */
 
 union clause ast = CGetPerm   : (regidx, regidx)
@@ -1226,7 +1328,7 @@ function clause execute (CInvoke(cs1, cs2)) = {
   }
 }
 
-union clause ast = CJALR : (regidx, regidx)
+union clause ast = JALR_CAP : (regidx, regidx)
 /*!
  * Capability register *cd* is replaced with the next instruction's **PCC** and
  * sealed as a sentry. **PCC** is replaced with the value of capability
@@ -1244,37 +1346,25 @@ union clause ast = CJALR : (regidx, regidx)
  *   - *cs1*.**base** is unaligned.
  *   - *cs1*.**address** is unaligned, ignoring bit 0.
  */
-function clause execute(CJALR(cd, cs1)) = {
-  let cs1_val = C(cs1);
-  let newPC = [cs1_val.address with 0 = bitzero]; /* clear bit zero as for RISCV JALR */
-  let newPCCBase = getCapBaseBits(cs1_val);
-  if not (cs1_val.tag) then {
-    handle_cheri_reg_exception(CapEx_TagViolation, cs1);
-    RETIRE_FAIL
-  } else if isCapSealed(cs1_val) & (signed(cs1_val.otype) != otype_sentry) then {
-    handle_cheri_reg_exception(CapEx_SealViolation, cs1);
-    RETIRE_FAIL
-  } else if not (cs1_val.permit_execute) then {
-    handle_cheri_reg_exception(CapEx_PermitExecuteViolation, cs1);
-    RETIRE_FAIL
-  } else if not(inCapBounds(cs1_val, newPC, min_instruction_bytes())) then {
-    handle_cheri_reg_exception(CapEx_LengthViolation, cs1);
-    RETIRE_FAIL
-  } else if newPCCBase[0] == bitone | (newPCCBase[1] == bitone & ~(haveRVC())) then {
-    handle_cheri_reg_exception(CapEx_UnalignedBase, cs1);
-    RETIRE_FAIL
-  } else if newPC[1] == bitone & ~(haveRVC()) then {
-    handle_mem_exception(newPC,  E_Fetch_Addr_Align());
-    RETIRE_FAIL
-  } else {
-    let (success, linkCap) = setCapAddr(PCC, nextPC); /* Note that nextPC accounts for compressed instrucitons */
-    assert(success, "Link cap should always be representable.");
-    assert(not (isCapSealed(linkCap)), "Link cap should always be unsealed");
-    C(cd) = sealCap(linkCap, to_bits(cap_otype_width, otype_sentry));
-    nextPC = newPC;
-    nextPCC = unsealCap(cs1_val);
-    RETIRE_SUCCESS
-  }
+function clause execute(JALR_CAP(cd, cs1)) = {
+  execute(CJALR(zeros(), cs1, cd))
+}
+
+union clause ast = JALR_PCC : (regidx, regidx)
+/*!
+ * Integer register *rd* is replaced with the next instruction's
+ * **PCC**.**offset**. **PCC**.**offset** is replaced with the value of
+ * register *rs1* with the 0th bit set to 0.
+ *
+ * ## Exceptions
+ *
+ * An exception is raised if:
+ *   - **PCC**.**address** $+$ *rs1* $\lt$ **PCC**.**base**.
+ *   - **PCC**.**address** $+$ *rs1* $+$ min_instruction_bytes $\gt$ **PCC**.**top**.
+ *   - **PCC**.**address** $+$ *rs1* is unaligned, ignoring bit 0.
+ */
+function clause execute(JALR_PCC(rd, rs1)) = {
+  execute(RISCV_JALR(zeros(), rs1, rd))
 }
 
 val handle_load_data_via_cap : (regidx, capreg_idx, Capability, xlenbits, bool, word_width) -> Retired effect {escape, rmem, rmemt, rreg, wmv, wmvt, wreg}
@@ -1851,21 +1941,6 @@ function clause execute (StoreCapCap(cs2, cs1)) = {
   handle_store_cap_via_cap(cs2, 0b0 @ cs1, cs1_val, vaddr)
 }
 
-union clause ast = AUIPCC : (bits(20), regidx)
-/*!
- * Capability register *cd* is replaced with the contents of **PCC**, with the
- * **address** replaced with **PCC**.**address** $+$ *imm* $\times$ 4096.
- */
-function clause execute AUIPCC(imm, cd) = {
-  let off : xlenbits = EXTS(imm @ 0x000);
-  let (representable, newCap) = setCapAddr(PCC, PC + off);
-  if representable then
-    C(cd) = newCap
-  else
-    C(cd) = invalidateCap(newCap);
-  RETIRE_SUCCESS
-}
-
 union clause ast = LoadCapImm : (regidx, regidx, bits(12))
 /*!
  * In integer mode, capability register *cd* is replaced with the capability
@@ -2150,8 +2225,9 @@ mapping clause encdec = CGetAddr(rd, cs1)   if (haveXcheri()) <-> 0b1111111 @ 0b
 
 mapping clause encdec = CMove(cd, cs1)      if (haveXcheri()) <-> 0b1111111 @ 0b01010 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CClearTag(cd, cs1)  if (haveXcheri()) <-> 0b1111111 @ 0b01011 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
-mapping clause encdec = CJALR(cd, cs1)      if (haveXcheri()) <-> 0b1111111 @ 0b01100 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = JALR_CAP(cd, cs1)   if (haveXcheri()) <-> 0b1111111 @ 0b01100 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CSealEntry(cd, cs1) if (haveXcheri()) <-> 0b1111111 @ 0b10001 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = JALR_PCC(rd, rs1)   if (haveXcheri()) <-> 0b1111111 @ 0b10100 @ rs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 
 mapping clause encdec = CLoadTags(rd, cs1) if (haveXcheri()) <-> 0b1111111 @ 0b10010 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 
@@ -2172,11 +2248,13 @@ mapping clause assembly = CGetSealed(rd, cs1) <-> "cgetsealed" ^ spc() ^ reg_nam
 mapping clause assembly = CGetOffset(rd, cs1) <-> "cgetoffset" ^ spc() ^ reg_name(rd) ^ sep() ^ cap_reg_name(cs1)
 mapping clause assembly = CGetAddr(rd, cs1)   <-> "cgetaddr"   ^ spc() ^ reg_name(rd) ^ sep() ^ cap_reg_name(cs1)
 
-mapping clause assembly = CMove(cd, cs1)      <-> "cmove"      ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1)
-mapping clause assembly = CClearTag(cd, cs1)  <-> "ccleartag"  ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1)
-mapping clause assembly = CJALR(0b00000, cs1) <-> "cjr"        ^ spc() ^ cap_reg_name(cs1)
-mapping clause assembly = CJALR(cd, cs1)      <-> "cjalr"      ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1)
-mapping clause assembly = CSealEntry(cd, cs1) <-> "csealentry" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1)
+mapping clause assembly = CMove(cd, cs1)         <-> "cmove"      ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1)
+mapping clause assembly = CClearTag(cd, cs1)     <-> "ccleartag"  ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1)
+mapping clause assembly = JALR_CAP(0b00000, cs1) <-> "jr.cap"     ^ spc() ^ cap_reg_name(cs1)
+mapping clause assembly = JALR_CAP(cd, cs1)      <-> "jalr.cap"   ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1)
+mapping clause assembly = CSealEntry(cd, cs1)    <-> "csealentry" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1)
+mapping clause assembly = JALR_PCC(0b00000, rs1) <-> "jr.pcc"     ^ spc() ^ reg_name(rs1)
+mapping clause assembly = JALR_PCC(rd, rs1)      <-> "jalr.pcc"   ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1)
 
 mapping clause assembly = CLoadTags(rd, cs1) <-> "cloadtags" ^ spc() ^ reg_name(rd) ^ sep() ^ "(" ^ cap_reg_name(cs1) ^ ")"
 
