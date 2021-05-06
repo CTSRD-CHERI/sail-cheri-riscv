@@ -416,6 +416,10 @@ function isCapSealed(cap) = signed(cap.otype) != otype_unsealed
 val hasReservedOType : Capability -> bool
 function hasReservedOType(cap) = unsigned(cap.otype) > cap_max_otype
 
+function isCapSentryOrIsentry(cap) : Capability -> bool =
+  let sotype = signed(cap.otype) in
+  (sotype == otype_sentry) | (sotype == otype_isentry_pcc)
+
 function sealCap(cap, otyp) : (Capability, bits(cap_otype_width)) -> Capability =
     {cap with otype=otyp}
 
