@@ -108,35 +108,28 @@ function clause execute(CJAL(imm, cd)) = {
   }
 }
 
-union clause ast = CJALR : (bits(12), regidx, regidx)
 /*!
- * Capability register *cd* is replaced with the next instruction's **PCC** and
- * sealed as a sentry. **PCC** is replaced with the value of capability
- * register *cs1* with its **address** incremented by *imm* and the 0th bit of
- * its **address** set to 0, and is unsealed if it is a sentry.
+ * The inner core of cjalr, for reuse with other control transfer instructions.
  *
- * ## Exceptions
+ * Takes the link target register index, cd; the source register index, cs (used
+ * only when signaling an exception);  and the Capability to be installed as
+ * PCC.  Note that C(cs)
  *
- * An exception is raised if:
- *   - *cs1*.**tag** is not set.
- *   - *cs1* is sealed and is not a sentry.
- *   - *cs1* is a sentry and *imm* $\ne$ 0.
- *   - *cs1*.**perms** does not grant **Permit_Execute**.
- *   - *cs1*.**address** $+$ *imm* $\lt$ *cs1*.**base**.
- *   - *cs1*.**address** $+$ *imm* $+$ min_instruction_bytes $\gt$ *cs1*.**top**.
- *   - *cs1*.**base** is unaligned.
- *   - *cs1*.**address** $+$ *imm* is unaligned, ignoring bit 0.
+ * Either sets the CPU into an exception state and returns fail or sets the CPU
+ * to continue execution from the indicated PCC, installs the link sentry, and
+ * returns success.  Wrappers are welcome to have additional effects in the
+ * success path.
  */
-function clause execute(CJALR(imm, cs1, cd)) = {
-  let cs1_val = C(cs1);
-  let off : xlenbits = EXTS(imm);
+val cjalr_worker : (regidx, regidx, Capability, xlenbits) -> Retired effect { escape, rreg, wreg }
+function cjalr_worker (cd, cs1, cs1_val, off) = {
   let newPC = [cs1_val.address + off with 0 = bitzero]; /* clear bit zero as for RISCV JALR */
   let newPCCBase = getCapBaseBits(cs1_val);
+
   if not (cs1_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cs1);
     RETIRE_FAIL
   } else if isCapSealed(cs1_val) &
-            ((signed(cs1_val.otype) != otype_sentry) | imm != zeros()) then {
+            ((signed(cs1_val.otype) != otype_sentry) | off != zeros()) then {
     handle_cheri_reg_exception(CapEx_SealViolation, cs1);
     RETIRE_FAIL
   } else if not (cs1_val.permit_execute) then {
@@ -160,6 +153,30 @@ function clause execute(CJALR(imm, cs1, cd)) = {
     nextPCC = unsealCap(cs1_val);
     RETIRE_SUCCESS
   }
+
+}
+
+union clause ast = CJALR : (bits(12), regidx, regidx)
+/*!
+ * Capability register *cd* is replaced with the next instruction's **PCC** and
+ * sealed as a sentry. **PCC** is replaced with the value of capability
+ * register *cs1* with its **address** incremented by *imm* and the 0th bit of
+ * its **address** set to 0, and is unsealed if it is a sentry.
+ *
+ * ## Exceptions
+ *
+ * An exception is raised if:
+ *   - *cs1*.**tag** is not set.
+ *   - *cs1* is sealed and is not a sentry.
+ *   - *cs1* is a sentry and *imm* $\ne$ 0.
+ *   - *cs1*.**perms** does not grant **Permit_Execute**.
+ *   - *cs1*.**address** $+$ *imm* $\lt$ *cs1*.**base**.
+ *   - *cs1*.**address** $+$ *imm* $+$ min_instruction_bytes $\gt$ *cs1*.**top**.
+ *   - *cs1*.**base** is unaligned.
+ *   - *cs1*.**address** $+$ *imm* is unaligned, ignoring bit 0.
+ */
+function clause execute(CJALR(imm, cs1, cd)) = {
+  cjalr_worker(cd, cs1, C(cs1), EXTS(imm))
 }
 
 /* Operations that extract parts of a capability into GPR */
