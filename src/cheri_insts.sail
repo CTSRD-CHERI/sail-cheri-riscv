@@ -887,6 +887,13 @@ function sealCapIfAmbient(cap, otyp) : (Capability, bits(cap_otype_width)) -> Am
     if cap.permit_execute
     then seal_ok
     else AmbientSeal_CapEx(CapEx_PermitExecuteViolation)
+  } else if sotype == otype_isentry_load then {
+    // CSealL requires PermitLoad and PermitLoadCap
+    if cap.permit_load then {
+      if cap.permit_load_cap
+      then seal_ok
+      else AmbientSeal_CapEx(CapEx_PermitLoadCapViolation)
+    } else AmbientSeal_CapEx(CapEx_PermitLoadViolation)
   } else {
     AmbientSeal_OK(cap) // unsealed
   }
@@ -1719,6 +1726,89 @@ function clause execute (CLoadTags(rd, cs1)) = {
   }
 }
 
+/*
+ * Indirect sentries.
+ *
+ * At the risk of becoming CISC, the invocation instructions load, unseal, and
+ * transfer control.  They depend on helpers above for most of those tasks.
+ */
+
+union clause ast = CSealL : (regidx, regidx)
+/*!
+ * Capability register *cd* is replaced with capability register *cs1* and
+ * sealed as an indirect, points-to-PCC sentry
+ *
+ * ## Exceptions
+ *
+ * An exception is raised if:
+ *   - *cs1*.**tag** is not set.
+ *   - *cs1* is sealed.
+ *   - *cs1*.**perms** does not grant both **Permit_Load** and
+ *     **Permit_Load_Capability**.
+ */
+function clause execute (CSealL(cd, cs1)) = {
+  let cs1_val = C(cs1);
+  if not (cs1_val.tag) then {
+    handle_cheri_reg_exception(CapEx_TagViolation, cs1);
+    RETIRE_FAIL
+  } else if (isCapSealed(cs1_val)) then {
+    handle_cheri_reg_exception(CapEx_SealViolation, cs1);
+    RETIRE_FAIL
+  } else if not (cs1_val.permit_load) then {
+    handle_cheri_reg_exception(CapEx_PermitLoadViolation, cs1);
+    RETIRE_FAIL
+  } else if not (cs1_val.permit_load_cap) then {
+    handle_cheri_reg_exception(CapEx_PermitLoadCapViolation, cs1);
+    RETIRE_FAIL
+  } else {
+    C(cd) = sealCap(cs1_val, to_bits(cap_otype_width, otype_isentry_load));
+    RETIRE_SUCCESS
+  }
+}
+
+union clause ast = CInvokeLAL : (regidx, regidx)
+/*!
+ * Jump through an indirect, points-to-PCC sentry capability held in
+ * capability register cs.
+ */
+function clause execute (CInvokeLAL(cd, cs)) = {
+  let cs_val = C(cs);
+
+  if not (cs_val.tag) then {
+    handle_cheri_reg_exception(CapEx_TagViolation, cs);
+    RETIRE_FAIL
+  } else if not (isCapSealed(cs_val)) |
+            signed(cs_val.otype) != otype_isentry_load then {
+    handle_cheri_reg_exception(CapEx_SealViolation, cs);
+    RETIRE_FAIL
+  } else {
+    let idc = unsealCap(cs_val);
+    let idcaddr = cs_val.address;
+
+    if not (idc.permit_load) | not (idc.permit_load_cap) then {
+      handle_cheri_reg_exception(CapEx_PermitLoadViolation, cs);
+      RETIRE_FAIL
+    } else if not(inCapBounds(idc, idcaddr, cap_size)) then {
+      handle_cheri_reg_exception(CapEx_LengthViolation, cs);
+      RETIRE_FAIL
+    } else if not(is_aligned_addr(idcaddr, cap_size)) then {
+      handle_mem_exception(idcaddr, E_Load_Addr_Align());
+      RETIRE_FAIL
+    } else {
+      match load_cap_via_cap(0b0 @ cs, cs_val, idcaddr, false, false) {
+        None() => RETIRE_FAIL,
+        Some(_,v) => match cjalr_worker(cd, cs, v, zeros()) {
+          RETIRE_FAIL => RETIRE_FAIL,
+          RETIRE_SUCCESS => {
+            C(31) = idc;
+            RETIRE_SUCCESS
+          }
+        }
+      }
+    }
+  }
+}
+
 /* avoid platform checks for reservation address misalignment */
 function check_res_misaligned(vaddr : xlenbits, width : word_width) -> bool =
   match width {
@@ -2400,6 +2490,9 @@ mapping clause encdec = JALR_PCC(rd, rs1)   if (haveXcheri()) <-> 0b1111111 @ 0b
 
 mapping clause encdec = CLoadTags(rd, cs1) if (haveXcheri()) <-> 0b1111111 @ 0b10010 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 
+mapping clause encdec = CSealL(cd, cs1)     if (haveXcheri()) <-> 0b1111111 @ 0b11000 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CInvokeLAL(cd, cs1) if (haveXcheri()) <-> 0b1111111 @ 0b11001 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
+
 mapping clause encdec = CRRL(rd, rs1) if (haveXcheri()) <-> 0b1111111 @ 0b01000 @ rs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CRAM(rd, rs1) if (haveXcheri()) <-> 0b1111111 @ 0b01001 @ rs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 
@@ -2426,6 +2519,9 @@ mapping clause assembly = JALR_PCC(0b00000, rs1) <-> "jr.pcc"     ^ spc() ^ reg_
 mapping clause assembly = JALR_PCC(rd, rs1)      <-> "jalr.pcc"   ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1)
 
 mapping clause assembly = CLoadTags(rd, cs1) <-> "cloadtags" ^ spc() ^ reg_name(rd) ^ sep() ^ "(" ^ cap_reg_name(cs1) ^ ")"
+
+mapping clause assembly = CSealL(rd, cs1)     <-> "cseall"     ^ spc() ^ reg_name(rd) ^ sep() ^ "(" ^ cap_reg_name(cs1) ^ ")"
+mapping clause assembly = CInvokeLAL(rd, cs1) <-> "cinvokelal" ^ spc() ^ reg_name(rd) ^ sep() ^ "(" ^ cap_reg_name(cs1) ^ ")"
 
 mapping clause assembly = CRRL(rd, rs1) <-> "crrl" ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1)
 mapping clause assembly = CRAM(rd, rs1) <-> "cram" ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1)
