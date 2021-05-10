@@ -36,7 +36,7 @@ run: ${TEST_OUTS}
 	@echo -n 'Passes: '
 	@grep -l SUCCESS ${TEST_OUTS} || echo none
 	@echo -n 'Failures: '
-	@grep -l FAILURES ${TEST_OUTS} || echo none
+	@grep -l FAILURE ${TEST_OUTS} || echo none
 	@echo -n 'Missing result: '
 	@grep -L 'SUCCESS\|FAILURE' ${TEST_OUTS} && echo none
 
