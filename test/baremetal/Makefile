@@ -31,7 +31,7 @@ ${SAIL_EMULATOR}:
 	$(MAKE) -C ../.. csim
 
 %.sail_out: %.elf ${SAIL_EMULATOR}
-	${SAIL_EMULATOR} $< >$@ 2>&1
+	${SAIL_EMULATOR} -l 100000 $< >$@ 2>&1
 
 %.qemu_out: %.elf ${QEMU_EMULATOR}
 	(${QEMU_EMULATOR} -machine spike -d instr -bios $< >$@ 2>&1 \
