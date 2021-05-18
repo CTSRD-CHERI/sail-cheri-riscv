@@ -39,25 +39,31 @@ ${SAIL_EMULATOR}:
 	|| echo FAILURE >> $@
 
 
+G=\e[32m
+R=\e[31m
+N=\e[0m
+
 .PHONY: run_sail
 run_sail: ${TEST_SAIL_OUTS}
 	@echo "Sail Results:"
-	@echo -n 'Passes: '
-	@grep -l SUCCESS ${TEST_SAIL_OUTS} || echo none
-	@echo -n 'Failures: '
-	@grep -l FAILURE ${TEST_SAIL_OUTS} || echo none
-	@echo -n 'Missing result: '
-	@grep -L 'SUCCESS\|FAILURE' ${TEST_SAIL_OUTS} && echo none
+	@echo -n "Passes: ${G}"
+	@grep -l SUCCESS ${TEST_SAIL_OUTS} || echo "${R}none"
+	@echo -n "${N}Failures: ${R}"
+	@grep -l FAILURE ${TEST_SAIL_OUTS} || echo "${G}none"
+	@echo -n "${N}Missing result: ${R}"
+	@grep -L 'SUCCESS\|FAILURE' ${TEST_SAIL_OUTS} && echo "${G}none"
+	@echo "${N}"
 
 .PHONY: run_qemu
 run_qemu: ${TEST_QEMU_OUTS}
 	@echo "Qemu Results:"
-	@echo -n 'Passes: '
-	@grep -l SUCCESS ${TEST_QEMU_OUTS} || echo none
-	@echo -n 'Failures: '
-	@grep -l FAILURE ${TEST_QEMU_OUTS} || echo none
-	@echo -n 'Missing result: '
-	@grep -L 'SUCCESS\|FAILURE' ${TEST_QEMU_OUTS} && echo none
+	@echo -n "Passes: ${G}"
+	@grep -l SUCCESS ${TEST_QEMU_OUTS} || echo "${R}none"
+	@echo -n "${N}Failures: ${R}"
+	@grep -l FAILURE ${TEST_QEMU_OUTS} || echo "${G}none"
+	@echo -n "${N}Missing result: ${R}"
+	@grep -L 'SUCCESS\|FAILURE' ${TEST_QEMU_OUTS} && echo "${G}none"
+	@echo "${N}"
 
 .PHONY: run
 run: run_sail run_qemu
