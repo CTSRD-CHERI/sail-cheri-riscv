@@ -1671,10 +1671,8 @@ function handle_loadres_data_via_cap(rd, auth_idx, auth_val, vaddrBits, width) =
   }
 }
 
-val handle_loadres_cap_via_cap : (regidx, capreg_idx, Capability, xlenbits) -> Retired effect {escape, rmem, rmemt, rreg, wmv, wmvt, wreg}
-function handle_loadres_cap_via_cap(cd, auth_idx, auth_val, vaddrBits) = {
-  let aq : bool = true;  /* cheri-specific aq/rl */
-  let rl : bool = true;
+val handle_loadres_cap_via_cap : (regidx, capreg_idx, Capability, xlenbits, bool, bool) -> Retired effect {escape, rmem, rmemt, rreg, wmv, wmvt, wreg}
+function handle_loadres_cap_via_cap(cd, auth_idx, auth_val, vaddrBits, aq, rl) = {
   let is_unsigned = false;
 if not(auth_val.tag) then {
     handle_cheri_cap_exception(CapEx_TagViolation, auth_idx);
@@ -1731,7 +1729,7 @@ function clause execute (LoadResCapDDC(cd, rs1)) = {
   if haveAtomics() then {
     let ddc_val = DDC;
     let vaddr = ddc_val.address + X(rs1);
-    handle_loadres_cap_via_cap(cd, DDC_IDX, ddc_val, vaddr)
+    handle_loadres_cap_via_cap(cd, DDC_IDX, ddc_val, vaddr, false, false)
   } else {
     handle_illegal();
     RETIRE_FAIL
@@ -1755,7 +1753,23 @@ function clause execute (LoadResCapCap(cd, cs1)) = {
   if haveAtomics() then {
     let cs1_val = C(cs1);
     let vaddr = cs1_val.address + X(cs1);
-    handle_loadres_cap_via_cap(cd, 0b0 @ cs1, cs1_val, vaddr)
+    handle_loadres_cap_via_cap(cd, 0b0 @ cs1, cs1_val, vaddr, false, false)
+  } else {
+    handle_illegal();
+    RETIRE_FAIL
+  }
+}
+
+
+union clause ast = LoadResCapMode : (regidx, regidx, bool, bool)
+/*
+ * Perform a load reserved of capability via either cs1 or DDC+rs1 depending
+ * on cap mode.
+ */
+function clause execute (LoadResCapMode(cd, rs1_cs1, aq, rl)) = {
+  if haveAtomics() then {
+    let (auth_val, vaddr, auth_idx) = get_cheri_mode_cap_addr(rs1_cs1, zeros());
+    handle_loadres_cap_via_cap(cd, auth_idx, auth_val, vaddr, aq, rl)
   } else {
     handle_illegal();
     RETIRE_FAIL
@@ -2068,11 +2082,9 @@ function handle_store_cond_data_via_cap(rs2, auth_idx, auth_val, vaddrBits, widt
   }
 }
 
-val handle_store_cond_cap_via_cap : (regidx, capreg_idx, Capability, xlenbits) -> Retired effect {eamem, escape, rmem, rmemt, rreg, wmv, wreg, wmvt}
-function handle_store_cond_cap_via_cap(cs2, auth_idx, auth_val, vaddrBits) = {
+val handle_store_cond_cap_via_cap : (regidx, regidx, capreg_idx, Capability, xlenbits, bool, bool) -> Retired effect {eamem, escape, rmem, rmemt, rreg, wmv, wreg, wmvt}
+function handle_store_cond_cap_via_cap(rd, cs2, auth_idx, auth_val, vaddrBits, aq, rl) = {
   let cs2_val = C(cs2);
-  let aq : bool = true; /* cheri-specific aq/rl */
-  let rl : bool = true;
   if not(auth_val.tag) then {
     handle_cheri_cap_exception(CapEx_TagViolation, auth_idx);
     RETIRE_FAIL
@@ -2096,7 +2108,7 @@ function handle_store_cond_cap_via_cap(cs2, auth_idx, auth_val, vaddrBits) = {
     RETIRE_FAIL
   } else if match_reservation(vaddrBits) == false then {
     /* cannot happen in rmem */
-    C(cs2) = int_to_cap(EXTZ(0b1));
+    X(rd) = EXTZ(0b1);
     cancel_reservation();
     RETIRE_SUCCESS
   } else {
@@ -2110,12 +2122,12 @@ function handle_store_cond_cap_via_cap(cs2, auth_idx, auth_val, vaddrBits) = {
             let res : MemoryOpResult(bool) = mem_write_cap(addr, cs2_val, aq, rl, false);
             match (res) {
               MemValue(true)  => {
-                 C(cs2) = int_to_cap(EXTZ(0b0));
+                 X(rd) = EXTZ(0b0);
                  cancel_reservation();
                  RETIRE_SUCCESS
               },
               MemValue(false) => {
-                 C(cs2) = int_to_cap(EXTZ(0b1));
+                 X(rd) = EXTZ(0b1);
                  cancel_reservation();
                  RETIRE_SUCCESS
               },
@@ -2160,7 +2172,7 @@ function clause execute StoreCondCapDDC(cs2, rs1) = {
   } else if haveAtomics() then {
     let ddc_val = DDC;
     let vaddr = ddc_val.address + X(rs1);
-    handle_store_cond_cap_via_cap(cs2, DDC_IDX, ddc_val, vaddr)
+    handle_store_cond_cap_via_cap(cs2, cs2, DDC_IDX, ddc_val, vaddr, false, false)
   } else {
     handle_illegal();
     RETIRE_FAIL
@@ -2196,7 +2208,92 @@ function clause execute StoreCondCapCap(cs2, cs1) = {
   } else if haveAtomics() then {
     let cs1_val = C(cs1);
     let vaddr = cs1_val.address;
-    handle_store_cond_cap_via_cap(cs2, 0b0 @ cs1, cs1_val, vaddr)
+    handle_store_cond_cap_via_cap(cs2, cs2, 0b0 @ cs1, cs1_val, vaddr, false, false)
+  } else {
+    handle_illegal();
+    RETIRE_FAIL
+  }
+}
+
+union clause ast = StoreCondCapMode : (regidx, regidx, regidx, bool, bool)
+function clause execute StoreCondCapMode(rd, cs2, rs1_cs1, aq, rl) = {
+  if speculate_conditional () == false then {
+    /* should only happen in rmem
+     * rmem: allow SC to fail very early
+     */
+    X(rd) = EXTZ(0b1);
+    RETIRE_SUCCESS
+  } else if haveAtomics() then {
+    let (auth_val, vaddr, auth_idx) = get_cheri_mode_cap_addr(rs1_cs1, zeros());
+    handle_store_cond_cap_via_cap(rd, cs2, auth_idx, auth_val, vaddr, aq, rl);
+  } else {
+    handle_illegal();
+    RETIRE_FAIL
+  }
+}
+
+union clause ast = AMOSwapCap : (regidx, regidx, regidx, bool, bool)
+function clause execute AMOSwapCap(cd, cs2, rs1_cs1, aq, rl) = {
+  if haveAtomics() then {
+    let (auth_val, vaddr, auth_idx) = get_cheri_mode_cap_addr(rs1_cs1, zeros());
+    let cs2_val = C(cs2);
+    if not(auth_val.tag) then {
+      handle_cheri_cap_exception(CapEx_TagViolation, auth_idx);
+      RETIRE_FAIL
+    } else if isCapSealed(auth_val) then {
+      handle_cheri_cap_exception(CapEx_SealViolation, auth_idx);
+      RETIRE_FAIL
+    } else if not (auth_val.permit_load) then {
+      handle_cheri_cap_exception(CapEx_PermitLoadViolation, auth_idx);
+      RETIRE_FAIL
+    } else if not (auth_val.permit_store) then {
+      handle_cheri_cap_exception(CapEx_PermitStoreViolation, auth_idx);
+      RETIRE_FAIL
+    } else if not (auth_val.permit_store_cap) & cs2_val.tag then {
+      handle_cheri_cap_exception(CapEx_PermitStoreCapViolation, auth_idx);
+      RETIRE_FAIL
+    } else if not (auth_val.permit_store_local_cap) & cs2_val.tag & not(cs2_val.global) then {
+      handle_cheri_cap_exception(CapEx_PermitStoreLocalCapViolation, auth_idx);
+      RETIRE_FAIL
+    } else if not(inCapBounds(auth_val, vaddr, cap_size)) then {
+      handle_cheri_cap_exception(CapEx_LengthViolation, auth_idx);
+      RETIRE_FAIL
+    } else if not(is_aligned_addr(vaddr, cap_size)) then {
+      handle_mem_exception(vaddr, E_SAMO_Addr_Align());
+      RETIRE_FAIL
+    } else {
+      match translateAddr(vaddr, ReadWrite(Cap, if cs2_val.tag then Cap else Data)) {
+        TR_Failure(e, _) => { handle_mem_exception(vaddr, e); RETIRE_FAIL },
+        TR_Address(addr, ptw_info) => {
+          let eares : MemoryOpResult(unit) = mem_write_ea_cap(addr, aq, rl, false);
+          match (eares) {
+            MemException(e) => { handle_mem_exception(vaddr, e); RETIRE_FAIL },
+            MemValue(_) => {
+              let c = mem_read_cap(addr, aq, rl, false);
+              match c {
+                MemValue(v) => {
+                  let wres : MemoryOpResult(bool) = mem_write_cap(addr, cs2_val, aq, rl, false);
+                  match wres {
+                    MemValue(_) => {
+                      let cr = if ptw_info.ptw_lc == PTW_LC_CLEAR
+                        then {v with tag = false} /* strip the tag */
+                        else {v with tag = v.tag & auth_val.permit_load_cap};
+                      C(cd) = cr;
+                      RETIRE_SUCCESS
+                    },
+                    MemException(e) => {
+                      handle_mem_exception(vaddr, e);
+                      RETIRE_FAIL
+                    }
+                  }
+                },
+                MemException(e) => { handle_mem_exception(vaddr, e); RETIRE_FAIL }
+              }
+            }
+          }
+        }
+      }
+    }
   } else {
     handle_illegal();
     RETIRE_FAIL
@@ -2421,3 +2518,16 @@ mapping clause encdec = StoreCapImm(cs2, rs1, off7 @ off5) if sizeof(xlen) == 32
 
 mapping clause assembly = LoadCapImm(cd, rs1, offset)   <-> "lc" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ hex_bits_12(offset) ^ opt_spc() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
 mapping clause assembly = StoreCapImm(cs2, rs1, offset) <-> "sc" ^ spc() ^ cap_reg_name(cs2) ^ sep() ^ hex_bits_12(offset) ^ opt_spc() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
+
+mapping clause encdec = LoadResCapMode(cd, rs1, aq, rl) if sizeof(xlen) == 32 <-> 0b00010 @ bool_bits(aq) @ bool_bits(rl) @ 0b00000 @ rs1 @ 0b011 @ cd @ 0b0101111 if sizeof(xlen) == 32 /* lr.c (RV32) */
+mapping clause encdec = LoadResCapMode(cd, rs1, aq, rl) if sizeof(xlen) == 64 <-> 0b00010 @ bool_bits(aq) @ bool_bits(rl) @ 0b00000 @ rs1 @ 0b100 @ cd @ 0b0101111 if sizeof(xlen) == 64 /* lr.c (RV64) */
+
+mapping clause encdec = StoreCondCapMode(rd, cs2, rs1, aq, rl) if sizeof(xlen) == 32 <-> 0b00011 @ bool_bits(aq) @ bool_bits(rl) @ cs2 @ rs1 @ 0b011 @ rd @ 0b0101111 if sizeof(xlen) == 32 /* sc.c (RV32) */
+mapping clause encdec = StoreCondCapMode(rd, cs2, rs1, aq, rl) if sizeof(xlen) == 64 <-> 0b00011 @ bool_bits(aq) @ bool_bits(rl) @ cs2 @ rs1 @ 0b100 @ rd @ 0b0101111 if sizeof(xlen) == 64 /* sc.c (RV64) */
+
+mapping clause encdec = AMOSwapCap(cd, cs2, rs1, aq, rl) if sizeof(xlen) == 32 <-> 0b00001 @ bool_bits(aq) @ bool_bits(rl) @ cs2 @ rs1 @ 0b011 @ cd @ 0b0101111 if sizeof(xlen) == 32 /* sc.c (RV64) */
+mapping clause encdec = AMOSwapCap(cd, cs2, rs1, aq, rl) if sizeof(xlen) == 64 <-> 0b00001 @ bool_bits(aq) @ bool_bits(rl) @ cs2 @ rs1 @ 0b100 @ cd @ 0b0101111 if sizeof(xlen) == 64 /* sc.c (RV64) */
+
+mapping clause assembly = LoadResCapMode(cd, rs1, aq, rl) <-> "lr.c" ^ maybe_aq(aq) ^ maybe_rl(rl) ^ spc() ^ cap_reg_name(cd) ^ sep() ^ reg_name(rs1)
+mapping clause assembly = StoreCondCapMode(rd, cs2, rs1, aq, rl) <-> "sc.c" ^ maybe_aq(aq) ^ maybe_rl(rl) ^ spc() ^ reg_name(rd) ^ sep() ^ cap_reg_name(cs2) ^ sep() ^ reg_name(rs1)
+mapping clause assembly = AMOSwapCap(cd, cs2, rs1, aq, rl) <-> "amoswap.c" ^ maybe_aq(aq) ^ maybe_rl(rl) ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs2) ^ sep() ^ reg_name(rs1)
