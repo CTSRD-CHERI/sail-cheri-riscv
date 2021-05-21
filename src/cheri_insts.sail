@@ -2531,3 +2531,16 @@ mapping clause encdec = AMOSwapCap(cd, cs2, rs1, aq, rl) if sizeof(xlen) == 64 <
 mapping clause assembly = LoadResCapMode(cd, rs1, aq, rl) <-> "lr.c" ^ maybe_aq(aq) ^ maybe_rl(rl) ^ spc() ^ cap_reg_name(cd) ^ sep() ^ reg_name(rs1)
 mapping clause assembly = StoreCondCapMode(rd, cs2, rs1, aq, rl) <-> "sc.c" ^ maybe_aq(aq) ^ maybe_rl(rl) ^ spc() ^ reg_name(rd) ^ sep() ^ cap_reg_name(cs2) ^ sep() ^ reg_name(rs1)
 mapping clause assembly = AMOSwapCap(cd, cs2, rs1, aq, rl) <-> "amoswap.c" ^ maybe_aq(aq) ^ maybe_rl(rl) ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs2) ^ sep() ^ reg_name(rs1)
+
+/* 
+  CHERI really needs sub word atomic operations because bounds checks mean you
+  can't implement them in software with word sized operations. The RISC-V 
+  spec. does not define lr / sc for bytes or half words although the obvious 
+  encodings are vacant. Since the base Sail model actually implements the unused 
+  widths but refuses to decode them we can implement them for CHERI simply by 
+  adding the decodings here.
+*/
+mapping clause encdec = LOADRES(aq, rl, rs1, size, rd) if (size == BYTE) | (size == HALF)
+  <-> 0b00010 @ bool_bits(aq) @ bool_bits(rl) @ 0b00000 @ rs1 @ 0b0 @ size_bits(size) @ rd @ 0b0101111 if (size == BYTE) | (size == HALF)
+mapping clause encdec = STORECON(aq, rl, rs2, rs1, size, rd) if (size == BYTE) | (size == HALF)
+  <-> 0b00011 @ bool_bits(aq) @ bool_bits(rl) @ rs2 @ rs1 @ 0b0 @ size_bits(size) @ rd @ 0b0101111 if (size == BYTE) | (size == HALF)
