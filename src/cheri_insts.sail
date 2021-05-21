@@ -2082,8 +2082,22 @@ function handle_store_cond_data_via_cap(rs2, auth_idx, auth_val, vaddrBits, widt
   }
 }
 
-val handle_store_cond_cap_via_cap : (regidx, regidx, capreg_idx, Capability, xlenbits, bool, bool) -> Retired effect {eamem, escape, rmem, rmemt, rreg, wmv, wreg, wmvt}
-function handle_store_cond_cap_via_cap(rd, cs2, auth_idx, auth_val, vaddrBits, aq, rl) = {
+function write_sc_cap_result(rd : regidx, cap_dest : bool, result : bits(1)) -> unit = {
+  /* Some SC instructions re-use the source register as the destination. To 
+    ensure this works correctly for split register file implementations we
+    need to be careful about writing to the correct register file. This is only
+    a concern for store conditional of capabilities where the source register 
+    is a capability register but the destination may be either a capability or
+    an general purpose register depending on the instruction. */
+  if cap_dest then {
+    C(rd) = int_to_cap(EXTZ(result));
+  } else {
+    X(rd) = EXTZ(result);
+  }
+}
+
+val handle_store_cond_cap_via_cap : (regidx, regidx, capreg_idx, Capability, xlenbits, bool, bool, bool) -> Retired effect {eamem, escape, rmem, rmemt, rreg, wmv, wreg, wmvt}
+function handle_store_cond_cap_via_cap(rd, cs2, auth_idx, auth_val, vaddrBits, aq, rl, cap_dest) = {
   let cs2_val = C(cs2);
   if not(auth_val.tag) then {
     handle_cheri_cap_exception(CapEx_TagViolation, auth_idx);
@@ -2108,7 +2122,7 @@ function handle_store_cond_cap_via_cap(rd, cs2, auth_idx, auth_val, vaddrBits, a
     RETIRE_FAIL
   } else if match_reservation(vaddrBits) == false then {
     /* cannot happen in rmem */
-    X(rd) = EXTZ(0b1);
+    write_sc_cap_result(rd, cap_dest, 0b1);
     cancel_reservation();
     RETIRE_SUCCESS
   } else {
@@ -2122,14 +2136,14 @@ function handle_store_cond_cap_via_cap(rd, cs2, auth_idx, auth_val, vaddrBits, a
             let res : MemoryOpResult(bool) = mem_write_cap(addr, cs2_val, aq, rl, false);
             match (res) {
               MemValue(true)  => {
-                 X(rd) = EXTZ(0b0);
-                 cancel_reservation();
-                 RETIRE_SUCCESS
+                write_sc_cap_result(rd, cap_dest, 0b0);
+                cancel_reservation();
+                RETIRE_SUCCESS
               },
               MemValue(false) => {
-                 X(rd) = EXTZ(0b1);
-                 cancel_reservation();
-                 RETIRE_SUCCESS
+                write_sc_cap_result(rd, cap_dest, 0b1);
+                cancel_reservation();
+                RETIRE_SUCCESS
               },
               MemException(e) => {
                 handle_mem_exception(vaddrBits, e);
@@ -2172,7 +2186,7 @@ function clause execute StoreCondCapDDC(cs2, rs1) = {
   } else if haveAtomics() then {
     let ddc_val = DDC;
     let vaddr = ddc_val.address + X(rs1);
-    handle_store_cond_cap_via_cap(cs2, cs2, DDC_IDX, ddc_val, vaddr, false, false)
+    handle_store_cond_cap_via_cap(cs2, cs2, DDC_IDX, ddc_val, vaddr, false, false, true)
   } else {
     handle_illegal();
     RETIRE_FAIL
@@ -2208,7 +2222,7 @@ function clause execute StoreCondCapCap(cs2, cs1) = {
   } else if haveAtomics() then {
     let cs1_val = C(cs1);
     let vaddr = cs1_val.address;
-    handle_store_cond_cap_via_cap(cs2, cs2, 0b0 @ cs1, cs1_val, vaddr, false, false)
+    handle_store_cond_cap_via_cap(cs2, cs2, 0b0 @ cs1, cs1_val, vaddr, false, false, true)
   } else {
     handle_illegal();
     RETIRE_FAIL
@@ -2225,7 +2239,7 @@ function clause execute StoreCondCapMode(rd, cs2, rs1_cs1, aq, rl) = {
     RETIRE_SUCCESS
   } else if haveAtomics() then {
     let (auth_val, vaddr, auth_idx) = get_cheri_mode_cap_addr(rs1_cs1, zeros());
-    handle_store_cond_cap_via_cap(rd, cs2, auth_idx, auth_val, vaddr, aq, rl);
+    handle_store_cond_cap_via_cap(rd, cs2, auth_idx, auth_val, vaddr, aq, rl, false);
   } else {
     handle_illegal();
     RETIRE_FAIL
