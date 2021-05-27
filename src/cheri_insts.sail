@@ -1392,10 +1392,10 @@ function handle_load_data_via_cap(rd, auth_idx, auth_val, vaddrBits, is_unsigned
     TR_Failure(e, _) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
     TR_Address(addr, _) =>
       match (width, sizeof(xlen)) {
-        (BYTE, _)    => process_load(rd, vaddrBits, mem_read(Read(Data), addr, 1, aq, rl, false), is_unsigned),
-        (HALF, _)    => process_load(rd, vaddrBits, mem_read(Read(Data), addr, 2, aq, rl, false), is_unsigned),
-        (WORD, _)    => process_load(rd, vaddrBits, mem_read(Read(Data), addr, 4, aq, rl, false), is_unsigned),
-        (DOUBLE, 64) => process_load(rd, vaddrBits, mem_read(Read(Data), addr, 8, aq, rl, false), is_unsigned)
+        (BYTE, _)    => process_load(rd, vaddrBits, mem_read(Read(Data), addr, 1, aq, aq & rl, false), is_unsigned),
+        (HALF, _)    => process_load(rd, vaddrBits, mem_read(Read(Data), addr, 2, aq, aq & rl, false), is_unsigned),
+        (WORD, _)    => process_load(rd, vaddrBits, mem_read(Read(Data), addr, 4, aq, aq & rl, false), is_unsigned),
+        (DOUBLE, 64) => process_load(rd, vaddrBits, mem_read(Read(Data), addr, 8, aq, aq & rl, false), is_unsigned)
       }
   }
 }
@@ -1464,7 +1464,7 @@ function handle_load_cap_via_cap(cd, auth_idx, auth_val, vaddrBits) = {
     TR_Failure(E_Extension(_), _) => { internal_error("unexpected cheri exception for cap load") },
     TR_Failure(e, _) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
     TR_Address(addr, ptw_info) => {
-      let c = mem_read_cap(addr, aq, rl, false);
+      let c = mem_read_cap(addr, aq, aq & rl, false);
       match c {
         MemValue(v) => {
           let cr = if ptw_info.ptw_lc == PTW_LC_CLEAR
@@ -1610,7 +1610,7 @@ function clause execute (CLoadTags(rd, cs1)) = {
           match mtags {
             MemException(_) => (),
             MemValue(tags) => {
-              match mem_read_cap(addr + i * cap_size, aq, rl, false) {
+              match mem_read_cap(addr + i * cap_size, aq, aq & rl, false) {
                 MemException(e) => mtags = MemException(e),
                 MemValue(v) =>
                   mtags = MemValue([tags with i = bool_to_bit(v.tag)])
@@ -1663,10 +1663,10 @@ function handle_loadres_data_via_cap(rd, auth_idx, auth_val, vaddrBits, width) =
     TR_Failure(e, _) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
     TR_Address(addr, _) =>
       match (width, sizeof(xlen)) {
-        (BYTE, _)    => process_loadres(rd, vaddrBits, mem_read(Read(Data), addr, 1, aq, rl, false), is_unsigned),
-        (HALF, _)    => process_loadres(rd, vaddrBits, mem_read(Read(Data), addr, 2, aq, rl, false), is_unsigned),
-        (WORD, _)    => process_loadres(rd, vaddrBits, mem_read(Read(Data), addr, 4, aq, rl, false), is_unsigned),
-        (DOUBLE, 64) => process_loadres(rd, vaddrBits, mem_read(Read(Data), addr, 8, aq, rl, false), is_unsigned)
+        (BYTE, _)    => process_loadres(rd, vaddrBits, mem_read(Read(Data), addr, 1, aq, aq & rl, false), is_unsigned),
+        (HALF, _)    => process_loadres(rd, vaddrBits, mem_read(Read(Data), addr, 2, aq, aq & rl, false), is_unsigned),
+        (WORD, _)    => process_loadres(rd, vaddrBits, mem_read(Read(Data), addr, 4, aq, aq & rl, false), is_unsigned),
+        (DOUBLE, 64) => process_loadres(rd, vaddrBits, mem_read(Read(Data), addr, 8, aq, aq & rl, false), is_unsigned)
       }
   }
 }
@@ -1693,7 +1693,7 @@ if not(auth_val.tag) then {
     TR_Failure(E_Extension(_), _) => { internal_error("unexpected cheri exception for cap load") },
     TR_Failure(e, _) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
     TR_Address(addr, ptw_info) => {
-      let c = mem_read_cap(addr, aq, rl, false);
+      let c = mem_read_cap(addr, aq, aq & rl, false);
       match c {
         MemValue(v) => {
           let cr = if ptw_info.ptw_lc == PTW_LC_CLEAR
@@ -1800,16 +1800,16 @@ function handle_store_data_via_cap(rs2, auth_idx, auth_val, vaddrBits, width) = 
     TR_Failure(E_Extension(_), _) => { internal_error("unexpected cheri exception for data store") },
     TR_Failure(e, _) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
     TR_Address(addr, _) => {
-      let eares : MemoryOpResult(unit) = mem_write_ea(addr, size, aq, rl, false);
+      let eares : MemoryOpResult(unit) = mem_write_ea(addr, size, aq & rl, rl, false);
       match (eares) {
         MemException(e) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
         MemValue(_) => {
           let rs2_val = X(rs2);
           let res : MemoryOpResult(bool) = match (width, sizeof(xlen)) {
-            (BYTE, _)     => mem_write_value(addr, 1, rs2_val[7..0],  aq, rl, false),
-            (HALF, _)     => mem_write_value(addr, 2, rs2_val[15..0], aq, rl, false),
-            (WORD, _)     => mem_write_value(addr, 4, rs2_val[31..0], aq, rl, false),
-            (DOUBLE, 64) => mem_write_value(addr, 8, rs2_val,        aq, rl, false)
+            (BYTE, _)     => mem_write_value(addr, 1, rs2_val[7..0],  aq & rl, rl, false),
+            (HALF, _)     => mem_write_value(addr, 2, rs2_val[15..0], aq & rl, rl, false),
+            (WORD, _)     => mem_write_value(addr, 4, rs2_val[31..0], aq & rl, rl, false),
+            (DOUBLE, 64) => mem_write_value(addr, 8, rs2_val,        aq & rl, rl, false)
           };
           match (res) {
             MemValue(true)  => RETIRE_SUCCESS,
@@ -1891,11 +1891,11 @@ function handle_store_cap_via_cap(cs2, auth_idx, auth_val, vaddrBits) = {
   } else match translateAddr(vaddrBits, Write(if cs2_val.tag then Cap else Data)) {
     TR_Failure(e, _) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
     TR_Address(addr, _) => {
-      let eares : MemoryOpResult(unit) = mem_write_ea_cap(addr, aq, rl, false);
+      let eares : MemoryOpResult(unit) = mem_write_ea_cap(addr, aq & rl, rl, false);
       match (eares) {
         MemException(e) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
         MemValue(_) => {
-          let res : MemoryOpResult(bool) = mem_write_cap(addr, cs2_val, aq, rl, false);
+          let res : MemoryOpResult(bool) = mem_write_cap(addr, cs2_val, aq & rl, rl, false);
           match (res) {
             MemValue(true)  => RETIRE_SUCCESS,
             MemValue(false) => internal_error("store got false from mem_write_value"),
@@ -2059,16 +2059,16 @@ function handle_store_cond_data_via_cap(rs2, auth_idx, auth_val, vaddrBits, widt
       TR_Failure(E_Extension(_), _) => { internal_error("unexpected cheri exception for data store") },
       TR_Failure(e, _) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
       TR_Address(addr, _) => {
-        let eares : MemoryOpResult(unit) = mem_write_ea(addr, size, aq, rl, false);
+        let eares : MemoryOpResult(unit) = mem_write_ea(addr, size, aq & rl, rl, false);
         match (eares) {
           MemException(e) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
           MemValue(_) => {
             let rs2_val = X(rs2);
             let res : MemoryOpResult(bool) = match (width, sizeof(xlen)) {
-              (BYTE, _)     => mem_write_value(addr, 1, rs2_val[7..0],  aq, rl, false),
-              (HALF, _)     => mem_write_value(addr, 2, rs2_val[15..0], aq, rl, false),
-              (WORD, _)     => mem_write_value(addr, 4, rs2_val[31..0], aq, rl, false),
-              (DOUBLE, 64)  => mem_write_value(addr, 8, rs2_val,        aq, rl, false)
+              (BYTE, _)     => mem_write_value(addr, 1, rs2_val[7..0],  aq & rl, rl, false),
+              (HALF, _)     => mem_write_value(addr, 2, rs2_val[15..0], aq & rl, rl, false),
+              (WORD, _)     => mem_write_value(addr, 4, rs2_val[31..0], aq & rl, rl, false),
+              (DOUBLE, 64)  => mem_write_value(addr, 8, rs2_val,        aq & rl, rl, false)
             };
             match (res) {
               MemValue(true)  => { X(rs2) = EXTZ(0b0); cancel_reservation(); RETIRE_SUCCESS },
@@ -2129,11 +2129,11 @@ function handle_store_cond_cap_via_cap(rd, cs2, auth_idx, auth_val, vaddrBits, a
     match translateAddr(vaddrBits, Write(if cs2_val.tag then Cap else Data)) {
       TR_Failure(e, _) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
       TR_Address(addr, _) => {
-        let eares : MemoryOpResult(unit) = mem_write_ea_cap(addr, aq, rl, false);
+        let eares : MemoryOpResult(unit) = mem_write_ea_cap(addr, aq & rl, rl, false);
         match (eares) {
           MemException(e) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
           MemValue(_) => {
-            let res : MemoryOpResult(bool) = mem_write_cap(addr, cs2_val, aq, rl, false);
+            let res : MemoryOpResult(bool) = mem_write_cap(addr, cs2_val, aq & rl, rl, false);
             match (res) {
               MemValue(true)  => {
                 write_sc_cap_result(rd, cap_dest, 0b0);
@@ -2279,14 +2279,14 @@ function clause execute AMOSwapCap(cd, cs2, rs1_cs1, aq, rl) = {
       match translateAddr(vaddr, ReadWrite(Cap, if cs2_val.tag then Cap else Data)) {
         TR_Failure(e, _) => { handle_mem_exception(vaddr, e); RETIRE_FAIL },
         TR_Address(addr, ptw_info) => {
-          let eares : MemoryOpResult(unit) = mem_write_ea_cap(addr, aq, rl, false);
+          let eares : MemoryOpResult(unit) = mem_write_ea_cap(addr, aq & rl, rl, false);
           match (eares) {
             MemException(e) => { handle_mem_exception(vaddr, e); RETIRE_FAIL },
             MemValue(_) => {
-              let c = mem_read_cap(addr, aq, rl, false);
+              let c = mem_read_cap(addr, aq, aq & rl, false);
               match c {
                 MemValue(v) => {
-                  let wres : MemoryOpResult(bool) = mem_write_cap(addr, cs2_val, aq, rl, false);
+                  let wres : MemoryOpResult(bool) = mem_write_cap(addr, cs2_val, aq & rl, rl, false);
                   match wres {
                     MemValue(_) => {
                       let cr = if ptw_info.ptw_lc == PTW_LC_CLEAR
