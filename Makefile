@@ -184,8 +184,15 @@ SOFTFLOAT_FLAGS  = -I $(SOFTFLOAT_INCDIR)
 SOFTFLOAT_LIBS   = $(SOFTFLOAT_LIBDIR)/softfloat.a
 SOFTFLOAT_SPECIALIZE_TYPE = RISCV
 
-C_FLAGS = -I $(SAIL_LIB_DIR) -I $(SAIL_RISCV_DIR)/c_emulator -I handwritten_support $(SOFTFLOAT_FLAGS)
-C_LIBS  = -lgmp -lz $(SOFTFLOAT_LIBS)
+GMP_FLAGS = $(shell pkg-config --cflags gmp)
+# N.B. GMP does not have pkg-config metadata on Ubuntu 18.04 so default to -lgmp
+GMP_LIBS := $(shell pkg-config --libs gmp || echo -lgmp)
+
+ZLIB_FLAGS = $(shell pkg-config --cflags zlib)
+ZLIB_LIBS = $(shell pkg-config --libs zlib)
+
+C_FLAGS = -I $(SAIL_LIB_DIR) -I $(SAIL_RISCV_DIR)/c_emulator $(GMP_FLAGS) $(ZLIB_FLAGS) -I handwritten_support $(SOFTFLOAT_FLAGS)
+C_LIBS  = $(GMP_LIBS) $(ZLIB_LIBS) $(SOFTFLOAT_LIBS)
 
 ifneq (,$(SAILCOV))
 ALL_BRANCHES = generated_definitions/c/all_branches
