@@ -145,8 +145,6 @@ function ext_init_regs () = {
   x31 = null_cap;
 
   misa->X() = 0b1;
-  mccsr->d() = 0b1;
-  mccsr->e() = 0b1;
   sccsr->d() = 0b1;
   sccsr->e() = 0b1;
   uccsr->d() = 0b1;
