@@ -4,14 +4,17 @@ This CHERI Sail RISC-V architecture model here, comprising all files and
 directories, is subject to the BSD two-clause licence
 below.
 
-Copyright (c) 2017-2019
+Copyright (c) 2017-2021
   Alasdair Armstrong
   Thomas Bauereiss
   Brian Campbell
-  James Clarke
+  Jessica Clarke
+  Nathaniel Wesley Filardo (contributions prior to July 2020, thereafter Microsoft)
   Alexandre Joannou
+  Microsoft
   Prashanth Mundkur
-  Robert Norton-Wright
+  Robert Norton-Wright (contributions prior to March 2020, thereafter Microsoft)
+  Alexander Richardson
   Peter Rugg
   Peter Sewell
 
