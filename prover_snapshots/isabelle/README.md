@@ -28,3 +28,6 @@ The model was built with
   * [sail](https://github.com/rems-project/sail) commit `63343363`
   * [lem](https://github.com/rems-project/lem) commit `a839114`
 and checked against Isabelle 2020.
+
+The snapshots of the Lem and Sail libraries in the [lib](lib/) directory
+include copies of the licenses under which these libraries are distributed.

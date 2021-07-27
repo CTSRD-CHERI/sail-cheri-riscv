@@ -1,35 +1,31 @@
-CHERI RISCV Sail Model
+   Sail
 
-This CHERI Sail RISC-V architecture model here, comprising all files and
-directories except for the snapshots of the Lem and Sail libraries in the
-prover_snapshots directory (which include copies of their licenses), is subject
-to the BSD two-clause licence below.
-
-Copyright (c) 2017-2021
-  Alasdair Armstrong
-  Thomas Bauereiss
-  Brian Campbell
-  Jessica Clarke
-  Nathaniel Wesley Filardo (contributions prior to July 2020, thereafter Microsoft)
-  Alexandre Joannou
-  Microsoft
-  Prashanth Mundkur
-  Robert Norton-Wright (contributions prior to March 2020, thereafter Microsoft)
-  Alexander Richardson
-  Peter Rugg
+Copyright (c) 2013-2021
+  Kathyrn Gray
+  Shaked Flur
+  Stephen Kell
+  Gabriel Kerneis
+  Robert Norton-Wright
+  Christopher Pulte
   Peter Sewell
+  Alasdair Armstrong
+  Brian Campbell
+  Thomas Bauereiss
+  Anthony Fox
+  Jon French
+  Dominic Mulligan
+  Stephen Kell
+  Mark Wassell
 
 All rights reserved.
-
-This software was developed by SRI International and the University of
-Cambridge Computer Laboratory (Department of Computer Science and
-Technology) under DARPA/AFRL contract FA8650-18-C-7809 ("CIFV"), and
-under DARPA contract HR0011-18-C-0016 ("ECATS") as part of the DARPA
-SSITH research programme.
 
 This software was developed within the Rigorous Engineering of
 Mainstream Systems (REMS) project, partly funded by EPSRC grant
 EP/K008528/1, at the Universities of Cambridge and Edinburgh.
+
+This software was developed by SRI International and the University of
+Cambridge Computer Laboratory (Department of Computer Science and
+Technology) under DARPA/AFRL contract FA8650-18-C-7809 ("CIFV").
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions
