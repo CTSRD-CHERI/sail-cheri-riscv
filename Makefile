@@ -444,6 +444,10 @@ opam-build:
 	$(MAKE) ARCH=64 c_emulator/cheri_riscv_sim_RV64
 	$(MAKE) ARCH=32 c_emulator/cheri_riscv_sim_RV32
 
+apply_header:
+	headache -c etc/headache_config -h LICENCE `ls src/*.sail`
+	headache -c etc/headache_config -h LICENCE `ls handwritten_support/*.*`
+
 clean:
 	-rm -rf generated_definitions/ocaml/* generated_definitions/c/* generated_definitions/latex/* sail_riscv_latex
 	-rm -rf generated_definitions/lem/* generated_definitions/isabelle/* generated_definitions/hol4/* generated_definitions/coq/*
