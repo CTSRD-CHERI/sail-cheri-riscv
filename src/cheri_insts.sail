@@ -1493,55 +1493,63 @@ function clause execute (LoadDataCap(rd, cs1, is_unsigned, width)) = {
   handle_load_data_via_cap(rd, 0b0 @ cs1, cs1_val, vaddr, is_unsigned, width)
 }
 
-val handle_load_cap_via_cap : (regidx, capreg_idx, Capability, xlenbits) -> Retired effect {escape, rmem, rmemt, rreg, wmv, wmvt, wreg}
-function handle_load_cap_via_cap(cd, auth_idx, auth_val, vaddrBits) = {
-  let aq : bool = false;
-  let rl : bool = false;
+/*!
+ * Perform a capability load via a capability, returning either Some pair of
+ * the physical address used in the load and the resulting capability or None,
+ * having updated the model to take the appropriate fault.
+ */
+val load_cap_via_cap : (capreg_idx, Capability, xlenbits, bool, bool) -> option((xlenbits, Capability)) effect {escape, rmem, rmemt, rreg, wmv, wmvt, wreg}
+function load_cap_via_cap(auth_idx, auth_val, vaddrBits, aq, rl) = {
   if not(auth_val.tag) then {
     handle_cheri_cap_exception(CapEx_TagViolation, auth_idx);
-    RETIRE_FAIL
+    None()
   } else if isCapSealed(auth_val) then {
     handle_cheri_cap_exception(CapEx_SealViolation, auth_idx);
-    RETIRE_FAIL
+    None()
   } else if not (auth_val.permit_load) then {
     handle_cheri_cap_exception(CapEx_PermitLoadViolation, auth_idx);
-    RETIRE_FAIL
+    None()
   } else if not(inCapBounds(auth_val, vaddrBits, cap_size)) then {
     handle_cheri_cap_exception(CapEx_LengthViolation, auth_idx);
-    RETIRE_FAIL
+    None()
   } else if not(is_aligned_addr(vaddrBits, cap_size)) then {
     handle_mem_exception(vaddrBits, E_Load_Addr_Align());
-    RETIRE_FAIL
+    None()
   } else match translateAddr(vaddrBits, Read(Cap)) {
     TR_Failure(E_Extension(_), _) => { internal_error("unexpected cheri exception for cap load") },
-    TR_Failure(e, _) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
+    TR_Failure(e, _) => { handle_mem_exception(vaddrBits, e); None() },
     TR_Address(addr, ptw_info) => {
       let c = mem_read_cap(addr, aq, aq & rl, false);
       match c {
         MemValue(v) => {
           match ptw_info.ptw_lc {
             PTW_LC_OK => {
-              C(cd) = { v with tag = v.tag & auth_val.permit_load_cap };
-              RETIRE_SUCCESS
+              Some((addr, { v with tag = v.tag & auth_val.permit_load_cap }))
             },
             PTW_LC_CLEAR => {
-              C(cd) = { v with tag = false };
-              RETIRE_SUCCESS
+              Some((addr, { v with tag = false }))
             },
             PTW_LC_TRAP  => {
               if v.tag then {
                 handle_mem_exception(vaddrBits, E_Extension(EXC_LOAD_CAP_PAGE_FAULT));
-                RETIRE_FAIL
+                None()
               } else {
-                C(cd) = v;
-                RETIRE_SUCCESS
+                Some((addr, v))
               }
             }
           }
         },
-        MemException(e) => {handle_mem_exception(vaddrBits, e); RETIRE_FAIL }
+        MemException(e) => {handle_mem_exception(vaddrBits, e); None() }
       }
     }
+  }
+}
+
+val handle_load_cap_via_cap : (regidx, capreg_idx, Capability, xlenbits) -> Retired effect {escape, rmem, rmemt, rreg, wmv, wmvt, wreg}
+function handle_load_cap_via_cap(cd, auth_idx, auth_val, vaddrBits) = {
+  match load_cap_via_cap(auth_idx, auth_val, vaddrBits, false, false) {
+    None() => RETIRE_FAIL,
+    Some(_, v) => { C(cd) = v; RETIRE_SUCCESS }
   }
 }
 
@@ -1739,55 +1747,9 @@ function handle_loadres_data_via_cap(rd, auth_idx, auth_val, vaddrBits, width) =
 
 val handle_loadres_cap_via_cap : (regidx, capreg_idx, Capability, xlenbits, bool, bool) -> Retired effect {escape, rmem, rmemt, rreg, wmv, wmvt, wreg}
 function handle_loadres_cap_via_cap(cd, auth_idx, auth_val, vaddrBits, aq, rl) = {
-  let is_unsigned = false;
-if not(auth_val.tag) then {
-    handle_cheri_cap_exception(CapEx_TagViolation, auth_idx);
-    RETIRE_FAIL
-  } else if isCapSealed(auth_val) then {
-    handle_cheri_cap_exception(CapEx_SealViolation, auth_idx);
-    RETIRE_FAIL
-  } else if not (auth_val.permit_load) then {
-    handle_cheri_cap_exception(CapEx_PermitLoadViolation, auth_idx);
-    RETIRE_FAIL
-  } else if not(inCapBounds(auth_val, vaddrBits, cap_size)) then {
-    handle_cheri_cap_exception(CapEx_LengthViolation, auth_idx);
-    RETIRE_FAIL
-  } else if not(is_aligned_addr(vaddrBits, cap_size)) then {
-    handle_mem_exception(vaddrBits, E_Load_Addr_Align());
-    RETIRE_FAIL
-  } else match translateAddr(vaddrBits, Read(Cap)) {
-    TR_Failure(E_Extension(_), _) => { internal_error("unexpected cheri exception for cap load") },
-    TR_Failure(e, _) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
-    TR_Address(addr, ptw_info) => {
-      let c = mem_read_cap(addr, aq, aq & rl, false);
-      match c {
-        MemValue(v) => {
-          match ptw_info.ptw_lc {
-            PTW_LC_OK => {
-              load_reservation(addr);
-              C(cd) = { v with tag = v.tag & auth_val.permit_load_cap };
-              RETIRE_SUCCESS
-            },
-            PTW_LC_CLEAR => {
-              load_reservation(addr);
-              C(cd) = { v with tag = false };
-              RETIRE_SUCCESS
-            },
-            PTW_LC_TRAP  => {
-              if v.tag then {
-                handle_mem_exception(vaddrBits, E_Extension(EXC_LOAD_CAP_PAGE_FAULT));
-                RETIRE_FAIL
-              } else {
-                load_reservation(addr);
-                C(cd) = v;
-                RETIRE_SUCCESS
-              }
-            }
-          }
-        },
-        MemException(e) => {handle_mem_exception(vaddrBits, e); RETIRE_FAIL }
-      }
-    }
+  match load_cap_via_cap(auth_idx, auth_val, vaddrBits, aq, rl) {
+    None() => RETIRE_FAIL,
+    Some(a, v) => { load_reservation(a); C(cd) = v; RETIRE_SUCCESS }
   }
 }
 
