@@ -91,7 +91,7 @@ union clause ast = CJAL : (bits(21), regidx)
  */
 function clause execute(CJAL(imm, cd)) = {
   let off : xlenbits = EXTS(imm);
-  let newPC = PCC.address + off;
+  let newPC = PC + off;
   if not(inCapBounds(PCC, newPC, min_instruction_bytes())) then {
     handle_cheri_cap_exception(CapEx_LengthViolation, PCC_IDX);
     RETIRE_FAIL
