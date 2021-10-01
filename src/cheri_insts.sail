@@ -916,7 +916,7 @@ function clause execute (CBuildCap(cd, cs1, cs2)) = {
       RETIRE_FAIL
     } else {
       assert(exact, "CBuildCap: setCapBounds was not exact"); /* base and top came from cs2 originally so will be exact */
-      let cd5 = if signed(cs2_val.otype) == otype_sentry then sealCap(cd4, to_bits(cap_otype_width, otype_sentry)) else cd4;
+      let cd5 = if signed(cs2_val.otype) == otype_sentry & cs2_val.permit_execute then sealCap(cd4, to_bits(cap_otype_width, otype_sentry)) else cd4;
       C(cd) = cd5;
       RETIRE_SUCCESS
     }
