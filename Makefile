@@ -67,7 +67,8 @@ SAIL_RV64_VM_SRCS = $(SAIL_RISCV_MODEL_DIR)/riscv_vmem_sv39.sail \
 
 SAIL_VM_SRCS =  $(SAIL_CHERI_MODEL_DIR)/cheri_pte.sail $(SAIL_CHERI_MODEL_DIR)/cheri_ptw.sail \
                 $(SAIL_RISCV_MODEL_DIR)/riscv_vmem_common.sail $(SAIL_RISCV_MODEL_DIR)/riscv_vmem_tlb.sail
-SAIL_VM_SRCS += $(SAIL_$(ARCH)_VM_SRCS)
+SAIL_VM_SRCS += $(SAIL_$(ARCH)_VM_SRCS) \
+                $(SAIL_CHERI_MODEL_DIR)/cheri_ptw_late.sail
 
 # Non-instruction sources
 PRELUDE = $(SAIL_RISCV_MODEL_DIR)/prelude.sail \
@@ -98,6 +99,7 @@ SAIL_ARCH_SRCS = $(PRELUDE) \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_types_common.sail \
                  $(SAIL_CHERI_MODEL_DIR)/cheri_riscv_types.sail \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_types.sail \
+                 $(SAIL_CHERI_MODEL_DIR)/cheri_riscv_types_late.sail \
                  $(SAIL_REGS_SRCS) \
                  $(SAIL_SYS_SRCS) \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_platform.sail \
@@ -111,6 +113,7 @@ SAIL_ARCH_RVFI_SRCS = \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_types_common.sail \
                  $(SAIL_CHERI_MODEL_DIR)/cheri_riscv_types.sail \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_types.sail \
+                 $(SAIL_CHERI_MODEL_DIR)/cheri_riscv_types_late.sail \
                  $(SAIL_REGS_SRCS) \
                  $(SAIL_SYS_SRCS) \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_platform.sail \

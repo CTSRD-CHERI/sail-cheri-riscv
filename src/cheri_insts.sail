@@ -1412,8 +1412,8 @@ function clause execute(JALR_PCC(rd, rs1)) = {
   execute(RISCV_JALR(zeros(), rs1, rd))
 }
 
-val handle_load_data_via_cap : (regidx, capreg_idx, Capability, xlenbits, bool, word_width) -> Retired effect {escape, rmem, rmemt, rreg, wmv, wmvt, wreg}
-function handle_load_data_via_cap(rd, auth_idx, auth_val, vaddrBits, is_unsigned, width) = {
+val handle_load_data_via_cap : (regidx, capreg_idx, Capability, xlenbits, bool, word_width, OptPrivilege) -> Retired effect {escape, rmem, rmemt, rreg, wmv, wmvt, wreg}
+function handle_load_data_via_cap(rd, auth_idx, auth_val, vaddrBits, is_unsigned, width, optpriv) = {
   let size = word_width_bytes(width);
   let aq : bool = false;
   let rl : bool = false;
@@ -1432,15 +1432,15 @@ function handle_load_data_via_cap(rd, auth_idx, auth_val, vaddrBits, is_unsigned
   } else if check_misaligned(vaddrBits, width) then {
     handle_mem_exception(vaddrBits, E_Load_Addr_Align());
     RETIRE_FAIL
-  } else match translateAddr(vaddrBits, Read(Data)) {
+  } else match translateAddr_optpriv(optpriv, vaddrBits, Read(Data)) {
     TR_Failure(E_Extension(_), _) => { internal_error("unexpected cheri exception for data load") },
     TR_Failure(e, _) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
     TR_Address(addr, _) =>
       match (width, sizeof(xlen)) {
-        (BYTE, _)    => process_load(rd, vaddrBits, mem_read(Read(Data), addr, 1, aq, aq & rl, false), is_unsigned),
-        (HALF, _)    => process_load(rd, vaddrBits, mem_read(Read(Data), addr, 2, aq, aq & rl, false), is_unsigned),
-        (WORD, _)    => process_load(rd, vaddrBits, mem_read(Read(Data), addr, 4, aq, aq & rl, false), is_unsigned),
-        (DOUBLE, 64) => process_load(rd, vaddrBits, mem_read(Read(Data), addr, 8, aq, aq & rl, false), is_unsigned)
+        (BYTE, _)    => process_load(rd, vaddrBits, mem_read_optpriv(Read(Data), optpriv, addr, 1, aq, aq & rl, false), is_unsigned),
+        (HALF, _)    => process_load(rd, vaddrBits, mem_read_optpriv(Read(Data), optpriv, addr, 2, aq, aq & rl, false), is_unsigned),
+        (WORD, _)    => process_load(rd, vaddrBits, mem_read_optpriv(Read(Data), optpriv, addr, 4, aq, aq & rl, false), is_unsigned),
+        (DOUBLE, 64) => process_load(rd, vaddrBits, mem_read_optpriv(Read(Data), optpriv, addr, 8, aq, aq & rl, false), is_unsigned)
       }
   }
 }
@@ -1463,7 +1463,7 @@ union clause ast = LoadDataDDC : (regidx, regidx, bool, word_width)
 function clause execute (LoadDataDDC(rd, rs1, is_unsigned, width)) = {
   let ddc_val = DDC;
   let vaddr = ddc_val.address + X(rs1);
-  handle_load_data_via_cap(rd, DDC_IDX, ddc_val, vaddr, is_unsigned, width)
+  handle_load_data_via_cap(rd, DDC_IDX, ddc_val, vaddr, is_unsigned, width, PrivDefault())
 }
 
 union clause ast = LoadDataCap : (regidx, regidx, bool, word_width)
@@ -1483,7 +1483,7 @@ union clause ast = LoadDataCap : (regidx, regidx, bool, word_width)
 function clause execute (LoadDataCap(rd, cs1, is_unsigned, width)) = {
   let cs1_val = C(cs1);
   let vaddr = cs1_val.address;
-  handle_load_data_via_cap(rd, 0b0 @ cs1, cs1_val, vaddr, is_unsigned, width)
+  handle_load_data_via_cap(rd, 0b0 @ cs1, cs1_val, vaddr, is_unsigned, width, PrivDefault())
 }
 
 /*!
@@ -1491,8 +1491,8 @@ function clause execute (LoadDataCap(rd, cs1, is_unsigned, width)) = {
  * the physical address used in the load and the resulting capability or None,
  * having updated the model to take the appropriate fault.
  */
-val load_cap_via_cap : (capreg_idx, Capability, xlenbits, bool, bool) -> option((xlenbits, Capability)) effect {escape, rmem, rmemt, rreg, wmv, wmvt, wreg}
-function load_cap_via_cap(auth_idx, auth_val, vaddrBits, aq, rl) = {
+val load_cap_via_cap : (capreg_idx, Capability, xlenbits, bool, bool, OptPrivilege) -> option((xlenbits, Capability)) effect {escape, rmem, rmemt, rreg, wmv, wmvt, wreg}
+function load_cap_via_cap(auth_idx, auth_val, vaddrBits, aq, rl, optpriv) = {
   if not(auth_val.tag) then {
     handle_cheri_cap_exception(CapEx_TagViolation, auth_idx);
     None()
@@ -1512,7 +1512,7 @@ function load_cap_via_cap(auth_idx, auth_val, vaddrBits, aq, rl) = {
     TR_Failure(E_Extension(_), _) => { internal_error("unexpected cheri exception for cap load") },
     TR_Failure(e, _) => { handle_mem_exception(vaddrBits, e); None() },
     TR_Address(addr, ptw_info) => {
-      let c = mem_read_cap(addr, aq, aq & rl, false);
+      let c = mem_read_cap_optpriv(optpriv, addr, aq, aq & rl, false);
       match c {
         MemValue(v) => {
           match ptw_info.ptw_lc {
@@ -1538,9 +1538,9 @@ function load_cap_via_cap(auth_idx, auth_val, vaddrBits, aq, rl) = {
   }
 }
 
-val handle_load_cap_via_cap : (regidx, capreg_idx, Capability, xlenbits) -> Retired effect {escape, rmem, rmemt, rreg, wmv, wmvt, wreg}
-function handle_load_cap_via_cap(cd, auth_idx, auth_val, vaddrBits) = {
-  match load_cap_via_cap(auth_idx, auth_val, vaddrBits, false, false) {
+val handle_load_cap_via_cap : (regidx, capreg_idx, Capability, xlenbits, OptPrivilege) -> Retired effect {escape, rmem, rmemt, rreg, wmv, wmvt, wreg}
+function handle_load_cap_via_cap(cd, auth_idx, auth_val, vaddrBits, optpriv) = {
+  match load_cap_via_cap(auth_idx, auth_val, vaddrBits, false, false, optpriv) {
     None() => RETIRE_FAIL,
     Some(_, v) => { C(cd) = v; RETIRE_SUCCESS }
   }
@@ -1566,7 +1566,7 @@ union clause ast = LoadCapDDC : (regidx, regidx)
 function clause execute (LoadCapDDC(cd, rs1)) = {
   let ddc_val = DDC;
   let vaddr = ddc_val.address + X(rs1);
-  handle_load_cap_via_cap(cd, DDC_IDX, ddc_val, vaddr)
+  handle_load_cap_via_cap(cd, DDC_IDX, ddc_val, vaddr, PrivDefault())
 }
 
 union clause ast = LoadCapCap : (regidx, regidx)
@@ -1589,7 +1589,7 @@ union clause ast = LoadCapCap : (regidx, regidx)
 function clause execute (LoadCapCap(cd, cs1)) = {
   let cs1_val = C(cs1);
   let vaddr = cs1_val.address;
-  handle_load_cap_via_cap(cd, 0b0 @ cs1, cs1_val, vaddr)
+  handle_load_cap_via_cap(cd, 0b0 @ cs1, cs1_val, vaddr, PrivDefault())
 }
 
 union clause ast = CLoadTags : (regidx, regidx)
@@ -1764,7 +1764,7 @@ function clause execute (CInvokeLAL(cd, cs)) = {
       handle_mem_exception(idcaddr, E_Load_Addr_Align());
       RETIRE_FAIL
     } else {
-      match load_cap_via_cap(0b0 @ cs, cs_val, idcaddr, false, false) {
+      match load_cap_via_cap(0b0 @ cs, cs_val, idcaddr, false, false, PrivDefault()) {
         None() => RETIRE_FAIL,
         Some(_,v) => match cjalr_worker(cd, cs, v, zeros()) {
           RETIRE_FAIL => RETIRE_FAIL,
@@ -1787,8 +1787,8 @@ function check_res_misaligned(vaddr : xlenbits, width : word_width) -> bool =
     DOUBLE => vaddr[0] == bitone | vaddr[1] == bitone | vaddr[2] == bitone
   }
 
-val handle_loadres_data_via_cap : (regidx, capreg_idx, Capability, xlenbits, word_width) -> Retired effect {escape, rmem, rmemt, rreg, wmv, wmvt, wreg}
-function handle_loadres_data_via_cap(rd, auth_idx, auth_val, vaddrBits, width) = {
+val handle_loadres_data_via_cap : (regidx, capreg_idx, Capability, xlenbits, word_width, OptPrivilege) -> Retired effect {escape, rmem, rmemt, rreg, wmv, wmvt, wreg}
+function handle_loadres_data_via_cap(rd, auth_idx, auth_val, vaddrBits, width, optpriv) = {
   let size = word_width_bytes(width);
   let aq : bool = false;
   let rl : bool = false;
@@ -1808,22 +1808,22 @@ function handle_loadres_data_via_cap(rd, auth_idx, auth_val, vaddrBits, width) =
   } else if check_res_misaligned(vaddrBits, width) then {
     handle_mem_exception(vaddrBits, E_Load_Addr_Align());
     RETIRE_FAIL
-  } else match translateAddr(vaddrBits, Read(Data)) {
+  } else match translateAddr_optpriv(optpriv, vaddrBits, Read(Data)) {
     TR_Failure(E_Extension(_), _) => { internal_error("unexpected cheri exception for data load") },
     TR_Failure(e, _) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
     TR_Address(addr, _) =>
       match (width, sizeof(xlen)) {
-        (BYTE, _)    => process_loadres(rd, vaddrBits, mem_read(Read(Data), addr, 1, aq, aq & rl, false), is_unsigned),
-        (HALF, _)    => process_loadres(rd, vaddrBits, mem_read(Read(Data), addr, 2, aq, aq & rl, false), is_unsigned),
-        (WORD, _)    => process_loadres(rd, vaddrBits, mem_read(Read(Data), addr, 4, aq, aq & rl, false), is_unsigned),
-        (DOUBLE, 64) => process_loadres(rd, vaddrBits, mem_read(Read(Data), addr, 8, aq, aq & rl, false), is_unsigned)
+        (BYTE, _)    => process_loadres(rd, vaddrBits, mem_read_optpriv(Read(Data), optpriv, addr, 1, aq, aq & rl, false), is_unsigned),
+        (HALF, _)    => process_loadres(rd, vaddrBits, mem_read_optpriv(Read(Data), optpriv, addr, 2, aq, aq & rl, false), is_unsigned),
+        (WORD, _)    => process_loadres(rd, vaddrBits, mem_read_optpriv(Read(Data), optpriv, addr, 4, aq, aq & rl, false), is_unsigned),
+        (DOUBLE, 64) => process_loadres(rd, vaddrBits, mem_read_optpriv(Read(Data), optpriv, addr, 8, aq, aq & rl, false), is_unsigned)
       }
   }
 }
 
-val handle_loadres_cap_via_cap : (regidx, capreg_idx, Capability, xlenbits, bool, bool) -> Retired effect {escape, rmem, rmemt, rreg, wmv, wmvt, wreg}
-function handle_loadres_cap_via_cap(cd, auth_idx, auth_val, vaddrBits, aq, rl) = {
-  match load_cap_via_cap(auth_idx, auth_val, vaddrBits, aq, rl) {
+val handle_loadres_cap_via_cap : (regidx, capreg_idx, Capability, xlenbits, bool, bool, OptPrivilege) -> Retired effect {escape, rmem, rmemt, rreg, wmv, wmvt, wreg}
+function handle_loadres_cap_via_cap(cd, auth_idx, auth_val, vaddrBits, aq, rl, optpriv) = {
+  match load_cap_via_cap(auth_idx, auth_val, vaddrBits, aq, rl, optpriv) {
     None() => RETIRE_FAIL,
     Some(a, v) => { load_reservation(a); C(cd) = v; RETIRE_SUCCESS }
   }
@@ -1834,7 +1834,7 @@ function clause execute (LoadResDataDDC(rd, rs1, width)) = {
   if haveAtomics() then {
     let ddc_val = DDC;
     let vaddr = ddc_val.address + X(rs1);
-    handle_loadres_data_via_cap(rd, DDC_IDX, ddc_val, vaddr, width)
+    handle_loadres_data_via_cap(rd, DDC_IDX, ddc_val, vaddr, width, PrivDefault())
   } else {
     handle_illegal();
     RETIRE_FAIL
@@ -1846,7 +1846,7 @@ function clause execute (LoadResCapDDC(cd, rs1)) = {
   if haveAtomics() then {
     let ddc_val = DDC;
     let vaddr = ddc_val.address + X(rs1);
-    handle_loadres_cap_via_cap(cd, DDC_IDX, ddc_val, vaddr, false, false)
+    handle_loadres_cap_via_cap(cd, DDC_IDX, ddc_val, vaddr, false, false, PrivDefault())
   } else {
     handle_illegal();
     RETIRE_FAIL
@@ -1858,7 +1858,7 @@ function clause execute (LoadResCap(rd, cs1, width)) = {
   if haveAtomics() then {
     let cs1_val = C(cs1);
     let vaddr = cs1_val.address;
-    handle_loadres_data_via_cap(rd, 0b0 @ cs1, cs1_val, vaddr, width)
+    handle_loadres_data_via_cap(rd, 0b0 @ cs1, cs1_val, vaddr, width, PrivDefault())
   } else {
     handle_illegal();
     RETIRE_FAIL
@@ -1870,13 +1870,12 @@ function clause execute (LoadResCapCap(cd, cs1)) = {
   if haveAtomics() then {
     let cs1_val = C(cs1);
     let vaddr = cs1_val.address + X(cs1);
-    handle_loadres_cap_via_cap(cd, 0b0 @ cs1, cs1_val, vaddr, false, false)
+    handle_loadres_cap_via_cap(cd, 0b0 @ cs1, cs1_val, vaddr, false, false, PrivDefault())
   } else {
     handle_illegal();
     RETIRE_FAIL
   }
 }
-
 
 union clause ast = LoadResCapMode : (regidx, regidx, bool, bool)
 /*
@@ -1886,15 +1885,15 @@ union clause ast = LoadResCapMode : (regidx, regidx, bool, bool)
 function clause execute (LoadResCapMode(cd, rs1_cs1, aq, rl)) = {
   if haveAtomics() then {
     let (auth_val, vaddr, auth_idx) = get_cheri_mode_cap_addr(rs1_cs1, zeros());
-    handle_loadres_cap_via_cap(cd, auth_idx, auth_val, vaddr, aq, rl)
+    handle_loadres_cap_via_cap(cd, auth_idx, auth_val, vaddr, aq, rl, PrivDefault())
   } else {
     handle_illegal();
     RETIRE_FAIL
   }
 }
 
-val handle_store_data_via_cap : (regidx, capreg_idx, Capability, xlenbits, word_width) -> Retired effect {eamem, escape, rmem, rmemt, rreg, wmv, wmvt, wreg}
-function handle_store_data_via_cap(rs2, auth_idx, auth_val, vaddrBits, width) = {
+val handle_store_data_via_cap : (regidx, capreg_idx, Capability, xlenbits, word_width, OptPrivilege) -> Retired effect {eamem, escape, rmem, rmemt, rreg, wmv, wmvt, wreg}
+function handle_store_data_via_cap(rs2, auth_idx, auth_val, vaddrBits, width, optpriv) = {
   let size = word_width_bytes(width);
   let aq : bool = false;
   let rl : bool = false;
@@ -1913,7 +1912,7 @@ function handle_store_data_via_cap(rs2, auth_idx, auth_val, vaddrBits, width) = 
   } else if check_misaligned(vaddrBits, width) then {
     handle_mem_exception(vaddrBits, E_SAMO_Addr_Align());
     RETIRE_FAIL
-  } else match translateAddr(vaddrBits, Write(Data)) {
+  } else match translateAddr_optpriv(optpriv, vaddrBits, Write(Data)) {
     TR_Failure(E_Extension(_), _) => { internal_error("unexpected cheri exception for data store") },
     TR_Failure(e, _) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
     TR_Address(addr, _) => {
@@ -1923,9 +1922,9 @@ function handle_store_data_via_cap(rs2, auth_idx, auth_val, vaddrBits, width) = 
         MemValue(_) => {
           let rs2_val = X(rs2);
           let res : MemoryOpResult(bool) = match (width, sizeof(xlen)) {
-            (BYTE, _)     => mem_write_value(addr, 1, rs2_val[7..0],  aq & rl, rl, false),
-            (HALF, _)     => mem_write_value(addr, 2, rs2_val[15..0], aq & rl, rl, false),
-            (WORD, _)     => mem_write_value(addr, 4, rs2_val[31..0], aq & rl, rl, false),
+            (BYTE, _)     => mem_write_value_optpriv(optpriv, addr, 1, rs2_val[7..0],  aq & rl, rl, false),
+            (HALF, _)     => mem_write_value_optpriv(optpriv, addr, 2, rs2_val[15..0], aq & rl, rl, false),
+            (WORD, _)     => mem_write_value_optpriv(optpriv, addr, 4, rs2_val[31..0], aq & rl, rl, false),
             (DOUBLE, 64) => mem_write_value(addr, 8, rs2_val,        aq & rl, rl, false)
           };
           match (res) {
@@ -1956,7 +1955,7 @@ union clause ast = StoreDataDDC : (regidx, regidx, word_width)
 function clause execute (StoreDataDDC(rs2, rs1, width)) = {
   let ddc_val = DDC;
   let vaddr = ddc_val.address + X(rs1);
-  handle_store_data_via_cap(rs2, DDC_IDX, ddc_val, vaddr, width)
+  handle_store_data_via_cap(rs2, DDC_IDX, ddc_val, vaddr, width, PrivDefault())
 }
 
 union clause ast = StoreDataCap : (regidx, regidx, word_width)
@@ -1976,11 +1975,11 @@ union clause ast = StoreDataCap : (regidx, regidx, word_width)
 function clause execute (StoreDataCap(rs2, cs1, width)) = {
   let cs1_val = C(cs1);
   let vaddr = cs1_val.address;
-  handle_store_data_via_cap(rs2, 0b0 @ cs1, cs1_val, vaddr, width)
+  handle_store_data_via_cap(rs2, 0b0 @ cs1, cs1_val, vaddr, width, PrivDefault())
 }
 
-val handle_store_cap_via_cap : (regidx, capreg_idx, Capability, xlenbits) -> Retired effect {eamem, escape, rmem, rmemt, rreg, wmv, wreg, wmvt}
-function handle_store_cap_via_cap(cs2, auth_idx, auth_val, vaddrBits) = {
+val handle_store_cap_via_cap : (regidx, capreg_idx, Capability, xlenbits, OptPrivilege) -> Retired effect {eamem, escape, rmem, rmemt, rreg, wmv, wreg, wmvt}
+function handle_store_cap_via_cap(cs2, auth_idx, auth_val, vaddrBits, optpriv) = {
   let cs2_val = C(cs2);
   let aq : bool = false;
   let rl : bool = false;
@@ -2005,14 +2004,14 @@ function handle_store_cap_via_cap(cs2, auth_idx, auth_val, vaddrBits) = {
   } else if not(is_aligned_addr(vaddrBits, cap_size)) then {
     handle_mem_exception(vaddrBits, E_SAMO_Addr_Align());
     RETIRE_FAIL
-  } else match translateAddr(vaddrBits, Write(if cs2_val.tag then Cap else Data)) {
+  } else match translateAddr_optpriv(optpriv, vaddrBits, Write(if cs2_val.tag then Cap else Data)) {
     TR_Failure(e, _) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
     TR_Address(addr, _) => {
       let eares : MemoryOpResult(unit) = mem_write_ea_cap(addr, aq & rl, rl, false);
       match (eares) {
         MemException(e) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
         MemValue(_) => {
-          let res : MemoryOpResult(bool) = mem_write_cap(addr, cs2_val, aq & rl, rl, false);
+          let res : MemoryOpResult(bool) = mem_write_cap_optpriv(optpriv, addr, cs2_val, aq & rl, rl, false);
           match (res) {
             MemValue(true)  => RETIRE_SUCCESS,
             MemValue(false) => internal_error("store got false from mem_write_value"),
@@ -2045,7 +2044,7 @@ union clause ast = StoreCapDDC : (regidx, regidx)
 function clause execute (StoreCapDDC(cs2, rs1)) = {
   let ddc_val = DDC;
   let vaddr = ddc_val.address + X(rs1);
-  handle_store_cap_via_cap(cs2, DDC_IDX, ddc_val, vaddr)
+  handle_store_cap_via_cap(cs2, DDC_IDX, ddc_val, vaddr, PrivDefault())
 }
 
 union clause ast = StoreCapCap : (regidx, regidx)
@@ -2069,7 +2068,7 @@ union clause ast = StoreCapCap : (regidx, regidx)
 function clause execute (StoreCapCap(cs2, cs1)) = {
   let cs1_val = C(cs1);
   let vaddr = cs1_val.address;
-  handle_store_cap_via_cap(cs2, 0b0 @ cs1, cs1_val, vaddr)
+  handle_store_cap_via_cap(cs2, 0b0 @ cs1, cs1_val, vaddr, PrivDefault())
 }
 
 union clause ast = LoadCapImm : (regidx, regidx, bits(12))
@@ -2106,7 +2105,7 @@ union clause ast = LoadCapImm : (regidx, regidx, bits(12))
 function clause execute LoadCapImm(cd, rs1_cs1, imm) = {
   let offset : xlenbits = EXTS(imm);
   let (auth_val, vaddr, auth_idx) = get_cheri_mode_cap_addr(rs1_cs1, offset);
-  handle_load_cap_via_cap(cd, auth_idx, auth_val, vaddr)
+  handle_load_cap_via_cap(cd, auth_idx, auth_val, vaddr, PrivDefault())
 }
 
 union clause ast = StoreCapImm : (regidx, regidx, bits(12))
@@ -2144,11 +2143,11 @@ union clause ast = StoreCapImm : (regidx, regidx, bits(12))
 function clause execute StoreCapImm(cs2, rs1_cs1, imm) = {
   let offset : xlenbits = EXTS(imm);
   let (auth_val, vaddr, auth_idx) = get_cheri_mode_cap_addr(rs1_cs1, offset);
-  handle_store_cap_via_cap(cs2, auth_idx, auth_val, vaddr)
+  handle_store_cap_via_cap(cs2, auth_idx, auth_val, vaddr, PrivDefault())
 }
 
-val handle_store_cond_data_via_cap : (regidx, capreg_idx, Capability, xlenbits, word_width) -> Retired effect {eamem, escape, rmem, rmemt, rreg, wmv, wmvt, wreg}
-function handle_store_cond_data_via_cap(rs2, auth_idx, auth_val, vaddrBits, width) = {
+val handle_store_cond_data_via_cap : (regidx, capreg_idx, Capability, xlenbits, word_width, OptPrivilege) -> Retired effect {eamem, escape, rmem, rmemt, rreg, wmv, wmvt, wreg}
+function handle_store_cond_data_via_cap(rs2, auth_idx, auth_val, vaddrBits, width, optpriv) = {
   let size = word_width_bytes(width);
   let aq : bool = true; /* cheri-specific aq/rl */
   let rl : bool = true;
@@ -2172,7 +2171,7 @@ function handle_store_cond_data_via_cap(rs2, auth_idx, auth_val, vaddrBits, widt
     cancel_reservation();
     RETIRE_SUCCESS
   } else {
-    match translateAddr(vaddrBits, Write(Data)) {
+    match translateAddr_optpriv(optpriv, vaddrBits, Write(Data)) {
       TR_Failure(E_Extension(_), _) => { internal_error("unexpected cheri exception for data store") },
       TR_Failure(e, _) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
       TR_Address(addr, _) => {
@@ -2182,10 +2181,10 @@ function handle_store_cond_data_via_cap(rs2, auth_idx, auth_val, vaddrBits, widt
           MemValue(_) => {
             let rs2_val = X(rs2);
             let res : MemoryOpResult(bool) = match (width, sizeof(xlen)) {
-              (BYTE, _)     => mem_write_value(addr, 1, rs2_val[7..0],  aq & rl, rl, false),
-              (HALF, _)     => mem_write_value(addr, 2, rs2_val[15..0], aq & rl, rl, false),
-              (WORD, _)     => mem_write_value(addr, 4, rs2_val[31..0], aq & rl, rl, false),
-              (DOUBLE, 64)  => mem_write_value(addr, 8, rs2_val,        aq & rl, rl, false)
+              (BYTE, _)     => mem_write_value_optpriv(optpriv, addr, 1, rs2_val[7..0],  aq & rl, rl, false),
+              (HALF, _)     => mem_write_value_optpriv(optpriv, addr, 2, rs2_val[15..0], aq & rl, rl, false),
+              (WORD, _)     => mem_write_value_optpriv(optpriv, addr, 4, rs2_val[31..0], aq & rl, rl, false),
+              (DOUBLE, 64)  => mem_write_value_optpriv(optpriv, addr, 8, rs2_val,        aq & rl, rl, false)
             };
             match (res) {
               MemValue(true)  => { X(rs2) = EXTZ(0b0); cancel_reservation(); RETIRE_SUCCESS },
@@ -2213,8 +2212,8 @@ function write_sc_cap_result(rd : regidx, cap_dest : bool, result : bits(1)) -> 
   }
 }
 
-val handle_store_cond_cap_via_cap : (regidx, regidx, capreg_idx, Capability, xlenbits, bool, bool, bool) -> Retired effect {eamem, escape, rmem, rmemt, rreg, wmv, wreg, wmvt}
-function handle_store_cond_cap_via_cap(rd, cs2, auth_idx, auth_val, vaddrBits, aq, rl, cap_dest) = {
+val handle_store_cond_cap_via_cap : (regidx, regidx, capreg_idx, Capability, xlenbits, bool, bool, bool, OptPrivilege) -> Retired effect {eamem, escape, rmem, rmemt, rreg, wmv, wreg, wmvt}
+function handle_store_cond_cap_via_cap(rd, cs2, auth_idx, auth_val, vaddrBits, aq, rl, cap_dest, optpriv) = {
   let cs2_val = C(cs2);
   if not(auth_val.tag) then {
     handle_cheri_cap_exception(CapEx_TagViolation, auth_idx);
@@ -2243,14 +2242,14 @@ function handle_store_cond_cap_via_cap(rd, cs2, auth_idx, auth_val, vaddrBits, a
     cancel_reservation();
     RETIRE_SUCCESS
   } else {
-    match translateAddr(vaddrBits, Write(if cs2_val.tag then Cap else Data)) {
+    match translateAddr_optpriv(optpriv, vaddrBits, Write(if cs2_val.tag then Cap else Data)) {
       TR_Failure(e, _) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
       TR_Address(addr, _) => {
         let eares : MemoryOpResult(unit) = mem_write_ea_cap(addr, aq & rl, rl, false);
         match (eares) {
           MemException(e) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
           MemValue(_) => {
-            let res : MemoryOpResult(bool) = mem_write_cap(addr, cs2_val, aq & rl, rl, false);
+            let res : MemoryOpResult(bool) = mem_write_cap_optpriv(optpriv, addr, cs2_val, aq & rl, rl, false);
             match (res) {
               MemValue(true)  => {
                 write_sc_cap_result(rd, cap_dest, 0b0);
@@ -2285,7 +2284,7 @@ function clause execute StoreCondDataDDC(rs2, rs1, width) = {
   } else if haveAtomics() then {
     let ddc_val = DDC;
     let vaddr = ddc_val.address + X(rs1);
-    handle_store_cond_data_via_cap(rs2, DDC_IDX, ddc_val, vaddr, width)
+    handle_store_cond_data_via_cap(rs2, DDC_IDX, ddc_val, vaddr, width, PrivDefault())
   } else {
     handle_illegal();
     RETIRE_FAIL
@@ -2303,7 +2302,7 @@ function clause execute StoreCondCapDDC(cs2, rs1) = {
   } else if haveAtomics() then {
     let ddc_val = DDC;
     let vaddr = ddc_val.address + X(rs1);
-    handle_store_cond_cap_via_cap(cs2, cs2, DDC_IDX, ddc_val, vaddr, false, false, true)
+    handle_store_cond_cap_via_cap(cs2, cs2, DDC_IDX, ddc_val, vaddr, false, false, true, PrivDefault())
   } else {
     handle_illegal();
     RETIRE_FAIL
@@ -2321,7 +2320,7 @@ function clause execute StoreCondCap(rs2, cs1, width) = {
   } else if haveAtomics() then {
     let cs1_val = C(cs1);
     let vaddr = cs1_val.address;
-    handle_store_cond_data_via_cap(rs2, 0b0 @ cs1, cs1_val, vaddr, width)
+    handle_store_cond_data_via_cap(rs2, 0b0 @ cs1, cs1_val, vaddr, width, PrivDefault())
   } else {
     handle_illegal();
     RETIRE_FAIL
@@ -2339,7 +2338,7 @@ function clause execute StoreCondCapCap(cs2, cs1) = {
   } else if haveAtomics() then {
     let cs1_val = C(cs1);
     let vaddr = cs1_val.address;
-    handle_store_cond_cap_via_cap(cs2, cs2, 0b0 @ cs1, cs1_val, vaddr, false, false, true)
+    handle_store_cond_cap_via_cap(cs2, cs2, 0b0 @ cs1, cs1_val, vaddr, false, false, true, PrivDefault())
   } else {
     handle_illegal();
     RETIRE_FAIL
@@ -2356,7 +2355,7 @@ function clause execute StoreCondCapMode(rd, cs2, rs1_cs1, aq, rl) = {
     RETIRE_SUCCESS
   } else if haveAtomics() then {
     let (auth_val, vaddr, auth_idx) = get_cheri_mode_cap_addr(rs1_cs1, zeros());
-    handle_store_cond_cap_via_cap(rd, cs2, auth_idx, auth_val, vaddr, aq, rl, false);
+    handle_store_cond_cap_via_cap(rd, cs2, auth_idx, auth_val, vaddr, aq, rl, false, PrivDefault());
   } else {
     handle_illegal();
     RETIRE_FAIL
