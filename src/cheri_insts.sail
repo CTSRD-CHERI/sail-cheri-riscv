@@ -1486,6 +1486,28 @@ function clause execute (LoadDataCap(rd, cs1, is_unsigned, width)) = {
   handle_load_data_via_cap(rd, 0b0 @ cs1, cs1_val, vaddr, is_unsigned, width, PrivDefault())
 }
 
+union clause ast = LoadUDataCap : (regidx, regidx, bool, word_width)
+/*!
+ * Integer register *rd* is replaced with the signed or unsigned byte,
+ * halfword, word or doubleword located in memory at *cs1*.**address**.
+ * Memory access is performed as if the processor is executing in user mode,
+ * regardless of **mstatus**.
+ *
+ * ## Exceptions
+ *
+ * An exception is raised if:
+ *   - *cs1*.**tag** is not set.
+ *   - *cs1* is sealed.
+ *   - *cs1*.**perms** does not grant **Permit_Load**.
+ *   - *cs1*.**address** $\lt$ *cs1*.**base**.
+ *   - *cs1*.**address** $+$ *size* $\gt$ *cs1*.**top**.
+ */
+function clause execute (LoadDataCap(rd, cs1, is_unsigned, width)) = {
+  let cs1_val = C(cs1);
+  let vaddr = cs1_val.address;
+  handle_load_data_via_cap(rd, 0b0 @ cs1, cs1_val, vaddr, is_unsigned, width, PrivOverride(User))
+}
+
 /*!
  * Perform a capability load via a capability, returning either Some pair of
  * the physical address used in the load and the resulting capability or None,
@@ -1591,6 +1613,32 @@ function clause execute (LoadCapCap(cd, cs1)) = {
   let vaddr = cs1_val.address;
   handle_load_cap_via_cap(cd, 0b0 @ cs1, cs1_val, vaddr, PrivDefault())
 }
+
+union clause ast = LoadUCapCap : (regidx, regidx)
+/*!
+ * Capability register *cd* is replaced with the capability located in memory
+ * at *cs1*.**address**, and if *cs1*.**perms** does not grant
+ * **Permit_Load_Capability** then *cd*.**tag** is cleared.
+ * Memory access is performed as if the processor is executing in user mode,
+ * regardless of **mstatus**.
+ *
+ * ## Exceptions
+ *
+ * An exception is raised if:
+ *   - *cs1*.**tag** is not set.
+ *   - *cs1* is sealed.
+ *   - *cs1*.**perms** does not grant **Permit_Load**.
+ *   - *cs1*.**address** $\lt$ *cs1*.**base**.
+ *   - *cs1*.**address** $+$ **CLEN** $/$ 8 $\gt$ *cs1*.**top**.
+ *   - *cs1*.**address** is unaligned, regardless of whether the implementation
+ *     supports unaligned data accesses.
+ */
+function clause execute (LoadUCapCap(cd, cs1)) = {
+  let cs1_val = C(cs1);
+  let vaddr = cs1_val.address;
+  handle_load_cap_via_cap(cd, 0b0 @ cs1, cs1_val, vaddr, PrivOverride(User))
+}
+
 
 union clause ast = CLoadTags : (regidx, regidx)
 /*
@@ -1865,6 +1913,18 @@ function clause execute (LoadResCap(rd, cs1, width)) = {
   }
 }
 
+union clause ast = LoadResUCap : (regidx, regidx, word_width)
+function clause execute (LoadResUCap(rd, cs1, width)) = {
+  if haveAtomics() then {
+    let cs1_val = C(cs1);
+    let vaddr = cs1_val.address;
+    handle_loadres_data_via_cap(rd, 0b0 @ cs1, cs1_val, vaddr, width, PrivOverride(User))
+  } else {
+    handle_illegal();
+    RETIRE_FAIL
+  }
+}
+
 union clause ast = LoadResCapCap : (regidx, regidx)
 function clause execute (LoadResCapCap(cd, cs1)) = {
   if haveAtomics() then {
@@ -1886,6 +1946,18 @@ function clause execute (LoadResCapMode(cd, rs1_cs1, aq, rl)) = {
   if haveAtomics() then {
     let (auth_val, vaddr, auth_idx) = get_cheri_mode_cap_addr(rs1_cs1, zeros());
     handle_loadres_cap_via_cap(cd, auth_idx, auth_val, vaddr, aq, rl, PrivDefault())
+  } else {
+    handle_illegal();
+    RETIRE_FAIL
+  }
+}
+
+union clause ast = LoadResUCapCap : (regidx, regidx)
+function clause execute (LoadResUCapCap(cd, cs1)) = {
+  if haveAtomics() then {
+    let cs1_val = C(cs1);
+    let vaddr = cs1_val.address + X(cs1);
+    handle_loadres_cap_via_cap(cd, 0b0 @ cs1, cs1_val, vaddr, false, false, PrivOverride(User))
   } else {
     handle_illegal();
     RETIRE_FAIL
@@ -1978,6 +2050,28 @@ function clause execute (StoreDataCap(rs2, cs1, width)) = {
   handle_store_data_via_cap(rs2, 0b0 @ cs1, cs1_val, vaddr, width, PrivDefault())
 }
 
+union clause ast = StoreUDataCap : (regidx, regidx, word_width)
+/*!
+ * The byte, halfword, word or doubleword located in memory at
+ * *cs1*.**address** is replaced with integer register *rs2*.
+ * Memory access is performed as if the processor is executing in user mode,
+ * regardless of **mstatus**.
+ *
+ * ## Exceptions
+ *
+ * An exception is raised if:
+ *   - *cs1*.**tag** is not set.
+ *   - *cs1* is sealed.
+ *   - *cs1*.**perms** does not grant **Permit_Store**.
+ *   - *cs1*.**address** $\lt$ *cs1*.**base**.
+ *   - *cs1*.**address** $+$ *size* $\gt$ *cs1*.**top**.
+ */
+function clause execute (StoreUDataCap(rs2, cs1, width)) = {
+  let cs1_val = C(cs1);
+  let vaddr = cs1_val.address;
+  handle_store_data_via_cap(rs2, 0b0 @ cs1, cs1_val, vaddr, width, PrivOverride(User))
+}
+
 val handle_store_cap_via_cap : (regidx, capreg_idx, Capability, xlenbits, OptPrivilege) -> Retired effect {eamem, escape, rmem, rmemt, rreg, wmv, wreg, wmvt}
 function handle_store_cap_via_cap(cs2, auth_idx, auth_val, vaddrBits, optpriv) = {
   let cs2_val = C(cs2);
@@ -2066,6 +2160,32 @@ union clause ast = StoreCapCap : (regidx, regidx)
  *   - *cs1*.**address** $+$ **CLEN** $\gt$ *cs1*.**top**.
  */
 function clause execute (StoreCapCap(cs2, cs1)) = {
+  let cs1_val = C(cs1);
+  let vaddr = cs1_val.address;
+  handle_store_cap_via_cap(cs2, 0b0 @ cs1, cs1_val, vaddr, PrivDefault())
+}
+
+union clause ast = StoreUCapCap : (regidx, regidx)
+/*!
+ * The capability located in memory at *cs1*.**address** is replaced with
+ * capability register *cs2*.
+ * Memory access is performed as if the processor is executing in user mode,
+ * regardless of **mstatus**.
+ *
+ * ## Exceptions
+ *
+ * An exception is raised if:
+ *   - *cs1*.**tag** is not set.
+ *   - *cs1* is sealed.
+ *   - *cs1*.**perms** does not grant **Permit_Store**.
+ *   - *cs1*.**perms** does not grant **Permit_Store_Capability** and
+ *     *cs2*.**tag** is set.
+ *   - *cs1*.**perms** does not grant **Permit_Store_Local_Capability**,
+ *     *cs2*.**tag** is set and *cs2*.**perms** does not grant **Global**.
+ *   - *cs1*.**address** $\lt$ *cs1*.**base**.
+ *   - *cs1*.**address** $+$ **CLEN** $\gt$ *cs1*.**top**.
+ */
+function clause execute (StoreUCapCap(cs2, cs1)) = {
   let cs1_val = C(cs1);
   let vaddr = cs1_val.address;
   handle_store_cap_via_cap(cs2, 0b0 @ cs1, cs1_val, vaddr, PrivDefault())
@@ -2356,6 +2476,42 @@ function clause execute StoreCondCapMode(rd, cs2, rs1_cs1, aq, rl) = {
   } else if haveAtomics() then {
     let (auth_val, vaddr, auth_idx) = get_cheri_mode_cap_addr(rs1_cs1, zeros());
     handle_store_cond_cap_via_cap(rd, cs2, auth_idx, auth_val, vaddr, aq, rl, false, PrivDefault());
+  } else {
+    handle_illegal();
+    RETIRE_FAIL
+  }
+}
+
+union clause ast = StoreCondUCap : (regidx, regidx, word_width)
+function clause execute StoreCondUCap(rs2, cs1, width) = {
+  if speculate_conditional () == false then {
+    /* should only happen in rmem
+     * rmem: allow SC to fail very early
+     */
+    X(rs2) = EXTZ(0b1);
+    RETIRE_SUCCESS
+  } else if haveAtomics() then {
+    let cs1_val = C(cs1);
+    let vaddr = cs1_val.address;
+    handle_store_cond_data_via_cap(rs2, 0b0 @ cs1, cs1_val, vaddr, width, PrivOverride(User))
+  } else {
+    handle_illegal();
+    RETIRE_FAIL
+  }
+}
+
+union clause ast = StoreCondUCapCap : (regidx, regidx)
+function clause execute StoreCondCapCap(cs2, cs1) = {
+  if speculate_conditional () == false then {
+    /* should only happen in rmem
+     * rmem: allow SC to fail very early
+     */
+    C(cs2) = int_to_cap(EXTZ(0b1));
+    RETIRE_SUCCESS
+  } else if haveAtomics() then {
+    let cs1_val = C(cs1);
+    let vaddr = cs1_val.address;
+    handle_store_cond_cap_via_cap(cs2, cs2, 0b0 @ cs1, cs1_val, vaddr, false, false, true, PrivOverride(User))
   } else {
     handle_illegal();
     RETIRE_FAIL
@@ -2680,3 +2836,47 @@ mapping clause encdec = LOADRES(aq, rl, rs1, size, rd) if (size == BYTE) | (size
   <-> 0b00010 @ bool_bits(aq) @ bool_bits(rl) @ 0b00000 @ rs1 @ 0b0 @ size_bits(size) @ rd @ 0b0101111 if (size == BYTE) | (size == HALF)
 mapping clause encdec = STORECON(aq, rl, rs2, rs1, size, rd) if (size == BYTE) | (size == HALF)
   <-> 0b00011 @ bool_bits(aq) @ bool_bits(rl) @ rs2 @ rs1 @ 0b0 @ size_bits(size) @ rd @ 0b0101111 if (size == BYTE) | (size == HALF)
+
+/* As-User loads */
+
+mapping clause encdec = LoadUDataCap(rd, cs1, false, BYTE)   if (haveXcheri())             <-> 0b1111001 @ 0b01000 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lb.cap */
+mapping clause encdec = LoadUDataCap(rd, cs1, false, HALF)   if (haveXcheri())             <-> 0b1111001 @ 0b01001 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lh.cap */
+mapping clause encdec = LoadUDataCap(rd, cs1, false, WORD)   if (haveXcheri())             <-> 0b1111001 @ 0b01010 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lw.cap */
+mapping clause encdec = LoadUDataCap(rd, cs1, false, DOUBLE) if (haveXcheri() & haveRV64)  <-> 0b1111001 @ 0b01011 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveRV64)  /* ld.cap */
+mapping clause encdec = LoadUDataCap(rd, cs1, true, BYTE)    if (haveXcheri())             <-> 0b1111001 @ 0b01100 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lbu.cap */
+mapping clause encdec = LoadUDataCap(rd, cs1, true, HALF)    if (haveXcheri())             <-> 0b1111001 @ 0b01101 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lhu.cap */
+mapping clause encdec = LoadUDataCap(rd, cs1, true, WORD)    if (haveXcheri() & haveRV64)  <-> 0b1111001 @ 0b01110 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveRV64)  /* lwu.cap */
+mapping clause encdec = LoadUDataCap(rd, cs1, true, DOUBLE)  if (haveXcheri() & haveRV128) <-> 0b1111001 @ 0b01111 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveRV128) /* ldu.cap */
+
+mapping clause assembly = LoadUDataCap(rd, cs1, u, w) <-> "l" ^ size_mnemonic(w) ^ maybe_u(u) ^ ".u.cap" ^ spc() ^ reg_name(rd) ^ sep() ^ "(" ^ opt_spc() ^ cap_reg_name(cs1) ^ opt_spc() ^ ")"
+
+mapping clause encdec = LoadUCapCap(cd, cs1) if (haveXcheri() & sizeof(xlen) == 64) <-> 0b1111001 @ 0b11111 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri() & sizeof(xlen) == 64)  /* lc.cap */
+mapping clause encdec = LoadUCapCap(cd, cs1) if (haveXcheri() & sizeof(xlen) == 32) <-> 0b1111001 @ 0b01011 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri() & sizeof(xlen) == 32)  /* lc.cap */
+
+mapping clause assembly = LoadUCapCap(rd, cs1) <-> "lc.u.cap" ^ spc() ^ reg_name(rd) ^ sep() ^ "(" ^ opt_spc() ^ cap_reg_name(cs1) ^ opt_spc() ^ ")"
+
+mapping clause encdec = LoadResUCap(rd, cs1, BYTE)   if (haveXcheri() & haveAtomics()) <-> 0b1111001 @ 0b11000 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveAtomics())  /* lr.b.cap */
+mapping clause encdec = LoadResUCap(rd, cs1, HALF)   if (haveXcheri() & haveAtomics()) <-> 0b1111001 @ 0b11001 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveAtomics())  /* lr.h.cap */
+mapping clause encdec = LoadResUCap(rd, cs1, WORD)   if (haveXcheri() & haveAtomics()) <-> 0b1111001 @ 0b11010 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveAtomics())  /* lr.w.cap */
+mapping clause encdec = LoadResUCap(rd, cs1, DOUBLE) if (haveXcheri() & haveAtomics() & haveRV64) <-> 0b1111001 @ 0b11011 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveAtomics() & haveRV64)  /* lr.d.cap */
+mapping clause encdec = LoadResUCapCap(cd, cs1)      if (haveXcheri() & haveAtomics() & sizeof(xlen) == 32) <-> 0b1111001 @ 0b11011 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri() & haveAtomics() & sizeof(xlen) == 32)  /* lr.c.cap */
+mapping clause encdec = LoadResUCapCap(cd, cs1)      if (haveXcheri() & haveAtomics() & sizeof(xlen) == 64) <-> 0b1111001 @ 0b11100 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri() & haveAtomics() & sizeof(xlen) == 64)  /* lr.c.cap */
+
+mapping clause assembly = LoadResUCap(rd, cs1, w)     <-> "lr." ^ size_mnemonic(w) ^ ".u.cap" ^ spc() ^ reg_name(rd) ^ sep() ^ "(" ^ opt_spc() ^ cap_reg_name(cs1) ^ opt_spc() ^ ")"
+mapping clause assembly = LoadResUCapCap(cd, cs1)     <-> "lr.c.u.cap" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ "(" ^ opt_spc() ^ cap_reg_name(cs1) ^ opt_spc() ^ ")"
+
+/* As-User stores */
+
+mapping clause encdec = StoreUDataCap(rs2, cs1, BYTE)    if (haveXcheri()) <-> 0b1111000 @ rs2 @ cs1 @ 0b000 @ 0b01000 @ 0b1011011 if (haveXcheri()) /* sb.cap */
+mapping clause encdec = StoreUDataCap(rs2, cs1, HALF)    if (haveXcheri()) <-> 0b1111000 @ rs2 @ cs1 @ 0b000 @ 0b01001 @ 0b1011011 if (haveXcheri()) /* sh.cap */
+mapping clause encdec = StoreUDataCap(rs2, cs1, WORD)    if (haveXcheri()) <-> 0b1111000 @ rs2 @ cs1 @ 0b000 @ 0b01010 @ 0b1011011 if (haveXcheri()) /* sw.cap */
+mapping clause encdec = StoreUDataCap(rs2, cs1, DOUBLE)  if (haveXcheri() & haveRV64) <-> 0b1111000 @ rs2 @ cs1 @ 0b000 @ 0b01011 @ 0b1011011 if (haveXcheri() & haveRV64) /* sd.cap */
+mapping clause encdec = StoreUCapCap(cs2, cs1)           if (haveXcheri() & sizeof(xlen) == 64) <-> 0b1111000 @ cs2 @ cs1 @ 0b000 @ 0b01100 @ 0b1011011 if (haveXcheri() & sizeof(xlen) == 64) /* sc.cap */
+mapping clause encdec = StoreUCapCap(cs2, cs1)           if (haveXcheri() & sizeof(xlen) == 32) <-> 0b1111000 @ cs2 @ cs1 @ 0b000 @ 0b01011 @ 0b1011011 if (haveXcheri() & sizeof(xlen) == 32) /* sc.cap */
+
+mapping clause encdec = StoreCondUCap(rs2, cs1, BYTE)   if (haveXcheri() & haveAtomics()) <-> 0b1111000 @ rs2 @ cs1 @ 0b000 @ 0b11000 @ 0b1011011 if (haveXcheri() & haveAtomics()) /* sc.b.cap */
+mapping clause encdec = StoreCondUCap(rs2, cs1, HALF)   if (haveXcheri() & haveAtomics()) <-> 0b1111000 @ rs2 @ cs1 @ 0b000 @ 0b11001 @ 0b1011011 if (haveXcheri() & haveAtomics()) /* sc.h.cap */
+mapping clause encdec = StoreCondUCap(rs2, cs1, WORD)   if (haveXcheri() & haveAtomics()) <-> 0b1111000 @ rs2 @ cs1 @ 0b000 @ 0b11010 @ 0b1011011 if (haveXcheri() & haveAtomics()) /* sc.w.cap */
+mapping clause encdec = StoreCondUCap(rs2, cs1, DOUBLE) if (haveXcheri() & haveAtomics() & haveRV64) <-> 0b1111000 @ rs2 @ cs1 @ 0b000 @ 0b11011 @ 0b1011011 if (haveXcheri()  & haveAtomics()& haveRV64) /* sc.d.cap */
+mapping clause encdec = StoreCondUCapCap(cs2, cs1)      if (haveXcheri() & haveAtomics() & sizeof(xlen) == 32) <-> 0b1111000 @ cs2 @ cs1 @ 0b000 @ 0b11011 @ 0b1011011 if (haveXcheri() & haveAtomics() & sizeof(xlen) == 32) /* sc.c.cap */
+mapping clause encdec = StoreCondUCapCap(cs2, cs1)      if (haveXcheri() & haveAtomics() & sizeof(xlen) == 64) <-> 0b1111000 @ cs2 @ cs1 @ 0b000 @ 0b11100 @ 0b1011011 if (haveXcheri() & haveAtomics() & sizeof(xlen) == 64) /* sc.c.cap */
