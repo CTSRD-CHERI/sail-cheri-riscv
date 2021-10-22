@@ -12,15 +12,13 @@ SAIL_RISCV_MODEL_DIR=$(SAIL_RISCV_DIR)/model
 SAIL_CHERI_MODEL_DIR=src
 
 SAIL_RV32_XLEN := $(SAIL_RISCV_MODEL_DIR)/riscv_xlen32.sail
-SAIL_RV32_FLEN := $(SAIL_RISCV_MODEL_DIR)/riscv_flen_F.sail
 CHERI_CAP_RV32_IMPL := cheri_prelude_64.sail
 
 SAIL_RV64_XLEN := $(SAIL_RISCV_MODEL_DIR)/riscv_xlen64.sail
-SAIL_RV64_FLEN := $(SAIL_RISCV_MODEL_DIR)/riscv_flen_D.sail
 CHERI_CAP_RV64_IMPL := cheri_prelude_128.sail
 
 SAIL_XLEN = $(SAIL_$(ARCH)_XLEN)
-SAIL_FLEN = $(SAIL_$(ARCH)_FLEN)
+SAIL_FLEN = $(SAIL_RISCV_MODEL_DIR)/riscv_flen_D.sail
 CHERI_CAP_IMPL = $(CHERI_CAP_$(ARCH)_IMPL)
 
 
@@ -191,7 +189,7 @@ GMP_LIBS := $(shell pkg-config --libs gmp || echo -lgmp)
 ZLIB_FLAGS = $(shell pkg-config --cflags zlib)
 ZLIB_LIBS = $(shell pkg-config --libs zlib)
 
-C_FLAGS = -I $(SAIL_LIB_DIR) -I $(SAIL_RISCV_DIR)/c_emulator $(GMP_FLAGS) $(ZLIB_FLAGS) $(SOFTFLOAT_FLAGS)
+C_FLAGS = -I $(SAIL_LIB_DIR) -I $(SAIL_RISCV_DIR)/c_emulator $(GMP_FLAGS) $(ZLIB_FLAGS) $(SOFTFLOAT_FLAGS) -fcommon
 C_LIBS  = $(GMP_LIBS) $(ZLIB_LIBS) $(SOFTFLOAT_LIBS)
 
 ifneq (,$(SAILCOV))
