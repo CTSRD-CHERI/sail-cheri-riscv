@@ -170,6 +170,7 @@ union clause ast = CGetSealed : (regidx, regidx)
 union clause ast = CGetOffset : (regidx, regidx)
 union clause ast = CGetAddr   : (regidx, regidx)
 union clause ast = CGetFlags  : (regidx, regidx)
+union clause ast = CGetHigh   : (regidx, regidx)
 union clause ast = CGetTop    : (regidx, regidx)
 
 /*!
@@ -224,6 +225,45 @@ function clause execute (CGetBase(rd, cs1)) = {
 function clause execute (CGetOffset(rd, cs1)) = {
   let capVal = C(cs1);
   X(rd) = getCapOffsetBits(capVal);
+  RETIRE_SUCCESS
+}
+
+/*!
+ * Integer register *rd* is set equal to the **high half** of capability
+ * register *cs1*.
+ *
+ * The bits returned here are of the **in-memory** form of the capability, which
+ * may differ from microarchitectural forms in use within implementations.
+ * (Notably, in the sail implementation, see the distinction between [capToBits]
+ * and [capToMemBits].)  That is, applying [CGetHigh] to a capability loaded
+ * from address *m* will yield the same result as loading the high half of the
+ * capability-sized granule at *m* (that is, bits above **XLEN** when a
+ * capability is interpreted as a twice-**XLEN**-bit integer).
+ */
+function clause execute (CGetHigh(rd, cs1)) = {
+  let capVal : Capability = C(cs1);
+  X(rd) = capToMemBits(capVal)[sizeof(xlen) * 2 - 1 .. sizeof(xlen)];
+  RETIRE_SUCCESS
+}
+
+union clause ast = CSetHigh : (regidx, regidx, regidx)
+/*!
+ * Capability register *cd* comes to hold the capability from *cs1* with its
+ * high bits replaced with the value in the integer register *rs2*.  The tag
+ * of *cd* is cleared.
+ *
+ * *rs2* holds the **in-memory** form of capability bits.  That is, this
+ * instruction yields the same result as writing *cs1* out to memory,
+ * overwriting the high word with *rs2*, and loading that capability-sized
+ * granule into *cd*, although without the memory mutation side-effects.
+ *
+ */
+function clause execute (CSetHigh(cd, cs1, rs2)) = {
+  let capVal = C(cs1);
+  let intVal = X(rs2);
+  let capLow : xlenbits = capToMemBits(capVal)[sizeof(xlen) - 1 .. 0];
+  let newCap : Capability = memBitsToCapability(false, intVal @ capLow);
+  C(cd) = newCap;
   RETIRE_SUCCESS
 }
 
@@ -2115,6 +2155,7 @@ mapping clause encdec = CGetSealed(rd, cs1) if (haveXcheri()) <-> 0b1111111 @ 0b
 mapping clause encdec = CGetOffset(rd, cs1) if (haveXcheri()) <-> 0b1111111 @ 0b00110 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CGetFlags(rd, cs1)  if (haveXcheri()) <-> 0b1111111 @ 0b00111 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CGetAddr(rd, cs1)   if (haveXcheri()) <-> 0b1111111 @ 0b01111 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CGetHigh(rd, cs1)   if (haveXcheri()) <-> 0b1111111 @ 0b10111 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CGetTop(rd, cs1)    if (haveXcheri()) <-> 0b1111111 @ 0b11000 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 
 mapping clause encdec = CMove(cd, cs1)      if (haveXcheri()) <-> 0b1111111 @ 0b01010 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
@@ -2141,6 +2182,7 @@ mapping clause assembly = CGetTag(rd, cs1)    <-> "cgettag"    ^ spc() ^ reg_nam
 mapping clause assembly = CGetSealed(rd, cs1) <-> "cgetsealed" ^ spc() ^ reg_name(rd) ^ sep() ^ cap_reg_name(cs1)
 mapping clause assembly = CGetOffset(rd, cs1) <-> "cgetoffset" ^ spc() ^ reg_name(rd) ^ sep() ^ cap_reg_name(cs1)
 mapping clause assembly = CGetAddr(rd, cs1)   <-> "cgetaddr"   ^ spc() ^ reg_name(rd) ^ sep() ^ cap_reg_name(cs1)
+mapping clause assembly = CGetHigh(rd, cs1)   <-> "cgethigh"   ^ spc() ^ reg_name(rd) ^ sep() ^ cap_reg_name(cs1)
 mapping clause assembly = CGetTop(rd, cs1)    <-> "cgettop"    ^ spc() ^ reg_name(rd) ^ sep() ^ cap_reg_name(cs1)
 
 mapping clause assembly = CMove(cd, cs1)         <-> "cmove"      ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1)
@@ -2168,6 +2210,7 @@ mapping clause encdec = CAndPerm(cd, cs1, rs2)    if (haveXcheri()) <-> 0b000110
 mapping clause encdec = CSetFlags(cd, cs1, rs2)   if (haveXcheri()) <-> 0b0001110 @ rs2 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CSetOffset(cd, cs1, rs2)  if (haveXcheri()) <-> 0b0001111 @ rs2 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CSetAddr(cd, cs1, rs2)    if (haveXcheri()) <-> 0b0010000 @ rs2 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CSetHigh(cd, cs1, rs2)    if (haveXcheri()) <-> 0b0010110 @ rs2 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CIncOffset(cd, cs1, rs2)  if (haveXcheri()) <-> 0b0010001 @ rs2 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CSetBounds(cd, cs1, rs2)  if (haveXcheri()) <-> 0b0001000 @ rs2 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CSetBoundsExact(cd, cs1, rs2) if (haveXcheri()) <-> 0b0001001 @ rs2 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
@@ -2193,6 +2236,7 @@ mapping clause assembly = CAndPerm(cd, cs1, rs2)   <-> "candperm"   ^ spc() ^ ca
 mapping clause assembly = CSetFlags(cd, cs1, rs2)  <-> "csetflags"  ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ reg_name(rs2)
 mapping clause assembly = CSetOffset(cd, cs1, rs2) <-> "csetoffset" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ reg_name(rs2)
 mapping clause assembly = CSetAddr(cd, cs1, rs2)   <-> "csetaddr"   ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ reg_name(rs2)
+mapping clause assembly = CSetHigh(cd, cs1, rs2)  <-> "csethigh"    ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ reg_name(rs2)
 mapping clause assembly = CIncOffset(cd, cs1, rs2) <-> "cincoffset" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ reg_name(rs2)
 mapping clause assembly = CSetBounds(cd, cs1, rs2) <-> "csetbounds" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ reg_name(rs2)
 mapping clause assembly = CSetBoundsExact(cd, cs1, rs2) <-> "csetboundsexact" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ reg_name(rs2)
