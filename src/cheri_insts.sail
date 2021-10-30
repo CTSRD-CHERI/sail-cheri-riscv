@@ -1502,7 +1502,7 @@ union clause ast = LoadUDataCap : (regidx, regidx, bool, word_width)
  *   - *cs1*.**address** $\lt$ *cs1*.**base**.
  *   - *cs1*.**address** $+$ *size* $\gt$ *cs1*.**top**.
  */
-function clause execute (LoadDataCap(rd, cs1, is_unsigned, width)) = {
+function clause execute (LoadUDataCap(rd, cs1, is_unsigned, width)) = {
   let cs1_val = C(cs1);
   let vaddr = cs1_val.address;
   handle_load_data_via_cap(rd, 0b0 @ cs1, cs1_val, vaddr, is_unsigned, width, PrivOverride(User))
@@ -2188,7 +2188,7 @@ union clause ast = StoreUCapCap : (regidx, regidx)
 function clause execute (StoreUCapCap(cs2, cs1)) = {
   let cs1_val = C(cs1);
   let vaddr = cs1_val.address;
-  handle_store_cap_via_cap(cs2, 0b0 @ cs1, cs1_val, vaddr, PrivDefault())
+  handle_store_cap_via_cap(cs2, 0b0 @ cs1, cs1_val, vaddr, PrivOverride(User))
 }
 
 union clause ast = LoadCapImm : (regidx, regidx, bits(12))
@@ -2501,7 +2501,7 @@ function clause execute StoreCondUCap(rs2, cs1, width) = {
 }
 
 union clause ast = StoreCondUCapCap : (regidx, regidx)
-function clause execute StoreCondCapCap(cs2, cs1) = {
+function clause execute StoreCondUCapCap(cs2, cs1) = {
   if speculate_conditional () == false then {
     /* should only happen in rmem
      * rmem: allow SC to fail very early
@@ -2839,44 +2839,44 @@ mapping clause encdec = STORECON(aq, rl, rs2, rs1, size, rd) if (size == BYTE) |
 
 /* As-User loads */
 
-mapping clause encdec = LoadUDataCap(rd, cs1, false, BYTE)   if (haveXcheri())             <-> 0b1111001 @ 0b01000 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lb.cap */
-mapping clause encdec = LoadUDataCap(rd, cs1, false, HALF)   if (haveXcheri())             <-> 0b1111001 @ 0b01001 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lh.cap */
-mapping clause encdec = LoadUDataCap(rd, cs1, false, WORD)   if (haveXcheri())             <-> 0b1111001 @ 0b01010 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lw.cap */
-mapping clause encdec = LoadUDataCap(rd, cs1, false, DOUBLE) if (haveXcheri() & haveRV64)  <-> 0b1111001 @ 0b01011 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveRV64)  /* ld.cap */
-mapping clause encdec = LoadUDataCap(rd, cs1, true, BYTE)    if (haveXcheri())             <-> 0b1111001 @ 0b01100 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lbu.cap */
-mapping clause encdec = LoadUDataCap(rd, cs1, true, HALF)    if (haveXcheri())             <-> 0b1111001 @ 0b01101 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lhu.cap */
-mapping clause encdec = LoadUDataCap(rd, cs1, true, WORD)    if (haveXcheri() & haveRV64)  <-> 0b1111001 @ 0b01110 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveRV64)  /* lwu.cap */
-mapping clause encdec = LoadUDataCap(rd, cs1, true, DOUBLE)  if (haveXcheri() & haveRV128) <-> 0b1111001 @ 0b01111 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveRV128) /* ldu.cap */
+mapping clause encdec = LoadUDataCap(rd, cs1, false, BYTE)   if (haveXcheri())             <-> 0b1111001 @ 0b01000 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lb.u.cap */
+mapping clause encdec = LoadUDataCap(rd, cs1, false, HALF)   if (haveXcheri())             <-> 0b1111001 @ 0b01001 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lh.u.cap */
+mapping clause encdec = LoadUDataCap(rd, cs1, false, WORD)   if (haveXcheri())             <-> 0b1111001 @ 0b01010 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lw.u.cap */
+mapping clause encdec = LoadUDataCap(rd, cs1, false, DOUBLE) if (haveXcheri() & haveRV64)  <-> 0b1111001 @ 0b01011 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveRV64)  /* ld.u.cap */
+mapping clause encdec = LoadUDataCap(rd, cs1, true, BYTE)    if (haveXcheri())             <-> 0b1111001 @ 0b01100 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lbu.u.cap */
+mapping clause encdec = LoadUDataCap(rd, cs1, true, HALF)    if (haveXcheri())             <-> 0b1111001 @ 0b01101 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())  /* lhu.u.cap */
+mapping clause encdec = LoadUDataCap(rd, cs1, true, WORD)    if (haveXcheri() & haveRV64)  <-> 0b1111001 @ 0b01110 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveRV64)  /* lwu.u.cap */
+mapping clause encdec = LoadUDataCap(rd, cs1, true, DOUBLE)  if (haveXcheri() & haveRV128) <-> 0b1111001 @ 0b01111 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveRV128) /* ldu.u.cap */
 
 mapping clause assembly = LoadUDataCap(rd, cs1, u, w) <-> "l" ^ size_mnemonic(w) ^ maybe_u(u) ^ ".u.cap" ^ spc() ^ reg_name(rd) ^ sep() ^ "(" ^ opt_spc() ^ cap_reg_name(cs1) ^ opt_spc() ^ ")"
 
-mapping clause encdec = LoadUCapCap(cd, cs1) if (haveXcheri() & sizeof(xlen) == 64) <-> 0b1111001 @ 0b11111 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri() & sizeof(xlen) == 64)  /* lc.cap */
-mapping clause encdec = LoadUCapCap(cd, cs1) if (haveXcheri() & sizeof(xlen) == 32) <-> 0b1111001 @ 0b01011 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri() & sizeof(xlen) == 32)  /* lc.cap */
+mapping clause encdec = LoadUCapCap(cd, cs1) if (haveXcheri() & sizeof(xlen) == 64) <-> 0b1111001 @ 0b11111 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri() & sizeof(xlen) == 64)  /* lc.u.cap */
+mapping clause encdec = LoadUCapCap(cd, cs1) if (haveXcheri() & sizeof(xlen) == 32) <-> 0b1111001 @ 0b01011 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri() & sizeof(xlen) == 32)  /* lc.u.cap */
 
 mapping clause assembly = LoadUCapCap(rd, cs1) <-> "lc.u.cap" ^ spc() ^ reg_name(rd) ^ sep() ^ "(" ^ opt_spc() ^ cap_reg_name(cs1) ^ opt_spc() ^ ")"
 
-mapping clause encdec = LoadResUCap(rd, cs1, BYTE)   if (haveXcheri() & haveAtomics()) <-> 0b1111001 @ 0b11000 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveAtomics())  /* lr.b.cap */
-mapping clause encdec = LoadResUCap(rd, cs1, HALF)   if (haveXcheri() & haveAtomics()) <-> 0b1111001 @ 0b11001 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveAtomics())  /* lr.h.cap */
-mapping clause encdec = LoadResUCap(rd, cs1, WORD)   if (haveXcheri() & haveAtomics()) <-> 0b1111001 @ 0b11010 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveAtomics())  /* lr.w.cap */
-mapping clause encdec = LoadResUCap(rd, cs1, DOUBLE) if (haveXcheri() & haveAtomics() & haveRV64) <-> 0b1111001 @ 0b11011 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveAtomics() & haveRV64)  /* lr.d.cap */
-mapping clause encdec = LoadResUCapCap(cd, cs1)      if (haveXcheri() & haveAtomics() & sizeof(xlen) == 32) <-> 0b1111001 @ 0b11011 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri() & haveAtomics() & sizeof(xlen) == 32)  /* lr.c.cap */
-mapping clause encdec = LoadResUCapCap(cd, cs1)      if (haveXcheri() & haveAtomics() & sizeof(xlen) == 64) <-> 0b1111001 @ 0b11100 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri() & haveAtomics() & sizeof(xlen) == 64)  /* lr.c.cap */
+mapping clause encdec = LoadResUCap(rd, cs1, BYTE)   if (haveXcheri() & haveAtomics()) <-> 0b1111001 @ 0b11000 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveAtomics())  /* lr.b.u.cap */
+mapping clause encdec = LoadResUCap(rd, cs1, HALF)   if (haveXcheri() & haveAtomics()) <-> 0b1111001 @ 0b11001 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveAtomics())  /* lr.h.u.cap */
+mapping clause encdec = LoadResUCap(rd, cs1, WORD)   if (haveXcheri() & haveAtomics()) <-> 0b1111001 @ 0b11010 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveAtomics())  /* lr.w.u.cap */
+mapping clause encdec = LoadResUCap(rd, cs1, DOUBLE) if (haveXcheri() & haveAtomics() & haveRV64) <-> 0b1111001 @ 0b11011 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveAtomics() & haveRV64)  /* lr.d.u.cap */
+mapping clause encdec = LoadResUCapCap(cd, cs1)      if (haveXcheri() & haveAtomics() & sizeof(xlen) == 32) <-> 0b1111001 @ 0b11011 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri() & haveAtomics() & sizeof(xlen) == 32)  /* lr.c.u.cap */
+mapping clause encdec = LoadResUCapCap(cd, cs1)      if (haveXcheri() & haveAtomics() & sizeof(xlen) == 64) <-> 0b1111001 @ 0b11100 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri() & haveAtomics() & sizeof(xlen) == 64)  /* lr.c.u.cap */
 
 mapping clause assembly = LoadResUCap(rd, cs1, w)     <-> "lr." ^ size_mnemonic(w) ^ ".u.cap" ^ spc() ^ reg_name(rd) ^ sep() ^ "(" ^ opt_spc() ^ cap_reg_name(cs1) ^ opt_spc() ^ ")"
 mapping clause assembly = LoadResUCapCap(cd, cs1)     <-> "lr.c.u.cap" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ "(" ^ opt_spc() ^ cap_reg_name(cs1) ^ opt_spc() ^ ")"
 
 /* As-User stores */
 
-mapping clause encdec = StoreUDataCap(rs2, cs1, BYTE)    if (haveXcheri()) <-> 0b1111000 @ rs2 @ cs1 @ 0b000 @ 0b01000 @ 0b1011011 if (haveXcheri()) /* sb.cap */
-mapping clause encdec = StoreUDataCap(rs2, cs1, HALF)    if (haveXcheri()) <-> 0b1111000 @ rs2 @ cs1 @ 0b000 @ 0b01001 @ 0b1011011 if (haveXcheri()) /* sh.cap */
-mapping clause encdec = StoreUDataCap(rs2, cs1, WORD)    if (haveXcheri()) <-> 0b1111000 @ rs2 @ cs1 @ 0b000 @ 0b01010 @ 0b1011011 if (haveXcheri()) /* sw.cap */
-mapping clause encdec = StoreUDataCap(rs2, cs1, DOUBLE)  if (haveXcheri() & haveRV64) <-> 0b1111000 @ rs2 @ cs1 @ 0b000 @ 0b01011 @ 0b1011011 if (haveXcheri() & haveRV64) /* sd.cap */
-mapping clause encdec = StoreUCapCap(cs2, cs1)           if (haveXcheri() & sizeof(xlen) == 64) <-> 0b1111000 @ cs2 @ cs1 @ 0b000 @ 0b01100 @ 0b1011011 if (haveXcheri() & sizeof(xlen) == 64) /* sc.cap */
-mapping clause encdec = StoreUCapCap(cs2, cs1)           if (haveXcheri() & sizeof(xlen) == 32) <-> 0b1111000 @ cs2 @ cs1 @ 0b000 @ 0b01011 @ 0b1011011 if (haveXcheri() & sizeof(xlen) == 32) /* sc.cap */
+mapping clause encdec = StoreUDataCap(rs2, cs1, BYTE)    if (haveXcheri()) <-> 0b1111000 @ rs2 @ cs1 @ 0b000 @ 0b01000 @ 0b1011011 if (haveXcheri()) /* sb.u.cap */
+mapping clause encdec = StoreUDataCap(rs2, cs1, HALF)    if (haveXcheri()) <-> 0b1111000 @ rs2 @ cs1 @ 0b000 @ 0b01001 @ 0b1011011 if (haveXcheri()) /* sh.u.cap */
+mapping clause encdec = StoreUDataCap(rs2, cs1, WORD)    if (haveXcheri()) <-> 0b1111000 @ rs2 @ cs1 @ 0b000 @ 0b01010 @ 0b1011011 if (haveXcheri()) /* sw.u.cap */
+mapping clause encdec = StoreUDataCap(rs2, cs1, DOUBLE)  if (haveXcheri() & haveRV64) <-> 0b1111000 @ rs2 @ cs1 @ 0b000 @ 0b01011 @ 0b1011011 if (haveXcheri() & haveRV64) /* sd.u.cap */
+mapping clause encdec = StoreUCapCap(cs2, cs1)           if (haveXcheri() & sizeof(xlen) == 64) <-> 0b1111000 @ cs2 @ cs1 @ 0b000 @ 0b01100 @ 0b1011011 if (haveXcheri() & sizeof(xlen) == 64) /* sc.u.cap */
+mapping clause encdec = StoreUCapCap(cs2, cs1)           if (haveXcheri() & sizeof(xlen) == 32) <-> 0b1111000 @ cs2 @ cs1 @ 0b000 @ 0b01011 @ 0b1011011 if (haveXcheri() & sizeof(xlen) == 32) /* sc.u.cap */
 
-mapping clause encdec = StoreCondUCap(rs2, cs1, BYTE)   if (haveXcheri() & haveAtomics()) <-> 0b1111000 @ rs2 @ cs1 @ 0b000 @ 0b11000 @ 0b1011011 if (haveXcheri() & haveAtomics()) /* sc.b.cap */
-mapping clause encdec = StoreCondUCap(rs2, cs1, HALF)   if (haveXcheri() & haveAtomics()) <-> 0b1111000 @ rs2 @ cs1 @ 0b000 @ 0b11001 @ 0b1011011 if (haveXcheri() & haveAtomics()) /* sc.h.cap */
-mapping clause encdec = StoreCondUCap(rs2, cs1, WORD)   if (haveXcheri() & haveAtomics()) <-> 0b1111000 @ rs2 @ cs1 @ 0b000 @ 0b11010 @ 0b1011011 if (haveXcheri() & haveAtomics()) /* sc.w.cap */
-mapping clause encdec = StoreCondUCap(rs2, cs1, DOUBLE) if (haveXcheri() & haveAtomics() & haveRV64) <-> 0b1111000 @ rs2 @ cs1 @ 0b000 @ 0b11011 @ 0b1011011 if (haveXcheri()  & haveAtomics()& haveRV64) /* sc.d.cap */
-mapping clause encdec = StoreCondUCapCap(cs2, cs1)      if (haveXcheri() & haveAtomics() & sizeof(xlen) == 32) <-> 0b1111000 @ cs2 @ cs1 @ 0b000 @ 0b11011 @ 0b1011011 if (haveXcheri() & haveAtomics() & sizeof(xlen) == 32) /* sc.c.cap */
-mapping clause encdec = StoreCondUCapCap(cs2, cs1)      if (haveXcheri() & haveAtomics() & sizeof(xlen) == 64) <-> 0b1111000 @ cs2 @ cs1 @ 0b000 @ 0b11100 @ 0b1011011 if (haveXcheri() & haveAtomics() & sizeof(xlen) == 64) /* sc.c.cap */
+mapping clause encdec = StoreCondUCap(rs2, cs1, BYTE)   if (haveXcheri() & haveAtomics()) <-> 0b1111000 @ rs2 @ cs1 @ 0b000 @ 0b11000 @ 0b1011011 if (haveXcheri() & haveAtomics()) /* sc.b.u.cap */
+mapping clause encdec = StoreCondUCap(rs2, cs1, HALF)   if (haveXcheri() & haveAtomics()) <-> 0b1111000 @ rs2 @ cs1 @ 0b000 @ 0b11001 @ 0b1011011 if (haveXcheri() & haveAtomics()) /* sc.h.u.cap */
+mapping clause encdec = StoreCondUCap(rs2, cs1, WORD)   if (haveXcheri() & haveAtomics()) <-> 0b1111000 @ rs2 @ cs1 @ 0b000 @ 0b11010 @ 0b1011011 if (haveXcheri() & haveAtomics()) /* sc.w.u.cap */
+mapping clause encdec = StoreCondUCap(rs2, cs1, DOUBLE) if (haveXcheri() & haveAtomics() & haveRV64) <-> 0b1111000 @ rs2 @ cs1 @ 0b000 @ 0b11011 @ 0b1011011 if (haveXcheri()  & haveAtomics()& haveRV64) /* sc.d.u.cap */
+mapping clause encdec = StoreCondUCapCap(cs2, cs1)      if (haveXcheri() & haveAtomics() & sizeof(xlen) == 32) <-> 0b1111000 @ cs2 @ cs1 @ 0b000 @ 0b11011 @ 0b1011011 if (haveXcheri() & haveAtomics() & sizeof(xlen) == 32) /* sc.c.u.cap */
+mapping clause encdec = StoreCondUCapCap(cs2, cs1)      if (haveXcheri() & haveAtomics() & sizeof(xlen) == 64) <-> 0b1111000 @ cs2 @ cs1 @ 0b000 @ 0b11100 @ 0b1011011 if (haveXcheri() & haveAtomics() & sizeof(xlen) == 64) /* sc.c.u.cap */
