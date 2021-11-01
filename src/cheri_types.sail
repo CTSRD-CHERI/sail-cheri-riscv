@@ -64,6 +64,7 @@ let reserved_otypes = 4
 let otype_unsealed = -1
 let otype_sentry   = -2 /* Sealed erstwhile or prospective PCC */
 let otype_isentry_load = -3 /* Sealed erstwhile IDC pointing at PCC */
+let otype_isentry_load_pair = -4 /* Sealed pointer to pair of PCC and IDC */
 
 enum CPtrCmpOp = {
   CEQ,

@@ -887,8 +887,8 @@ function sealCapIfAmbient(cap, otyp) : (Capability, bits(cap_otype_width)) -> Am
     if cap.permit_execute
     then seal_ok
     else AmbientSeal_CapEx(CapEx_PermitExecuteViolation)
-  } else if sotype == otype_isentry_load then {
-    // CSealL requires PermitLoad and PermitLoadCap
+  } else if sotype == otype_isentry_load | sotype == otype_isentry_load_pair then {
+    // CSealL and CSealLP require PermitLoad and PermitLoadCap
     if cap.permit_load then {
       if cap.permit_load_cap
       then seal_ok
@@ -1808,6 +1808,89 @@ function clause execute (CInvokeLAL(cd, cs)) = {
     }
   }
 }
+
+union clause ast = CInvokeLPAL : (regidx, regidx)
+/*!
+ * Jump through an indirect, points-to-pair sentry capability held in
+ * capability register cs.
+ */
+function clause execute (CInvokeLPAL(cd, cs)) = {
+  let cs_val = C(cs);
+
+  if not (cs_val.tag) then {
+    handle_cheri_reg_exception(CapEx_TagViolation, cs);
+    RETIRE_FAIL
+  } else if not (isCapSealed(cs_val)) |
+            signed(cs_val.otype) != otype_isentry_load_pair then {
+    handle_cheri_reg_exception(CapEx_SealViolation, cs);
+    RETIRE_FAIL
+  } else {
+    let pair = unsealCap(cs_val);
+    let pairaddr = cs_val.address;
+
+    if not (pair.permit_load) | not (pair.permit_load_cap) then {
+      handle_cheri_reg_exception(CapEx_PermitLoadViolation, cs);
+      RETIRE_FAIL
+    } else if not(inCapBounds(pair, pairaddr, 2 * cap_size)) then {
+      handle_cheri_reg_exception(CapEx_LengthViolation, cs);
+      RETIRE_FAIL
+    } else if not(is_aligned_addr(pairaddr, cap_size)) then {
+      handle_mem_exception(pairaddr, E_Load_Addr_Align());
+      RETIRE_FAIL
+    } else {
+      match load_cap_via_cap(0b0 @ cs, cs_val, pairaddr, false, false) {
+        None() => RETIRE_FAIL,
+        Some(_,npcc) => {
+          match load_cap_via_cap(0b0 @ cs, cs_val, pairaddr + cap_size, false, false) {
+            None() => RETIRE_FAIL,
+            Some(_,nidc) => match cjalr_worker(cd, cs, npcc, zeros()) {
+              RETIRE_FAIL => RETIRE_FAIL,
+              RETIRE_SUCCESS => {
+                C(31) = nidc;
+                RETIRE_SUCCESS
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+
+union clause ast = CSealLP : (regidx, regidx)
+/*!
+ * Capability register *cd* is replaced with capability register *cs1* and
+ * sealed as an indirect, points-to-pair sentry
+ *
+ * ## Exceptions
+ *
+ * An exception is raised if:
+ *   - *cs1*.**tag** is not set.
+ *   - *cs1* is sealed.
+ *   - *cs1*.**perms** does not grant both **Permit_Load** and
+ *     **Permit_Load_Capability**.
+ */
+function clause execute (CSealLP(cd, cs1)) = {
+  let cs1_val = C(cs1);
+  if not (cs1_val.tag) then {
+    handle_cheri_reg_exception(CapEx_TagViolation, cs1);
+    RETIRE_FAIL
+  } else if (isCapSealed(cs1_val)) then {
+    handle_cheri_reg_exception(CapEx_SealViolation, cs1);
+    RETIRE_FAIL
+  } else if not (cs1_val.permit_load) then {
+    handle_cheri_reg_exception(CapEx_PermitLoadViolation, cs1);
+    RETIRE_FAIL
+  } else if not (cs1_val.permit_load_cap) then {
+    handle_cheri_reg_exception(CapEx_PermitLoadCapViolation, cs1);
+    RETIRE_FAIL
+  } else {
+    C(cd) = sealCap(cs1_val, to_bits(cap_otype_width, otype_isentry_load_pair));
+    RETIRE_SUCCESS
+  }
+}
+
 
 /* avoid platform checks for reservation address misalignment */
 function check_res_misaligned(vaddr : xlenbits, width : word_width) -> bool =
