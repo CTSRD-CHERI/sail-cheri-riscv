@@ -13,7 +13,11 @@ jobs:
     - name: Init opam
       run: opam init --disable-sandboxing -y
     - name: Install sail
-      run: opam install -y sail
+      run: |
+        git clone https://github.com/rems-project/sail.git
+        cd sail
+        opam pin add sail .
+        cd ..
     - name: Check out repository code
       uses: actions/checkout@HEAD
       with:
