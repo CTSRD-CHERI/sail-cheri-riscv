@@ -852,6 +852,29 @@ function clause execute (CFromPtr(cd, cs1, rs2)) = {
   }
 }
 
+union AmbientSeal = {
+  AmbientSeal_OK : Capability,
+  AmbientSeal_CapEx : CapEx
+}
+
+/*!
+ * Certain reserved otypes are ambiently constructable (perhaps subject to
+ * local constraints) and so CBuildCap can rebuild them in sealed form.  This
+ * function encapsulates all those checks.
+ */
+function sealCapIfAmbient(cap, otyp) : (Capability, bits(cap_otype_width)) -> AmbientSeal = {
+  let sotype = signed(otyp) in
+  let seal_ok = AmbientSeal_OK(sealCap(cap, otyp)) in
+  if sotype == otype_sentry then {
+    // CSealEntry requires PermitExecute
+    if cap.permit_execute
+    then seal_ok
+    else AmbientSeal_CapEx(CapEx_PermitExecuteViolation)
+  } else {
+    AmbientSeal_OK(cap) // unsealed
+  }
+}
+
 union clause ast = CBuildCap : (regidx, regidx, regidx)
 /*!
  * Capability register *cd* is set equal to capability register *cs1* with its
@@ -916,9 +939,10 @@ function clause execute (CBuildCap(cd, cs1, cs2)) = {
       RETIRE_FAIL
     } else {
       assert(exact, "CBuildCap: setCapBounds was not exact"); /* base and top came from cs2 originally so will be exact */
-      let cd5 = if signed(cs2_val.otype) == otype_sentry then sealCap(cd4, to_bits(cap_otype_width, otype_sentry)) else cd4;
-      C(cd) = cd5;
-      RETIRE_SUCCESS
+      match sealCapIfAmbient(cd4, cs2_val.otype) {
+        AmbientSeal_CapEx(e) => { handle_cheri_reg_exception(e, cs2); RETIRE_FAIL },
+        AmbientSeal_OK(c) => { C(cd) = c; RETIRE_SUCCESS }
+      }
     }
   }
 }
