@@ -15,9 +15,7 @@ jobs:
     - name: Install sail
       run: |
         git clone https://github.com/rems-project/sail.git
-        cd sail
-        opam pin add sail .
-        cd ..
+        opam pin add sail sail -y
     - name: Check out repository code
       uses: actions/checkout@HEAD
       with:
