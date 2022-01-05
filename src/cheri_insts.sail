@@ -388,7 +388,7 @@ union clause ast = CAndPerm : (regidx, regidx, regidx)
  *
  * An exception is raised if:
  *   - *cs1*.**tag** is not set.
- *   - *cs1*.**tag** is set and *cs1* is sealed.
+ *   - *cs1* is sealed.
  */
 function clause execute(CAndPerm(cd, cs1, rs2)) = {
   let cs1_val = C(cs1);
