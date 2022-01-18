@@ -2114,10 +2114,10 @@ function handle_store_cond_data_via_cap(rs2, auth_idx, auth_val, vaddrBits, widt
 }
 
 function write_sc_cap_result(rd : regidx, cap_dest : bool, result : bits(1)) -> unit = {
-  /* Some SC instructions re-use the source register as the destination. To 
+  /* Some SC instructions re-use the source register as the destination. To
     ensure this works correctly for split register file implementations we
     need to be careful about writing to the correct register file. This is only
-    a concern for store conditional of capabilities where the source register 
+    a concern for store conditional of capabilities where the source register
     is a capability register but the destination may be either a capability or
     an general purpose register depending on the instruction. */
   if cap_dest then {
@@ -2577,12 +2577,12 @@ mapping clause assembly = LoadResCapMode(cd, rs1, aq, rl) <-> "lr.c" ^ maybe_aq(
 mapping clause assembly = StoreCondCapMode(rd, cs2, rs1, aq, rl) <-> "sc.c" ^ maybe_aq(aq) ^ maybe_rl(rl) ^ spc() ^ reg_name(rd) ^ sep() ^ cap_reg_name(cs2) ^ sep() ^ reg_name(rs1)
 mapping clause assembly = AMOSwapCap(cd, cs2, rs1, aq, rl) <-> "amoswap.c" ^ maybe_aq(aq) ^ maybe_rl(rl) ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs2) ^ sep() ^ reg_name(rs1)
 
-/* 
+/*
   CHERI really needs sub word atomic operations because bounds checks mean you
-  can't implement them in software with word sized operations. The RISC-V 
-  spec. does not define lr / sc for bytes or half words although the obvious 
-  encodings are vacant. Since the base Sail model actually implements the unused 
-  widths but refuses to decode them we can implement them for CHERI simply by 
+  can't implement them in software with word sized operations. The RISC-V
+  spec. does not define lr / sc for bytes or half words although the obvious
+  encodings are vacant. Since the base Sail model actually implements the unused
+  widths but refuses to decode them we can implement them for CHERI simply by
   adding the decodings here.
 */
 mapping clause encdec = LOADRES(aq, rl, rs1, size, rd) if (size == BYTE) | (size == HALF)
