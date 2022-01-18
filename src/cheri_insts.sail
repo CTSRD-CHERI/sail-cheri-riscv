@@ -450,10 +450,11 @@ union clause ast = CToPtr : (regidx, regidx, regidx)
  *   further study.
  */
 function clause execute(CToPtr(rd, cs1, cs2)) = {
-  let cs2_val = if unsigned(cs2) == 0 then DDC else C(cs2);
+  let (cs2_val, cs2_idx) = if unsigned(cs2) == 0 then (DDC, DDC_IDX)
+                                                 else (C(cs2), 0b0 @ cs2);
   let cs1_val = C(cs1);
   if not (cs2_val.tag) then {
-    handle_cheri_reg_exception(CapEx_TagViolation, cs2);
+    handle_cheri_cap_exception(CapEx_TagViolation, cs2_idx);
     RETIRE_FAIL
   } else if cs1_val.tag & isCapSealed(cs1_val) then {
     handle_cheri_reg_exception(CapEx_SealViolation, cs1);
@@ -831,16 +832,17 @@ union clause ast = CFromPtr : (regidx, regidx, regidx)
  *   - *cs1* is sealed.
  */
 function clause execute (CFromPtr(cd, cs1, rs2)) = {
-  let cs1_val = if unsigned(cs1) == 0 then DDC else C(cs1);
+  let (cs1_val, cs1_idx) = if unsigned(cs1) == 0 then (DDC, DDC_IDX)
+                                                 else (C(cs1), 0b0 @ cs1);
   let rs2_val = X(rs2);
   if rs2_val == zeros() then {
     C(cd) = null_cap;
     RETIRE_SUCCESS
   } else if not (cs1_val.tag) then {
-    handle_cheri_reg_exception(CapEx_TagViolation, cs1);
+    handle_cheri_cap_exception(CapEx_TagViolation, cs1_idx);
     RETIRE_FAIL
   } else if isCapSealed(cs1_val) then {
-    handle_cheri_reg_exception(CapEx_SealViolation, cs1);
+    handle_cheri_cap_exception(CapEx_SealViolation, cs1_idx);
     RETIRE_FAIL
   } else {
     let (success, newCap) = setCapOffset(cs1_val, rs2_val);
@@ -880,7 +882,8 @@ union clause ast = CBuildCap : (regidx, regidx, regidx)
  *   operation.
  */
 function clause execute (CBuildCap(cd, cs1, cs2)) = {
-  let cs1_val = if unsigned(cs1) == 0 then DDC else C(cs1);
+  let (cs1_val, cs1_idx) = if unsigned(cs1) == 0 then (DDC, DDC_IDX)
+                                                 else (C(cs1), 0b0 @ cs1);
   let cs2_val = C(cs2);
   let (cs1_base, cs1_top) = getCapBounds(cs1_val);
   let (cs2_base, cs2_top) = getCapBounds(cs2_val);
@@ -888,22 +891,22 @@ function clause execute (CBuildCap(cd, cs1, cs2)) = {
   let cs2_perms = getCapPerms(cs2_val);
   let cs2_flags = getCapFlags(cs2_val);
   if not (cs1_val.tag) then {
-    handle_cheri_reg_exception(CapEx_TagViolation, cs1);
+    handle_cheri_cap_exception(CapEx_TagViolation, cs1_idx);
     RETIRE_FAIL
   } else if isCapSealed(cs1_val) then {
-    handle_cheri_reg_exception(CapEx_SealViolation, cs1);
+    handle_cheri_cap_exception(CapEx_SealViolation, cs1_idx);
     RETIRE_FAIL
   } else if cs2_base < cs1_base then {
-    handle_cheri_reg_exception(CapEx_LengthViolation, cs1);
+    handle_cheri_cap_exception(CapEx_LengthViolation, cs1_idx);
     RETIRE_FAIL
   } else if cs2_top > cs1_top then {
-    handle_cheri_reg_exception(CapEx_LengthViolation, cs1);
+    handle_cheri_cap_exception(CapEx_LengthViolation, cs1_idx);
     RETIRE_FAIL
   } else if cs2_base > cs2_top then { /* check for length < 0 - possible because cs2 might be untagged */
     handle_cheri_reg_exception(CapEx_LengthViolation, cs2);
     RETIRE_FAIL
   } else if (cs2_perms & cs1_perms) != cs2_perms then {
-    handle_cheri_reg_exception(CapEx_UserDefViolation, cs1);
+    handle_cheri_cap_exception(CapEx_UserDefViolation, cs1_idx);
     RETIRE_FAIL
   } else {
     let (exact, cd1) = setCapBounds(cs1_val, to_bits(cap_addr_width, cs2_base), to_bits(cap_len_width, cs2_top));
