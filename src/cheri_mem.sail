@@ -62,7 +62,7 @@
 
 /* CHERI interface to physical memory.  We use the metadata facility for tags. */
 
-val mem_read_cap : (xlenbits, bool, bool, bool) -> MemoryOpResult(Capability) effect {rmem, rmemt, rreg, escape}
+val mem_read_cap : (xlenbits, bool, bool, bool) -> MemoryOpResult(Capability) effect {rmem, rmemt, rreg, wreg, escape}
 function mem_read_cap (addr, aq, rl, res) = {
   let result : MemoryOpResult((CapBits, bool)) = mem_read_meta(Read(Data), addr, cap_size, aq, rl, res, true);
   match result {
