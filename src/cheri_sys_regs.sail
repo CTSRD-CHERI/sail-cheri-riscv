@@ -65,22 +65,33 @@
 /* Capability control csr */
 
 bitfield ccsr : xlenbits = {
+  ugclg   :  3,      /* Global Cap Load Gen bit for User pages */
+  sgclg   :  2,      /* Global Cap Load Gen bit for System (not User) pages */
   d       :  1,      /* dirty  */
   e       :  0       /* enable */
 }
 
-register mccsr : ccsr
-register sccsr : ccsr
+register sccsr : ccsr /* mccsr aliases sccsr */
 register uccsr : ccsr
 
 /* access to CCSRs */
 
-// for now, use a single privilege-independent legalizer
-function legalize_ccsr(c : ccsr, v : xlenbits) -> ccsr = {
+function legalize_ccsr(csrp : Privilege, c : ccsr, v : xlenbits) -> ccsr = {
   // write only the defined bits, leaving the other bits untouched
-  // Technically, WPRI does not need a legalizer, since software is
-  // assumed to legalize; so we could remove this function.
   let v = Mk_ccsr(v);
+
+  let c : ccsr = match csrp {
+    User => {
+      // No bits defined for uccsr
+      c
+    },
+    _    => {
+      let c = update_ugclg(c, v.ugclg());
+      let c = update_sgclg(c, v.sgclg());
+      c
+    }
+  };
+
   /* For now these bits are not really supported so hardwired to true */
   let c = update_d(c, 0b1);
   let c = update_e(c, 0b1);
@@ -94,11 +105,11 @@ function legalize_ccsr(c : ccsr, v : xlenbits) -> ccsr = {
 
 function clause ext_read_CSR (0x8C0) = Some(uccsr.bits())
 function clause ext_read_CSR (0x9C0) = Some(sccsr.bits())
-function clause ext_read_CSR (0xBC0) = Some(mccsr.bits())
+function clause ext_read_CSR (0xBC0) = Some(sccsr.bits())
 
-function clause ext_write_CSR (0x8C0, value) = { uccsr = legalize_ccsr(uccsr, value); Some(uccsr.bits()) }
-function clause ext_write_CSR (0x9C0, value) = { sccsr = legalize_ccsr(sccsr, value); Some(sccsr.bits()) }
-function clause ext_write_CSR (0xBC0, value) = { mccsr = legalize_ccsr(mccsr, value); Some(mccsr.bits()) }
+function clause ext_write_CSR (0x8C0, value) = { uccsr = legalize_ccsr(User, uccsr, value); Some(uccsr.bits()) }
+function clause ext_write_CSR (0x9C0, value) = { sccsr = legalize_ccsr(Supervisor, sccsr, value); Some(sccsr.bits()) }
+function clause ext_write_CSR (0xBC0, value) = { sccsr = legalize_ccsr(Machine, sccsr, value); Some(sccsr.bits()) }
 
 function clause ext_is_CSR_defined (0x8C0, p) = haveUsrMode()  // uccsr
 function clause ext_is_CSR_defined (0x9C0, p) = haveSupMode() & (p == Machine | p == Supervisor) // sccsr

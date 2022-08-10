@@ -62,12 +62,28 @@
 
 /* CHERI interface to physical memory.  We use the metadata facility for tags. */
 
-val mem_read_cap : (xlenbits, bool, bool, bool) -> MemoryOpResult(Capability) effect {rmem, rmemt, rreg, escape}
-function mem_read_cap (addr, aq, rl, res) = {
-  let result : MemoryOpResult((CapBits, bool)) = mem_read_meta(Read(Data), addr, cap_size, aq, rl, res, true);
+val mem_read_cap_optpriv : (OptPrivilege, xlenbits, bool, bool, bool) -> MemoryOpResult(Capability) effect {rmem, rmemt, rreg, escape}
+function mem_read_cap_optpriv (optpriv, addr, aq, rl, res) = {
+  let result : MemoryOpResult((CapBits, bool)) =
+    match optpriv {
+      PrivDefault() => mem_read_meta(Read(Data), addr, cap_size, aq, rl, res, true),
+      PrivOverride(p) => mem_read_priv_meta(Read(Data), p, addr, cap_size, aq, rl, res, true)
+    };
   match result {
     MemValue(v, tag) => MemValue(memBitsToCapability(tag, v)),
     MemException(e)  => MemException(e) : MemoryOpResult(Capability)
+  }
+}
+
+val mem_read_cap : (xlenbits, bool, bool, bool) -> MemoryOpResult(Capability) effect {rmem, rmemt, rreg, escape}
+function mem_read_cap (addr, aq, rl, res) =
+  mem_read_cap_optpriv(PrivDefault(), addr, aq, rl, res)
+
+val mem_read_optpriv : forall 'n, 0 < 'n <= max_mem_access . (AccessType(ext_access_type), OptPrivilege, xlenbits, atom('n), bool, bool, bool) -> MemoryOpResult(bits(8 * 'n)) effect {rmem, rmemt, rreg, escape}
+function mem_read_optpriv (typ, optpriv, paddr, width, aq, rl, res) = {
+  match optpriv {
+    PrivDefault() => mem_read(typ, paddr, width, aq, rl, res),
+    PrivOverride(p) => mem_read_priv(typ, p, paddr, width, aq, rl, res)
   }
 }
 
@@ -78,12 +94,26 @@ function mem_write_ea_cap(addr, aq, rl, con) = {
   else MemValue(__write_mem_ea(Write_plain, sizeof(xlen), addr, cap_size)) // FIXME: is Write_plain correct?
 }
 
-val mem_write_cap : (xlenbits, Capability, bool, bool, bool) -> MemoryOpResult(bool) effect {wmv, rreg, wreg, escape, wmvt}
-function mem_write_cap (addr, cap, aq, rl, con) = {
+val mem_write_cap_optpriv : (OptPrivilege, xlenbits, Capability, bool, bool, bool) -> MemoryOpResult(bool) effect {wmv, rreg, wreg, escape, wmvt}
+function mem_write_cap_optpriv (optpriv, addr, cap, aq, rl, con) = {
   let cap_bits = capToMemBits(cap);
   /* Assume that conversion to bits and back does not change the capability.
      TODO: State closed-form normalised-ness criterion that implies this,
      and prove it as an invariant of capabilities in the system. */
   assert(memBitsToCapability(cap.tag, cap_bits) == cap);
-  mem_write_value_meta(addr, cap_size, cap_bits, Cap, cap.tag, aq, rl, con)
+  match optpriv {
+    PrivDefault() => mem_write_value_meta(addr, cap_size, cap_bits, Cap, cap.tag, aq, rl, con),
+    PrivOverride(p) => mem_write_value_priv_meta(addr, cap_size, cap_bits, Write(Cap), p, cap.tag, aq, rl, con)
+  }
+}
+
+val mem_write_cap : (xlenbits, Capability, bool, bool, bool) -> MemoryOpResult(bool) effect {wmv, rreg, wreg, escape, wmvt}
+function mem_write_cap (addr, cap, aq, rl, con) = mem_write_cap_optpriv(PrivDefault(), addr, cap, aq, rl, con)
+
+val mem_write_value_optpriv : forall 'n, 0 < 'n <= max_mem_access . (OptPrivilege, xlenbits, atom('n), bits(8 * 'n), bool, bool, bool) -> MemoryOpResult(bool) effect {wmv, wmvt, rreg, wreg, escape}
+function mem_write_value_optpriv (optpriv, addr, width, value, aq, rl, con) = {
+  match optpriv {
+    PrivDefault() => mem_write_value(addr, width, value, aq, rl, con),
+    PrivOverride(p) => mem_write_value_priv(addr, width, value, p, aq, rl, con)
+  }
 }
