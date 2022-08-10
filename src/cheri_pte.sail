@@ -78,23 +78,57 @@ bitfield PTE_Bits : pteAttribs = {
 /*
  * Reserved PTE bits used by extensions on RV64.
  *
- * There are no such bits on RV32/SV32, so we hard-code both CapWrite=1
- * and CapRead=1 (i.e., there is no ability to disable capability loads
- * from or stores to pages in the SV32 MMU).
+ * For capability store the behaviors are as follows.
+ *
+ *   CW  CD  Action
+ *
+ *    0   X    Trap on tagged capability store
+ *    1   0    CAS the PTE to CW=1, CD=1 (i.e., set both bits) or trap
+ *    1   1    Permit tagged capability store
+ *
+ * The CW/CD pair is akin to Sv{32,48,...}'s W/D bits.
+ *
+ * The CW=1 CD=0 behavior is described as a CAS (and not an AMO OR) of the PTE
+ * to close race conditions, much as with W and D.  Should the TLB have this
+ * state cached and then observe a CW=1 CD=1 PTE, no PTE write is necessary.
+ * On the other hand, if CW=0 is observed, the store operation must trap.
+ *
+ * The intended semantics for capability loads are as follows.
+ *
+ *   CR  CRT CRG Action
+ *
+ *    0   0   0  Capability loads strip tags
+ *    0   1   0  Capability loads trap (on set tag)
+ *    0   X   1  [Reserved]
+ *
+ *    1   0   0  Capability loads succeed: no traps or tag clearing
+ *    1   0   1  [Reserved]
+ *    1   1   G  Capability loads trap if G mismatches [ms]ccsr.[su]gclg, where
+ *                   the compared bit is keyed off of this PTE's U.  sccsr is
+ *                   used if the machine has Supervisor mode, otherwise mccsr.
+ *
+ * Sv32: There are no extension bits available, so we hard-code the result to
+ * CW=1 CR=1 CD=1 CRT=0 CRG=0
  */
 type extPte = bits(10)
 
 bitfield Ext_PTE_Bits : extPte = {
   CapWrite     : 9, /* Permit capability stores */
   CapRead      : 8, /* Permit capability loads */
+  CapDirty     : 7, /* Capability Dirty flag */
+  CapReadTrap : 6, /* Trap on capability loads; see above table */
+  CapReadGen  : 5, /* When load-cap gens. are in use, the "local" gen. bit */
 }
 
 /*
- * CapWrite     = 1,
- * CapRead      = 1,
- * bits 0 .. 7  = 0
+ * CapWrite    = 1,
+ * CapRead     = 1,
+ * CapDirty    = 1,
+ * CapReadTrap = 0,
+ * CapReadGen  = 0,
+ * bits 0 .. 4 = 0
  */
-let default_sv32_ext_pte : extPte = 0b1100000000
+let default_sv32_ext_pte : extPte = 0b1110000000
 
 function isPTEPtr(p : pteAttribs, ext : extPte) -> bool = {
   let a = Mk_PTE_Bits(p);
@@ -103,13 +137,44 @@ function isPTEPtr(p : pteAttribs, ext : extPte) -> bool = {
 
 function isInvalidPTE(p : pteAttribs, ext : extPte) -> bool = {
   let a = Mk_PTE_Bits(p);
-  a.V() == 0b0 | (a.W() == 0b1 & a.R() == 0b0)
+  let e = Mk_Ext_PTE_Bits(ext);
+  a.V() == 0b0 | (a.W() == 0b1 & a.R() == 0b0) |
+  (e.CapRead() == 0b0 & e.CapReadGen() == 0b1) |
+  (e.CapRead() == 0b1 & e.CapReadGen() == 0b1 & e.CapReadTrap() == 0b0)
 }
 
 union PTE_Check = {
   PTE_Check_Success : ext_ptw,
   PTE_Check_Failure : (ext_ptw, ext_ptw_fail)
 }
+
+/* Gate Cap-transporting stores on the CapWrite PTE bit */
+val checkPTEPermission_SC : (Ext_PTE_Bits, ext_ptw) -> PTE_Check
+function checkPTEPermission_SC(e, ext_ptw) = {
+  if   e.CapWrite() == 0b1
+  then PTE_Check_Success(ext_ptw)
+  else PTE_Check_Failure(ext_ptw, EPTWF_CAP_ERR)
+}
+
+/*
+ * Assuming we're allowed to load from this page, modulate our cap response
+ */
+val checkPTEPermission_LC : (PTE_Bits, Ext_PTE_Bits, ext_ptw) -> PTE_Check effect { escape, rreg }
+function checkPTEPermission_LC(p, e, ext_ptw) =
+  match (e.CapRead(), e.CapReadTrap(), e.CapReadGen()) {
+    (0b0, 0b0, 0b0)  => PTE_Check_Success(ext_ptw_lc_join(ext_ptw, PTW_LC_CLEAR)), /* Clear tag for "unmodified" no-LC case */
+    (0b0, 0b1, 0b0)  => PTE_Check_Success(ext_ptw_lc_join(ext_ptw, PTW_LC_TRAP)),  /* Trap on tag load for "modified" no-LC case */
+    (0b0, _  , 0b1)  => internal_error("Bad PTE not caught by isInvalidPTE"),
+    (0b1, 0b0, 0b0)  => PTE_Check_Success(ext_ptw_lc_join(ext_ptw, PTW_LC_OK)), /* Unmodified LC case: go ahead */
+    (0b1, 0b0, 0b1)  => internal_error("Bad PTE not caught by isInvalidPTE"),
+    (0b1, 0b1, lclg) => {
+      /* Compare local CLG against the pte.U-selected, not mode-selected, global CLG bit */
+      let ccsr = if haveSupMode() then sccsr else mccsr;
+      let gclg : bits(1) = if p.U() == 0b1 then ccsr.ugclg() else ccsr.sgclg();
+      let ptwl = if lclg == gclg then PTW_LC_OK else PTW_LC_TRAP;
+      PTE_Check_Success(ext_ptw_lc_join(ext_ptw, ptwl))
+    }
+  }
 
 function checkPTEPermission(ac : AccessType(ext_access_type), priv : Privilege, mxr : bool, do_sum : bool, p : PTE_Bits, ext : extPte, ext_ptw : ext_ptw) -> PTE_Check = {
   /*
@@ -124,7 +189,7 @@ function checkPTEPermission(ac : AccessType(ext_access_type), priv : Privilege, 
    *
    * 3. It's simpler to implement yet still safe (LC is unaffected by MXR).
    */
-  let base_succ : bool =
+  let succ : bool =
   match (ac, priv) {
     (Read(_),      User)       => p.U() == 0b1 & (p.R() == 0b1 | (p.X() == 0b1 & mxr)),
     (Write(_),     User)       => p.U() == 0b1 & p.W() == 0b1,
@@ -139,29 +204,42 @@ function checkPTEPermission(ac : AccessType(ext_access_type), priv : Privilege, 
     (_,            Machine)    => internal_error("m-mode mem perm check")
   };
 
+  let res =
+    if   succ
+    then PTE_Check_Success(ext_ptw)
+    else PTE_Check_Failure(ext_ptw, EPTWF_NO_PERM);
+
   let e = Mk_Ext_PTE_Bits(ext);
-  let ptw_lc = if e.CapRead()  == 0b1 then PTW_LC_OK else PTW_LC_CLEAR;
-  let ptw_sc = if e.CapWrite() == 0b1 then PTW_SC_OK else PTW_SC_TRAP;
-  let (succ, ext_ptw') : (bool, ext_ptw) =
-  match (base_succ, ac) {
-    /* Base translation exceptions take priority over CHERI exceptions */
-    (false, _)                     => (false, init_ext_ptw),
 
-    (true,  Read(Cap))             => (true, ext_ptw_lc_join(ext_ptw, ptw_lc)),
-    (true,  Write(Cap))            => (true, ext_ptw_sc_join(ext_ptw, ptw_sc)),
-    (true,  ReadWrite(Data, Cap))  => (true, ext_ptw_sc_join(ext_ptw, ptw_sc)),
-    (true,  ReadWrite(Cap, Data))  => (true, ext_ptw_lc_join(ext_ptw, ptw_lc)),
-    (true,  ReadWrite(Cap, Cap))   => (true, ext_ptw_sc_join(ext_ptw_lc_join(ext_ptw, ptw_lc), ptw_sc)),
+  /* Store side */
+  let res : PTE_Check = match res {
+    PTE_Check_Failure(_, _) => res,
+    PTE_Check_Success(ext_ptw) => match ac {
+      Execute()          => res,
+      Read(_)            => res,
+      Write(Data)        => res,
+      ReadWrite(_, Data) => res,
 
-    (true,  Read(Data))            => (true, ext_ptw),
-    (true,  Write(Data))           => (true, ext_ptw),
-    (true,  ReadWrite(Data, Data)) => (true, ext_ptw),
-    (true,  Execute())             => (true, ext_ptw)
+      Write(Cap)         => checkPTEPermission_SC(e, ext_ptw),
+      ReadWrite(_, Cap)  => checkPTEPermission_SC(e, ext_ptw)
+    }
   };
 
-  if succ
-  then PTE_Check_Success(ext_ptw')
-  else PTE_Check_Failure(ext_ptw', if ext_ptw'.ptw_sc == PTW_SC_TRAP then EPTWF_CAP_ERR else EPTWF_NO_PERM)
+  /* Load side */
+  let res : PTE_Check = match res {
+    PTE_Check_Failure(_, _) => res,
+    PTE_Check_Success(ext_ptw) => match ac {
+      Execute()          => res,
+      Read(Data)         => res,
+      Write(_)           => res,
+      ReadWrite(Data, _) => res,
+
+      Read(Cap)          => checkPTEPermission_LC(p, e, ext_ptw),
+      ReadWrite(Cap, _)  => checkPTEPermission_LC(p, e, ext_ptw)
+    }
+  };
+
+  res
 }
 
 function update_PTE_Bits(p : PTE_Bits, a : AccessType(ext_access_type), ext : extPte) -> option((PTE_Bits, extPte)) = {
@@ -176,9 +254,24 @@ function update_PTE_Bits(p : PTE_Bits, a : AccessType(ext_access_type), ext : ex
   // accessed bit
   let update_a = p.A() == 0b0;
 
-  if update_d | update_a then {
+  let pte_ext = Mk_Ext_PTE_Bits(ext);
+
+  // store cap bits
+  let update_cd = pte_ext.CapWrite() == 0b1 &
+                  pte_ext.CapDirty() == 0b0 &
+                  (match a {
+                    Execute()          => false,
+                    Read(_)            => false,
+                    Write(Cap)         => true,
+                    Write(Data)        => false,
+                    ReadWrite(_, Cap)  => true,
+                    ReadWrite(_, Data) => false
+                  });
+
+  if update_d | update_a | update_cd then {
     let np = update_A(p, 0b1);
     let np = if update_d then update_D(np, 0b1) else np;
-    Some(np, ext)
+    let npte_ext = if update_cd then update_CapDirty(pte_ext, 0b1) else pte_ext;
+    Some(np, npte_ext.bits())
   } else None()
 }
