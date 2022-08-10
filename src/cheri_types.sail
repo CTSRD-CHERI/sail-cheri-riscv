@@ -86,9 +86,6 @@ enum CapEx = {
   CapEx_TagViolation,
   CapEx_SealViolation,
   CapEx_TypeViolation,
-  CapEx_CallTrap,
-  CapEx_ReturnTrap,
-  CapEx_TSSUnderFlow,
   CapEx_UserDefViolation,
   CapEx_InexactBounds,
   CapEx_UnalignedBase,
@@ -102,7 +99,6 @@ enum CapEx = {
   CapEx_PermitSealViolation,
   CapEx_AccessSystemRegsViolation,
   CapEx_PermitCInvokeViolation,
-  CapEx_AccessCInvokeIDCViolation,
   CapEx_PermitUnsealViolation,
   CapEx_PermitSetCIDViolation
 }
@@ -114,9 +110,6 @@ function CapExCode(ex) : CapEx -> bits(5) =
     CapEx_TagViolation                  => 0b00010,
     CapEx_SealViolation                 => 0b00011,
     CapEx_TypeViolation                 => 0b00100,
-    CapEx_CallTrap                      => 0b00101,
-    CapEx_ReturnTrap                    => 0b00110,
-    CapEx_TSSUnderFlow                  => 0b00111,
     CapEx_UserDefViolation              => 0b01000,
     CapEx_InexactBounds                 => 0b01010,
     CapEx_UnalignedBase                 => 0b01011,
@@ -130,7 +123,6 @@ function CapExCode(ex) : CapEx -> bits(5) =
     CapEx_PermitSealViolation           => 0b10111,
     CapEx_AccessSystemRegsViolation     => 0b11000,
     CapEx_PermitCInvokeViolation        => 0b11001,
-    CapEx_AccessCInvokeIDCViolation     => 0b11010,
     CapEx_PermitUnsealViolation         => 0b11011,
     CapEx_PermitSetCIDViolation         => 0b11100
   }
@@ -142,9 +134,6 @@ function string_of_capex (ex) : CapEx -> string =
     CapEx_TagViolation                  => "TagViolation"                ,
     CapEx_SealViolation                 => "SealViolation"               ,
     CapEx_TypeViolation                 => "TypeViolation"               ,
-    CapEx_CallTrap                      => "CallTrap"                    ,
-    CapEx_ReturnTrap                    => "ReturnTrap"                  ,
-    CapEx_TSSUnderFlow                  => "TSSUnderFlow"                ,
     CapEx_UserDefViolation              => "UserDefViolation"            ,
     CapEx_InexactBounds                 => "InexactBounds"               ,
     CapEx_UnalignedBase                 => "UnalignedBounds"             ,
@@ -158,7 +147,6 @@ function string_of_capex (ex) : CapEx -> string =
     CapEx_PermitSealViolation           => "PermitSealViolation"         ,
     CapEx_AccessSystemRegsViolation     => "AccessSystemRegsViolation"   ,
     CapEx_PermitCInvokeViolation        => "PermitCInvokeViolation"      ,
-    CapEx_AccessCInvokeIDCViolation     => "AccessCInvokeIDCViolation"   ,
     CapEx_PermitUnsealViolation         => "PermitUnsealViolation"       ,
     CapEx_PermitSetCIDViolation         => "PermitSetCIDViolation"
   }
