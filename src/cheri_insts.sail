@@ -170,6 +170,7 @@ union clause ast = CGetSealed : (regidx, regidx)
 union clause ast = CGetOffset : (regidx, regidx)
 union clause ast = CGetAddr   : (regidx, regidx)
 union clause ast = CGetFlags  : (regidx, regidx)
+union clause ast = CGetTop    : (regidx, regidx)
 
 /*!
  * The least significant [cap_hperms_width] bits of integer register *rd* are
@@ -244,6 +245,23 @@ function clause execute (CGetLen(rd, cs1)) = {
   let capVal = C(cs1);
   let len = getCapLength(capVal);
   X(rd) = to_bits(sizeof(xlen), if len > cap_max_addr then cap_max_addr else len);
+  RETIRE_SUCCESS
+}
+
+/*!
+ * Integer register *rd* is set equal to the **top** field (i.e. one past the
+ * last addressable byte) of capability register *cs1*.
+ *
+ * ## Notes
+ *
+ * - Due to the compressed representation of capabilities, the actual top
+ *   of capabilities can be $2^{[{xlen}][xlen]}$; [CGetTop] will return the
+ *   maximum value of $2^{[{xlen}][xlen]}-1$ in this case.
+ */
+function clause execute (CGetTop(rd, cs1)) = {
+  let capVal = C(cs1);
+  let top = getCapTop(capVal);
+  X(rd) = to_bits(sizeof(xlen), if top > cap_max_addr then cap_max_addr else top);
   RETIRE_SUCCESS
 }
 
@@ -2097,6 +2115,7 @@ mapping clause encdec = CGetSealed(rd, cs1) if (haveXcheri()) <-> 0b1111111 @ 0b
 mapping clause encdec = CGetOffset(rd, cs1) if (haveXcheri()) <-> 0b1111111 @ 0b00110 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CGetFlags(rd, cs1)  if (haveXcheri()) <-> 0b1111111 @ 0b00111 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CGetAddr(rd, cs1)   if (haveXcheri()) <-> 0b1111111 @ 0b01111 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CGetTop(rd, cs1)    if (haveXcheri()) <-> 0b1111111 @ 0b11000 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 
 mapping clause encdec = CMove(cd, cs1)      if (haveXcheri()) <-> 0b1111111 @ 0b01010 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CClearTag(cd, cs1)  if (haveXcheri()) <-> 0b1111111 @ 0b01011 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
@@ -2122,6 +2141,7 @@ mapping clause assembly = CGetTag(rd, cs1)    <-> "cgettag"    ^ spc() ^ reg_nam
 mapping clause assembly = CGetSealed(rd, cs1) <-> "cgetsealed" ^ spc() ^ reg_name(rd) ^ sep() ^ cap_reg_name(cs1)
 mapping clause assembly = CGetOffset(rd, cs1) <-> "cgetoffset" ^ spc() ^ reg_name(rd) ^ sep() ^ cap_reg_name(cs1)
 mapping clause assembly = CGetAddr(rd, cs1)   <-> "cgetaddr"   ^ spc() ^ reg_name(rd) ^ sep() ^ cap_reg_name(cs1)
+mapping clause assembly = CGetTop(rd, cs1)    <-> "cgettop"    ^ spc() ^ reg_name(rd) ^ sep() ^ cap_reg_name(cs1)
 
 mapping clause assembly = CMove(cd, cs1)         <-> "cmove"      ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1)
 mapping clause assembly = CClearTag(cd, cs1)     <-> "ccleartag"  ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1)
