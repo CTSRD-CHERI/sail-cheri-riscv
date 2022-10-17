@@ -27,17 +27,13 @@ SAIL_CHECK_SRCS = $(SAIL_RISCV_MODEL_DIR)/riscv_addr_checks_common.sail \
                   $(SAIL_CHERI_MODEL_DIR)/cheri_addr_checks.sail \
                   $(SAIL_CHERI_MODEL_DIR)/cheri_misa_ext.sail
 
-SAIL_RV64_FD_INST = $(SAIL_RISCV_MODEL_DIR)/riscv_insts_dext.sail
-
-SAIL_FD_INST =  $(SAIL_RISCV_MODEL_DIR)/riscv_insts_fext.sail
-SAIL_FD_INST += $(SAIL_$(ARCH)_FD_INST)
-
 SAIL_DEFAULT_INST = $(SAIL_RISCV_MODEL_DIR)/riscv_insts_base.sail \
                     $(SAIL_RISCV_MODEL_DIR)/riscv_insts_aext.sail \
                     $(SAIL_RISCV_MODEL_DIR)/riscv_insts_cext.sail \
                     $(SAIL_RISCV_MODEL_DIR)/riscv_insts_mext.sail \
                     $(SAIL_RISCV_MODEL_DIR)/riscv_insts_zicsr.sail \
-                    $(SAIL_FD_INST) \
+                    $(SAIL_RISCV_MODEL_DIR)/riscv_insts_fext.sail \
+                    $(SAIL_RISCV_MODEL_DIR)/riscv_insts_dext.sail \
                     $(SAIL_CHERI_MODEL_DIR)/cheri_insts.sail
 SAIL_SEQ_INST  = $(SAIL_DEFAULT_INST) $(SAIL_RISCV_MODEL_DIR)/riscv_jalr_seq.sail
 SAIL_RMEM_INST = $(SAIL_DEFAULT_INST) $(SAIL_RISCV_MODEL_DIR)/riscv_jalr_rmem.sail $(SAIL_RISCV_MODEL_DIR)/riscv_insts_rmem.sail
