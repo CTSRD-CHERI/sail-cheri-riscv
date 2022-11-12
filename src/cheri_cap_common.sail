@@ -549,11 +549,16 @@ function capToString (cap) = {
   concat_str(BitStr(getCapBaseBits(cap)),
   concat_str(" length:", len_str)))))))))))))
 }
-function getRepresentableAlignmentMask(len) : xlenbits -> xlenbits = {
-  let (exact, c) = setCapBounds(default_cap, to_bits(sizeof(xlen), 0), 0b0 @ len);
+
+function getBoundsAlignmentMask(c) : Capability -> xlenbits = {
   let e = min(unsigned(c.E), cap_max_E);
   let e' = if c.internal_E then e + internal_E_take_bits else 0;
   ones(sizeof(xlen)-e') @ zeros(e')
+}
+
+function getRepresentableAlignmentMask(len) : xlenbits -> xlenbits = {
+  let (exact, c) = setCapBounds(default_cap, to_bits(sizeof(xlen), 0), 0b0 @ len);
+  getBoundsAlignmentMask(c)
 }
 
 function getRepresentableLength(len) : xlenbits -> xlenbits = {
