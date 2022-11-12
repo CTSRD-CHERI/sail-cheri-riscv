@@ -565,3 +565,50 @@ function getRepresentableLength(len) : xlenbits -> xlenbits = {
   let m = getRepresentableAlignmentMask(len);
   (len + ~(m)) & m
 }
+
+function relocateCap(cap, offset) : (Capability, CapAddrBits) -> (bool, Capability) = {
+  let E = min(cap_max_E, unsigned(cap.E));
+  let a : CapAddrBits = cap.address;
+  let a_mid = truncate(a >> E, cap_mantissa_width);
+  let a3 = truncate(a >> (E + cap_mantissa_width - 3), 3);
+  let B3 = truncateLSB(cap.B, 3);
+  let R3 = B3 - 0b001; /* wraps */
+  let aHi = if a3 <_u R3 then 1 else 0;
+  let bHi = if B3 <_u R3 then 1 else 0;
+  let correction_base = bHi - aHi;
+
+  Aoffset : CapAddrBits = offset;
+  if cap.internal_E then {
+    Aoffset[E + internal_E_take_bits - 1..0] = zeros();
+  };
+
+  let BToffset : bits(cap_mantissa_width) = truncate(Aoffset >> E, cap_mantissa_width);
+
+  newB = cap.B + BToffset;
+  newT = cap.T + BToffset;
+  if E > cap_max_E - 2 then {
+    let msbs = E - (cap_max_E - 2);
+    let lsbs = cap_mantissa_width - msbs;
+    let BLsbsCarry = if newB[lsbs - 1..0] <_u cap.B[lsbs - 1..0] then 0b11 else 0b00;
+    let BTuncarry = truncate(BLsbsCarry @ zeros(lsbs), cap_mantissa_width);
+    newB = newB + BTuncarry;
+    newT = newT + BTuncarry;
+  };
+
+  let new_a_mid = truncate((a + Aoffset) >> E, cap_mantissa_width);
+  let newA3 = truncate((a + Aoffset) >> (E + cap_mantissa_width - 3), 3);
+  let newB3 = truncateLSB(newB, 3);
+  let newR3 = newB3 - 0b001;
+  let newAHi = if newA3 <_u newR3 then 1 else 0;
+  let newBHi = if newB3 <_u newR3 then 1 else 0;
+  let new_correction_base = newBHi - newAHi;
+  let Acorrection = to_bits(cap_addr_width, correction_base - new_correction_base);
+  let Acarry = if new_a_mid <_u a_mid then 1 else 0;
+  let Bcarry = if newB <_u cap.B then 1 else 0;
+  Aoffset = Aoffset + ((Acorrection + Bcarry - Acarry) << (E + cap_mantissa_width));
+  let newA = a + Aoffset;
+
+  let lostSignificant = Aoffset != offset;
+  let newCap = {cap with B = newB, T = newT, address = newA};
+  (lostSignificant, newCap)
+}
