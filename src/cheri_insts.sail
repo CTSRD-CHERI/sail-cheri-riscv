@@ -781,53 +781,30 @@ function clause execute (CBuildCap(cd, cs1, cs2)) = {
 
 union clause ast = CCopyType : (regidx, regidx, regidx)
 /*!
- * If the **otype** field of capability register *cs2* is not a reserved value
- * then capability register *cd* is replaced with the contents of capability
- * register *cs1* with the **address** set to *cs2*.**otype**. Otherwise
- * capability register *cd* is replaced with the **NULL** capability with its
- * **address** set to *cs2*.**otype**.
- *
- * ## Exceptions
- *
- * An exception is raised if:
- *   - *cs1*.**tag** is not set.
- *   - *cs1* is sealed.
- *   - *cs2*.**otype** $\lt$ *cs1*.**base**.
- *   - *cs2*.**otype** $\ge$ *cs1*.**top**.
+ * Capability register *cd* is replaced with the contents of capability
+ * register *cs1* with the **address** set to *cs2*.**otype** and the
+ * **tag** field cleared if *cs2* has a reserved **otype** or if *cs1*
+ * was sealed.
  *
  * ## Notes
  *
- * - Reserved otypes always get turned into derived-from-**NULL** capabilities,
- *   regardless of the authority given in *cs1*, as, at the moment, all
- *   reserved otypes are constructed using ambiently-available actions.
- *   [CCSeal] knows how to work with these.
+ * - Reserved otypes always result in untagged capabilities, as, at the
+ *   moment, all reserved otypes are constructed using ambiently-available
+ *   actions. [CCSeal] knows how to work with these.
  */
 function clause execute (CCopyType(cd, cs1, cs2)) = {
   let cs1_val = C(cs1);
   let cs2_val = C(cs2);
-  let (cs1_base, cs1_top) = getCapBounds(cs1_val);
-  let cs2_otype = unsigned(cs2_val.otype);
-  if not (cs1_val.tag) then {
-    handle_cheri_reg_exception(CapEx_TagViolation, cs1);
-    RETIRE_FAIL
-  } else if isCapSealed(cs1_val) then {
-    handle_cheri_reg_exception(CapEx_SealViolation, cs1);
-    RETIRE_FAIL
-  } else if hasReservedOType(cs2_val) then {
-    C(cd) = int_to_cap(EXTS(cs2_val.otype));
-    RETIRE_SUCCESS
-  } else if cs2_otype < cs1_base then {
-    handle_cheri_reg_exception(CapEx_LengthViolation, cs1);
-    RETIRE_FAIL
-  } else if cs2_otype >= cs1_top then {
-    handle_cheri_reg_exception(CapEx_LengthViolation, cs1);
-    RETIRE_FAIL
-  } else {
-    let (success, cap) = setCapAddr(cs1_val, to_bits(cap_addr_width, cs2_otype));
-    assert(success, "CopyType: offset is in bounds so should be representable");
-    C(cd) = cap;
-    RETIRE_SUCCESS
-  }
+
+  let reserved = hasReservedOType(cs2_val);
+  let otype : xlenbits = if reserved then EXTS(cs2_val.otype)
+                                     else EXTZ(cs2_val.otype);
+
+  let inCap = clearTagIfSealed(cs1_val);
+  let (representable, newCap) = setCapAddr(inCap, otype);
+
+  C(cd) = clearTagIf(newCap, reserved | not(representable));
+  RETIRE_SUCCESS
 }
 
 union clause ast = CRRL : (regidx, regidx)
@@ -907,53 +884,28 @@ union clause ast = CSeal : (regidx, regidx, regidx)
 /*!
  * Capability register *cd* is replaced with capability register *cs1*, and is
  * sealed with **otype** equal to the **address** field of capability register
- * *cs2*.
- *
- * ## Exceptions
- *
- * An exception is raised if:
- *   - *cs1*.**tag** is not set.
- *   - *cs2*.**tag** is not set.
- *   - *cs1*.**sealed** is set.
- *   - *cs2*.**sealed** is set.
- *   - *cs2*.**perms** does not grant **Permit_Seal**.
- *   - *cs2*.**address** $\lt$ *cs2*.**base**.
- *   - *cs2*.**address** $\ge$ *cs2*.**top**.
- *   - *cs2*.**address** $\gt$ [cap_max_otype].
+ * *cs2*. If *cs2* is unable to authorize the sealing, or if *cs1* was already
+ * sealed, then the **tag** field of *cd* is cleared.
  */
 function clause execute (CSeal(cd, cs1, cs2)) = {
   let cs1_val = C(cs1);
   let cs2_val = C(cs2);
+
   let cs2_cursor = getCapCursor(cs2_val);
   let (cs2_base, cs2_top) = getCapBounds(cs2_val);
-  if not (cs1_val.tag) then {
-    handle_cheri_reg_exception(CapEx_TagViolation, cs1);
-    RETIRE_FAIL
-  } else if not (cs2_val.tag) then {
-    handle_cheri_reg_exception(CapEx_TagViolation, cs2);
-    RETIRE_FAIL
-  } else if isCapSealed(cs1_val) then {
-    handle_cheri_reg_exception(CapEx_SealViolation, cs1);
-    RETIRE_FAIL
-  } else if isCapSealed(cs2_val) then {
-    handle_cheri_reg_exception(CapEx_SealViolation, cs2);
-    RETIRE_FAIL
-  } else if not (cs2_val.permit_seal) then {
-    handle_cheri_reg_exception(CapEx_PermitSealViolation, cs2);
-    RETIRE_FAIL
-  } else if cs2_cursor < cs2_base then {
-    handle_cheri_reg_exception(CapEx_LengthViolation, cs2);
-    RETIRE_FAIL
-  } else if cs2_cursor >= cs2_top then {
-    handle_cheri_reg_exception(CapEx_LengthViolation, cs2);
-    RETIRE_FAIL
-  } else if cs2_cursor > cap_max_otype then {
-    handle_cheri_reg_exception(CapEx_LengthViolation, cs2);
-    RETIRE_FAIL
-  } else {
-    C(cd) = sealCap(cs1_val, to_bits(cap_otype_width, cs2_cursor));
-    RETIRE_SUCCESS
-  }
+
+  let permitted = cs2_val.tag
+                & not(isCapSealed(cs2_val))
+                & cs2_val.permit_seal
+                & (cs2_cursor >= cs2_base)
+                & (cs2_cursor < cs2_top)
+                & (cs2_cursor <= cap_max_otype);
+
+  let inCap = clearTagIfSealed(cs1_val);
+  let newCap = sealCap(inCap, to_bits(cap_otype_width, cs2_cursor));
+
+  C(cd) = clearTagIf(newCap, not(permitted));
+  RETIRE_SUCCESS
 }
 
 union clause ast = CCSeal : (regidx, regidx, regidx)
@@ -964,22 +916,14 @@ union clause ast = CCSeal : (regidx, regidx, regidx)
  * through unaltered are intended to permit a fast branchless rederivation
  * sequence with multiple sealing authorities with a single [CBuildCap] and a
  * set of [CCopyType] and [CCSeal] pairs when swapping capabilities in from
- * disk.
- *
- * ## Exceptions
- *
- * An exception is raised if:
- *   - *cs1*.**tag** is not set.
- *   - *cs2*.**sealed** is set.
- *   - *cs2*.**perms** does not grant **Permit_Seal**.
- *   - *cs2*.**address** $\gt$ [cap_max_otype].
+ * disk. Other than these conditions, if *cs2* is unable to authorize the
+ * sealing, the **tag** field of *cd* is cleared.
  *
  * ## Notes
  *
- * - Since the intent is that this is used for rederiving swapped-out
- *   capabilities, the expectation is that this whole sequence is guarded by a
- *   check on whether the **tag** field of the capability was valid, and so any
- *   invalid capability input in *cs1* will cause a trap.
+ * - The intent is that this is used for rederiving swapped-out capabilities,
+ *   so the expectation is that this whole sequence is guarded by a check on
+ *   whether the **tag** field of the capability was valid.
  *
  * - If the input to be conditionally sealed is already sealed it is passed
  *   through before any futher checks are made. This allows multiple [CCSeal]s
@@ -1002,38 +946,23 @@ union clause ast = CCSeal : (regidx, regidx, regidx)
 function clause execute (CCSeal(cd, cs1, cs2)) = {
   let cs1_val = C(cs1);
   let cs2_val = C(cs2);
+
   let cs2_cursor = getCapCursor(cs2_val);
   let (cs2_base, cs2_top) = getCapBounds(cs2_val);
-  if not (cs1_val.tag) then {
-    handle_cheri_reg_exception(CapEx_TagViolation, cs1);
-    RETIRE_FAIL
-  } else if not (cs2_val.tag) then {
-    /* CCopyType may not have been able to represent the result */
+  let passthrough = not(cs2_val.tag)
+                  | isCapSealed(cs1_val)
+                  | (cs2_cursor < cs2_base)
+                  | (cs2_cursor >= cs2_top)
+                  | (signed(cs2_val.address) == otype_unsealed);
+  if passthrough then {
     C(cd) = cs1_val;
     RETIRE_SUCCESS
-  } else if isCapSealed(cs1_val) then {
-    C(cd) = cs1_val;
-    RETIRE_SUCCESS
-  } else if cs2_cursor < cs2_base then {
-    C(cd) = cs1_val;
-    RETIRE_SUCCESS
-  } else if cs2_cursor >= cs2_top then {
-    C(cd) = cs1_val;
-    RETIRE_SUCCESS
-  } else if signed(cs2_val.address) == otype_unsealed then {
-    C(cd) = cs1_val;
-    RETIRE_SUCCESS
-  } else if isCapSealed(cs2_val) then {
-    handle_cheri_reg_exception(CapEx_SealViolation, cs2);
-    RETIRE_FAIL
-  } else if not (cs2_val.permit_seal) then {
-    handle_cheri_reg_exception(CapEx_PermitSealViolation, cs2);
-    RETIRE_FAIL
-  } else if cs2_cursor > cap_max_otype then {
-    handle_cheri_reg_exception(CapEx_LengthViolation, cs2);
-    RETIRE_FAIL
   } else {
-    C(cd) = sealCap(cs1_val, to_bits(cap_otype_width, cs2_cursor));
+    let permitted = not(isCapSealed(cs2_val))
+                  & cs2_val.permit_seal
+                  & (cs2_cursor <= cap_max_otype);
+    let newCap = sealCap(cs1_val, to_bits(cap_otype_width, cs2_cursor));
+    C(cd) = clearTagIf(newCap, not(permitted));
     RETIRE_SUCCESS
   }
 }
@@ -1043,87 +972,38 @@ union clause ast = CUnseal : (regidx, regidx, regidx)
  * Capability register *cd* is replaced with capability register *cs1* and is
  * unsealed, using capability register *cs2* as the authority for the unsealing
  * operation. If *cs2*.**perms** does not grant **Global** then *cd*.**perms**
- * is stripped of **Global**.
- *
- * ## Exceptions
- *
- * An exception is raised if:
- *   - *cs1*.**tag** is not set.
- *   - *cs2*.**tag** is not set.
- *   - *cs1* is not sealed.
- *   - *cs2* is sealed.
- *   - *cs1*.**otype** is reserved.
- *   - *cs1*.**address** $\ne$ *cs1*.**otype**.
- *   - *cs2*.**perms** does not grant **Permit_Unseal**.
- *   - *cs2*.**address** $\lt$ *cs2*.**base**.
- *   - *cs2*.**address** $\ge$ *cs2*.**top**.
+ * is stripped of **Global**. If *cs2* is unable to authorize the unsealing,
+ * the **tag** field of *cd* is cleared.
  */
 function clause execute (CUnseal(cd, cs1, cs2)) = {
   let cs1_val = C(cs1);
   let cs2_val = C(cs2);
   let cs2_cursor = getCapCursor(cs2_val);
   let (cs2_base, cs2_top) = getCapBounds(cs2_val);
-  if not (cs1_val.tag) then {
-    handle_cheri_reg_exception(CapEx_TagViolation, cs1);
-    RETIRE_FAIL
-  } else if not (cs2_val.tag) then {
-    handle_cheri_reg_exception(CapEx_TagViolation, cs2);
-    RETIRE_FAIL
-  } else if not (isCapSealed(cs1_val)) then {
-    handle_cheri_reg_exception(CapEx_SealViolation, cs1);
-    RETIRE_FAIL
-  } else if isCapSealed(cs2_val) then {
-    handle_cheri_reg_exception(CapEx_SealViolation, cs2);
-    RETIRE_FAIL
-  } else if hasReservedOType(cs1_val) then {
-    handle_cheri_reg_exception(CapEx_TypeViolation, cs1);
-    RETIRE_FAIL
-  } else if cs2_cursor != unsigned(cs1_val.otype) then {
-    handle_cheri_reg_exception(CapEx_TypeViolation, cs2);
-    RETIRE_FAIL
-  } else if not (cs2_val.permit_unseal) then {
-    handle_cheri_reg_exception(CapEx_PermitUnsealViolation, cs2);
-    RETIRE_FAIL
-  } else if cs2_cursor < cs2_base then {
-    handle_cheri_reg_exception(CapEx_LengthViolation, cs2);
-    RETIRE_FAIL
-  } else if cs2_cursor >= cs2_top then {
-    handle_cheri_reg_exception(CapEx_LengthViolation, cs2);
-    RETIRE_FAIL
-  } else {
-    let new_global = cs1_val.global & cs2_val.global;
-    C(cd) = {unsealCap(cs1_val) with global=new_global};
-    RETIRE_SUCCESS
-  }
+  let permitted = cs2_val.tag
+                & isCapSealed(cs1_val)
+                & not(isCapSealed(cs2_val))
+                & not(hasReservedOType(cs1_val))
+                & (cs2_cursor == unsigned(cs1_val.otype))
+                & cs2_val.permit_unseal
+                & (cs2_cursor >= cs2_base)
+                & (cs2_cursor < cs2_top);
+  let new_global = cs1_val.global & cs2_val.global;
+  let newCap = {unsealCap(cs1_val) with global=new_global};
+  C(cd) = clearTagIf(newCap, not(permitted));
+  RETIRE_SUCCESS
 }
 
 union clause ast = CSealEntry : (regidx, regidx)
 /*!
  * Capability register *cd* is replaced with capability register *cs1* and
  * sealed as a sentry.
- *
- * ## Exceptions
- *
- * An exception is raised if:
- *   - *cs1*.**tag** is not set.
- *   - *cs1* is sealed.
- *   - *cs1*.**perms** does not grant **Permit_Execute**.
  */
 function clause execute (CSealEntry(cd, cs1)) = {
   let cs1_val = C(cs1);
-  if not (cs1_val.tag) then {
-    handle_cheri_reg_exception(CapEx_TagViolation, cs1);
-    RETIRE_FAIL
-  } else if (isCapSealed(cs1_val)) then {
-    handle_cheri_reg_exception(CapEx_SealViolation, cs1);
-    RETIRE_FAIL
-  } else if not (cs1_val.permit_execute) then {
-    handle_cheri_reg_exception(CapEx_PermitExecuteViolation, cs1);
-    RETIRE_FAIL
-  } else {
-    C(cd) = sealCap(cs1_val, to_bits(cap_otype_width, otype_sentry));
-    RETIRE_SUCCESS
-  }
+  let inCap = clearTagIfSealed(cs1_val);
+  C(cd) = sealCap(inCap, to_bits(cap_otype_width, otype_sentry));
+  RETIRE_SUCCESS
 }
 
 union clause ast = CInvoke : (regidx, regidx)
