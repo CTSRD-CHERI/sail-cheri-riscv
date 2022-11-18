@@ -732,20 +732,11 @@ union clause ast = CBuildCap : (regidx, regidx, regidx)
  * Capability register *cd* is set equal to capability register *cs1* with its
  * **base**, **length**, **address**, **perms**, **uperms** and **flags**
  * replaced with the corresponding fields in capability register *cs2*. If
- * *cs2* is a sentry then *cd* is also sealed as a sentry.
- *
- * ## Exceptions
- *
- * An exception is raised if:
- *   - *cs1*.**tag** is not set.
- *   - *cs1* is sealed.
- *   - *cs2*.**base** $\lt$ *cs1*.**base**
- *   - *cs2*.**top** $\gt$ *cs1*.**top**
- *   - *cs2*.**base** $\gt$ *cs2*.**top**
- *   - *cs2*.**perms** grants a permission that is not granted by
- *     *cs1*.**perms**.
- *   - *cs2*.**uperms** grants a permission that is not granted by
- *     *cs1*.**uperms**.
+ * *cs2* is a sentry then *cd* is also sealed as a sentry. If the resulting
+ * capability is not a subset of *cs1* in bounds or permissions, or is not a
+ * legally derivable capability, or if *cs1* did not have its **tag** field
+ * set, or if *cs1* was sealed, *cd* is replaced with *cs2* with its **tag**
+ * field cleared.
  *
  * ## Notes
  *
@@ -755,48 +746,37 @@ union clause ast = CBuildCap : (regidx, regidx, regidx)
  *   operation.
  */
 function clause execute (CBuildCap(cd, cs1, cs2)) = {
-  let (cs1_val, cs1_idx) = if unsigned(cs1) == 0 then (DDC, DDC_IDX)
-                                                 else (C(cs1), 0b0 @ cs1);
+  let cs1_val = if unsigned(cs1) == 0 then DDC else C(cs1);
   let cs2_val = C(cs2);
-  let (cs1_base, cs1_top) = getCapBounds(cs1_val);
-  let (cs2_base, cs2_top) = getCapBounds(cs2_val);
-  let cs1_perms = getCapPerms(cs1_val);
-  let cs2_perms = getCapPerms(cs2_val);
-  let cs2_flags = getCapFlags(cs2_val);
-  if not (cs1_val.tag) then {
-    handle_cheri_cap_exception(CapEx_TagViolation, cs1_idx);
-    RETIRE_FAIL
-  } else if isCapSealed(cs1_val) then {
-    handle_cheri_cap_exception(CapEx_SealViolation, cs1_idx);
-    RETIRE_FAIL
-  } else if cs2_base < cs1_base then {
-    handle_cheri_cap_exception(CapEx_LengthViolation, cs1_idx);
-    RETIRE_FAIL
-  } else if cs2_top > cs1_top then {
-    handle_cheri_cap_exception(CapEx_LengthViolation, cs1_idx);
-    RETIRE_FAIL
-  } else if cs2_base > cs2_top then { /* check for length < 0 - possible because cs2 might be untagged */
-    handle_cheri_reg_exception(CapEx_LengthViolation, cs2);
-    RETIRE_FAIL
-  } else if (cs2_perms & cs1_perms) != cs2_perms then {
-    handle_cheri_cap_exception(CapEx_UserDefViolation, cs1_idx);
-    RETIRE_FAIL
-  } else {
-    let (exact, cd1) = setCapBounds(cs1_val, to_bits(cap_addr_width, cs2_base), to_bits(cap_len_width, cs2_top));
-    let (_, cd2) = setCapOffset(cd1, getCapOffsetBits(cs2_val)); // Ignore representability check, since Fast Rep Check not relevant
-    let cd3 = setCapPerms(cd2, cs2_perms);
-    let cd4 = setCapFlags(cd3, cs2_flags);
-    if cd4 != {unsealCap(cs2_val) with tag=true} then
-    {
-      handle_cheri_reg_exception(CapEx_LengthViolation, cs2);
-      RETIRE_FAIL
-    } else {
-      assert(exact, "CBuildCap: setCapBounds was not exact"); /* base and top came from cs2 originally so will be exact */
-      let cd5 = if signed(cs2_val.otype) == otype_sentry then sealCap(cd4, to_bits(cap_otype_width, otype_sentry)) else cd4;
-      C(cd) = cd5;
-      RETIRE_SUCCESS
-    }
-  }
+
+  let authorityCap = cs1_val;
+  let requestedCap' = {C(cs2) with tag=true};
+  let requestedSentry = signed(requestedCap'.otype) == otype_sentry;
+  let requestedCap = if requestedSentry then requestedCap' else unsealCap(requestedCap');
+
+  let (authorityBase, authorityTop) = getCapBounds(authorityCap);
+  let (requestedBase, requestedTop) = getCapBounds(requestedCap);
+  let authorityPerms = getCapPerms(authorityCap);
+  let requestedPerms = getCapPerms(requestedCap);
+  let requestedFlags = getCapFlags(requestedCap);
+
+  let subset = (requestedBase >= authorityBase)
+             & (requestedTop <= authorityTop)
+             & (requestedBase <= requestedTop) /* check for length < 0 - possible because requested might be untagged */
+             & ((requestedPerms & authorityPerms) == requestedPerms);
+
+  let inCap = clearTagIfSealed(authorityCap);
+  let (exact, cd1) = setCapBounds(inCap, to_bits(cap_addr_width, requestedBase), to_bits(cap_len_width, requestedTop));
+  let (_, cd2) = setCapOffset(cd1, getCapOffsetBits(requestedCap)); /* Ignore representability check, since Fast Rep Check not relevant */
+  let cd3 = setCapPerms(cd2, requestedPerms);
+  let cd4 = setCapFlags(cd3, requestedFlags);
+  let cd5 = if requestedSentry then sealCap(cd4, to_bits(cap_otype_width, otype_sentry)) else cd4;
+  let derivable = cd5 == requestedCap; /* True iff requestedCap has bounds not exceeding address space and no reserved bits set, and authority was tagged and unsealed */
+  assert(not(derivable) | exact, "CBuildCap: setCapBounds was not exact"); /* If requestedCap was a derivable encoding then setBounds should be exact */
+  let cd6 = if subset & derivable then cd5 else clearTag(requestedCap);
+
+  C(cd) = cd6;
+  RETIRE_SUCCESS
 }
 
 union clause ast = CCopyType : (regidx, regidx, regidx)
