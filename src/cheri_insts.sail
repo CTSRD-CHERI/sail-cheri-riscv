@@ -380,53 +380,37 @@ union clause ast = CAndPerm : (regidx, regidx, regidx)
  * previous value and bits 0 to [cap_hperms_width]-1 of integer register *rs2*
  * and the **uperms** field set to the bitwise and of its previous value and
  * bits [cap_uperms_shift] to [cap_uperms_shift]+[cap_uperms_width]-1 of *rs2*.
- *
- * ## Exceptions
- *
- * An exception is raised if:
- *   - *cs1*.**tag** is not set.
- *   - *cs1* is sealed.
+ * If *cs1* was sealed then *cd*.**tag** is cleared.
  */
 function clause execute(CAndPerm(cd, cs1, rs2)) = {
   let cs1_val = C(cs1);
   let rs2_val = X(rs2);
-  if not (cs1_val.tag) then {
-    handle_cheri_reg_exception(CapEx_TagViolation, cs1);
-    RETIRE_FAIL
-  } else if isCapSealed(cs1_val) then {
-    handle_cheri_reg_exception(CapEx_SealViolation, cs1);
-    RETIRE_FAIL
-  } else {
-    let perms = getCapPerms(cs1_val);
-    let mask = truncate(rs2_val, cap_perms_width);
-    let newCap = setCapPerms(cs1_val, (perms & mask));
-    C(cd) = newCap;
-    RETIRE_SUCCESS
-  }
+
+  let perms = getCapPerms(cs1_val);
+  let mask = truncate(rs2_val, cap_perms_width);
+
+  let inCap = clearTagIfSealed(cs1_val);
+  let newCap = setCapPerms(inCap, (perms & mask));
+
+  C(cd) = newCap;
+  RETIRE_SUCCESS
 }
 
 union clause ast = CSetFlags : (regidx, regidx, regidx)
 /*!
  * Capability register *cd* is replaced with the contents of capability
  * register *cs1* with the **flags** field set to bits 0 to [cap_flags_width]-1
- * of integer register *rs2*.
- *
- * ## Exceptions
- *
- * An exception is raised if:
- *   - *cs1*.**tag** is set and *cs1* is sealed.
+ * of integer register *rs2*. If *cs1* was sealed then *cd*.**tag** is cleared.
  */
 function clause execute(CSetFlags(cd, cs1, rs2)) = {
   let cs1_val = C(cs1);
   let rs2_val = X(rs2);
-  if cs1_val.tag & isCapSealed(cs1_val) then {
-    handle_cheri_reg_exception(CapEx_SealViolation, cs1);
-    RETIRE_FAIL
-  } else {
-    let newCap = setCapFlags(cs1_val, truncate(rs2_val, cap_flags_width));
-    C(cd) = newCap;
-    RETIRE_SUCCESS
-  }
+
+  let inCap = clearTagIfSealed(cs1_val);
+  let newCap = setCapFlags(inCap, truncate(rs2_val, cap_flags_width));
+
+  C(cd) = newCap;
+  RETIRE_SUCCESS
 }
 
 union clause ast = CToPtr : (regidx, regidx, regidx)
