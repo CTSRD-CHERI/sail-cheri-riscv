@@ -415,39 +415,24 @@ function clause execute(CSetFlags(cd, cs1, rs2)) = {
 
 union clause ast = CToPtr : (regidx, regidx, regidx)
 /*!
- * If the **tag** field of capability register *cs1* is not set then integer
+ * If the **tag** field of capability register *cs1* is not set, integer
  * register *rd* is set to 0, otherwise integer register *rd* is set to
  * *cs1*.**address** $-$ *cs2*.**base**.
  *
- * ## Exceptions
- *
- * An exception is raised if:
- *   - *cs2*.**tag** is not set.
- *   - *cs1*.**tag** is set and *cs1* is sealed.
- *
  * ## Notes
  *
- * - *cs2* being sealed will not cause an exception to be raised. This is for
- *   further study.
+ * - *cs2* being sealed will not set *rd* to 0. This is for further study.
  */
 function clause execute(CToPtr(rd, cs1, cs2)) = {
-  let (cs2_val, cs2_idx) = if unsigned(cs2) == 0 then (DDC, DDC_IDX)
-                                                 else (C(cs2), 0b0 @ cs2);
+  let cs2_val = if unsigned(cs2) == 0 then DDC else C(cs2);
   let cs1_val = C(cs1);
-  if not (cs2_val.tag) then {
-    handle_cheri_cap_exception(CapEx_TagViolation, cs2_idx);
-    RETIRE_FAIL
-  } else if cs1_val.tag & isCapSealed(cs1_val) then {
-    handle_cheri_reg_exception(CapEx_SealViolation, cs1);
-    RETIRE_FAIL
-  } else {
-    /* Note: returning zero for untagged values breaks magic constants such as SIG_IGN */
-    X(rd) = if not (cs1_val.tag) then
-              zeros()
-            else
-              cs1_val.address - getCapBaseBits(cs2_val);
-    RETIRE_SUCCESS
-  }
+
+  /* Note: returning zero for untagged values breaks magic constants such as SIG_IGN */
+  X(rd) = if not (cs1_val.tag) then
+            zeros()
+          else
+            cs1_val.address - getCapBaseBits(cs2_val);
+  RETIRE_SUCCESS
 }
 
 union clause ast = CSub : (regidx, regidx, regidx)
@@ -722,31 +707,21 @@ union clause ast = CFromPtr : (regidx, regidx, regidx)
  * If the value of integer register *rs2* is 0 then capability register *cd* is
  * set to **NULL**. Otherwise capability register *cd* is set to capability
  * register *cs1* with its **offset** replaced with *rs2*. If the resulting
- * capability cannot be represented exactly, then *cd*.**tag** is cleared. The
- * remaining capability fields are set to what the in-memory representation of
- * *cs1* with the address set to *cd*.**address** decodes to.
- *
- * ## Exceptions
- *
- * An exception is raised if:
- *   - *cs1*.**tag** is not set.
- *   - *cs1* is sealed.
+ * capability cannot be represented exactly, or if *cs1* was sealed, then
+ * *cd*.**tag** is cleared. The remaining capability fields are set to what the
+ * in-memory representation of *cs1* with the address set to *cd*.**address**
+ * decodes to.
  */
 function clause execute (CFromPtr(cd, cs1, rs2)) = {
-  let (cs1_val, cs1_idx) = if unsigned(cs1) == 0 then (DDC, DDC_IDX)
-                                                 else (C(cs1), 0b0 @ cs1);
+  let cs1_val = if unsigned(cs1) == 0 then DDC else C(cs1);
   let rs2_val = X(rs2);
+
   if rs2_val == zeros() then {
     C(cd) = null_cap;
     RETIRE_SUCCESS
-  } else if not (cs1_val.tag) then {
-    handle_cheri_cap_exception(CapEx_TagViolation, cs1_idx);
-    RETIRE_FAIL
-  } else if isCapSealed(cs1_val) then {
-    handle_cheri_cap_exception(CapEx_SealViolation, cs1_idx);
-    RETIRE_FAIL
   } else {
-    let (success, newCap) = setCapOffset(cs1_val, rs2_val);
+    let inCap = clearTagIfSealed(cs1_val);
+    let (success, newCap) = setCapOffset(inCap, rs2_val);
     C(cd) = clearTagIf(newCap, not(success));
     RETIRE_SUCCESS
   }
