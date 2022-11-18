@@ -566,36 +566,23 @@ union clause ast = CSetBounds : (regidx, regidx, regidx)
  * replaced with integer register *rs2*. If the resulting capability cannot be
  * represented exactly the **base** will be rounded down and the **length**
  * will be rounded up by the smallest amount needed to form a representable
- * capability covering the requested bounds, and will never exceed the bounds
- * of *cs1*.
- *
- * ## Exceptions
- *
- * An exception is raised if:
- *   - *cs1*.**tag** is not set.
- *   - *cs1* is sealed.
- *   - *cs1*.**address** $\lt$ *cs1*.**base**.
- *   - *cs1*.**address** $+$ *rs2* $\gt$ *cs1*.**top**.
+ * capability covering the requested bounds. The **tag** field of the result
+ * is cleared if the bounds of the result exceed the bounds of *cs1*, or if
+ * *cs1* was sealed.
  */
 function clause execute (CSetBounds(cd, cs1, rs2)) = {
   let cs1_val = C(cs1);
   let rs2_val = X(rs2);
+
   let newBase = cs1_val.address;
   let newTop : CapLenBits = EXTZ(newBase) + EXTZ(rs2_val);
-  if not (cs1_val.tag) then {
-    handle_cheri_reg_exception(CapEx_TagViolation, cs1);
-    RETIRE_FAIL
-  } else if isCapSealed(cs1_val) then {
-    handle_cheri_reg_exception(CapEx_SealViolation, cs1);
-    RETIRE_FAIL
-  } else if not(inCapBounds(cs1_val, newBase, unsigned(rs2_val))) then {
-    handle_cheri_reg_exception(CapEx_LengthViolation, cs1);
-    RETIRE_FAIL
-  } else {
-    let (_, newCap) = setCapBounds(cs1_val, newBase, newTop);
-    C(cd) = newCap; /* ignore exact */
-    RETIRE_SUCCESS
-  }
+  let inBounds = inCapBounds(cs1_val, newBase, unsigned(rs2_val));
+
+  let inCap = clearTagIfSealed(cs1_val);
+  let (_, newCap) = setCapBounds(inCap, newBase, newTop);
+
+  C(cd) = clearTagIf(newCap, not(inBounds)); /* ignore exact */
+  RETIRE_SUCCESS
 }
 
 union clause ast = CSetBoundsImmediate : (regidx, regidx, bits(12))
@@ -605,76 +592,48 @@ union clause ast = CSetBoundsImmediate : (regidx, regidx, bits(12))
  * replaced with *uimm*. If the resulting capability cannot be represented
  * exactly the **base** will be rounded down and the **length** will be rounded
  * up by the smallest amount needed to form a representable capability covering
- * the requested bounds, and will never exceed the bounds of *cs1*.
- *
- * ## Exceptions
- *
- * An exception is raised if:
- *   - *cs1*.**tag** is not set.
- *   - *cs1* is sealed.
- *   - *cs1*.**address** $\lt$ *cs1*.**base**.
- *   - *cs1*.**address** $+$ *uimm* $\gt$ *cs1*.**top**.
+ * the requested bounds. The **tag** field of the result is cleared if the
+ * bounds of the result exceed the bounds of *cs1*, or if *cs1* was sealed.
  */
 function clause execute (CSetBoundsImmediate(cd, cs1, uimm)) = {
   let cs1_val = C(cs1);
+
   let newBase = cs1_val.address;
   let newTop : CapLenBits = EXTZ(newBase) + EXTZ(uimm);
-  if not (cs1_val.tag) then {
-    handle_cheri_reg_exception(CapEx_TagViolation, cs1);
-    RETIRE_FAIL
-  } else if isCapSealed(cs1_val) then {
-    handle_cheri_reg_exception(CapEx_SealViolation, cs1);
-    RETIRE_FAIL
-  } else if not(inCapBounds(cs1_val, newBase, unsigned(uimm))) then {
-    handle_cheri_reg_exception(CapEx_LengthViolation, cs1);
-    RETIRE_FAIL
-  } else {
-    let (_, newCap) = setCapBounds(cs1_val, newBase, newTop);
-    C(cd) = newCap; /* ignore exact */
-    RETIRE_SUCCESS
-  }
+  let inBounds = inCapBounds(cs1_val, newBase, unsigned(uimm));
+
+  let inCap = clearTagIfSealed(cs1_val);
+  let (_, newCap) = setCapBounds(inCap, newBase, newTop);
+
+  C(cd) = clearTagIf(newCap, not(inBounds)); /* ignore exact */
+  RETIRE_SUCCESS
 }
 
 union clause ast = CSetBoundsExact : (regidx, regidx, regidx)
 /*!
  * Capability register *cd* is set to capability register *cs1* with its
  * **base** field replaced with *cs1*.**address** and its **length** field
- * replaced with integer register *rs2*. Unlike [CSetBounds], this instruction
- * will trap if the resulting capability cannot be represented exactly.
- *
- * ## Exceptions
- *
- * An exception is raised if:
- *   - *cs1*.**tag** is not set.
- *   - *cs1* is sealed.
- *   - *cs1*.**address** $\lt$ *cs1*.**base**.
- *   - *cs1*.**address** $+$ *rs2* $\gt$ *cs1*.**top**.
- *   - The resulting capability cannot be represented exactly.
+ * replaced with integer register *rs2*. If the resulting capability cannot be
+ * represented exactly, the **tag** field will be cleared (unlike
+ * [CSetBounds]), the **base** will be rounded down and the **length** will be
+ * rounded up by the smallest amount needed to form a representable capability
+ * covering the requested bounds. The **tag** field of the result is cleared
+ * if the bounds of the result exceed the bounds of *cs1*, or if *cs1* was
+ * sealed.
  */
 function clause execute (CSetBoundsExact(cd, cs1, rs2)) = {
   let cs1_val = C(cs1);
   let rs2_val = X(rs2);
+
   let newBase = cs1_val.address;
   let newTop : CapLenBits = EXTZ(newBase) + EXTZ(rs2_val);
-  if not (cs1_val.tag) then {
-    handle_cheri_reg_exception(CapEx_TagViolation, cs1);
-    RETIRE_FAIL
-  } else if isCapSealed(cs1_val) then {
-    handle_cheri_reg_exception(CapEx_SealViolation, cs1);
-    RETIRE_FAIL
-  } else if not(inCapBounds(cs1_val, newBase, unsigned(rs2_val))) then {
-    handle_cheri_reg_exception(CapEx_LengthViolation, cs1);
-    RETIRE_FAIL
-  } else {
-    let (exact, newCap) = setCapBounds(cs1_val, newBase, newTop);
-    if not (exact) then {
-      handle_cheri_reg_exception(CapEx_InexactBounds, cs1);
-      RETIRE_FAIL
-    } else {
-      C(cd) = newCap;
-      RETIRE_SUCCESS
-    }
-  }
+  let inBounds = inCapBounds(cs1_val, newBase, unsigned(rs2_val));
+
+  let inCap = clearTagIfSealed(cs1_val);
+  let (exact, newCap) = setCapBounds(inCap, newBase, newTop);
+
+  C(cd) = clearTagIf(newCap, not(inBounds & exact));
+  RETIRE_SUCCESS
 }
 
 union clause ast = CClearTag : (regidx, regidx)
