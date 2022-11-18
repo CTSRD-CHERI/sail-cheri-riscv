@@ -147,7 +147,7 @@ function legalize_tcc(o : Capability, v : Capability) -> Capability = {
     /* legalize new TCC offset (RISC-V tvec) */
     new_tvec = v.address - new_base;
     legalized_tvec = legalize_tvec(Mk_Mtvec(getCapOffsetBits(o)), new_tvec);
-    setCapOffsetOrNull(v, legalized_tvec.bits())
+    setCapOffsetChecked(v, legalized_tvec.bits())
   }
 }
 
@@ -176,5 +176,5 @@ function legalize_epcc (v : Capability) -> Capability = {
 
   if   legalized == voffset
   then v /* avoid possibly attempting to set the offset of a sentry */
-  else setCapOffsetOrNull(v, legalized)
+  else setCapOffsetChecked(v, legalized)
 }

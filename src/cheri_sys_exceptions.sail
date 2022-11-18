@@ -134,9 +134,9 @@ function get_xret_target(p) = {
 val set_xret_target : (Privilege, xlenbits) -> xlenbits effect {rreg, wreg}
 function set_xret_target(p, value) = {
   match p {
-    Machine    => MEPCC = setCapOffsetOrNull(MEPCC, value),
-    Supervisor => SEPCC = setCapOffsetOrNull(SEPCC, value),
-    User       => UEPCC = setCapOffsetOrNull(UEPCC, value)
+    Machine    => MEPCC = setCapOffsetChecked(MEPCC, value),
+    Supervisor => SEPCC = setCapOffsetChecked(SEPCC, value),
+    User       => UEPCC = setCapOffsetChecked(UEPCC, value)
   };
   value
 }
@@ -178,18 +178,18 @@ function get_utvec() -> xlenbits =
 
 function set_mtvec(value : xlenbits) -> xlenbits = {
   let mtv = legalize_tvec(Mk_Mtvec(getCapOffsetBits(MTCC)), value);
-  MTCC = setCapOffsetOrNull(MTCC, mtv.bits());
+  MTCC = setCapOffsetChecked(MTCC, mtv.bits());
   mtv.bits()
 }
 
 function set_stvec(value : xlenbits) -> xlenbits = {
   let stv = legalize_tvec(Mk_Mtvec(getCapOffsetBits(STCC)), value);
-  STCC = setCapOffsetOrNull(STCC, stv.bits());
+  STCC = setCapOffsetChecked(STCC, stv.bits());
   stv.bits()
 }
 
 function set_utvec(value : xlenbits) -> xlenbits = {
   let utv = legalize_tvec(Mk_Mtvec(getCapOffsetBits(UTCC)), value);
-  UTCC = setCapOffsetOrNull(UTCC, utv.bits());
+  UTCC = setCapOffsetChecked(UTCC, utv.bits());
   utv.bits()
 }
