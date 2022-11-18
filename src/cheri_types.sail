@@ -87,7 +87,6 @@ enum CapEx = {
   CapEx_SealViolation,
   CapEx_TypeViolation,
   CapEx_UserDefViolation,
-  CapEx_InexactBounds,
   CapEx_UnalignedBase,
   CapEx_GlobalViolation,
   CapEx_PermitExecuteViolation,
@@ -96,10 +95,8 @@ enum CapEx = {
   CapEx_PermitLoadCapViolation,
   CapEx_PermitStoreCapViolation,
   CapEx_PermitStoreLocalCapViolation,
-  CapEx_PermitSealViolation,
   CapEx_AccessSystemRegsViolation,
   CapEx_PermitCInvokeViolation,
-  CapEx_PermitUnsealViolation,
   CapEx_PermitSetCIDViolation
 }
 
@@ -111,7 +108,6 @@ function CapExCode(ex) : CapEx -> bits(5) =
     CapEx_SealViolation                 => 0b00011,
     CapEx_TypeViolation                 => 0b00100,
     CapEx_UserDefViolation              => 0b01000,
-    CapEx_InexactBounds                 => 0b01010,
     CapEx_UnalignedBase                 => 0b01011,
     CapEx_GlobalViolation               => 0b10000,
     CapEx_PermitExecuteViolation        => 0b10001,
@@ -120,10 +116,8 @@ function CapExCode(ex) : CapEx -> bits(5) =
     CapEx_PermitLoadCapViolation        => 0b10100,
     CapEx_PermitStoreCapViolation       => 0b10101,
     CapEx_PermitStoreLocalCapViolation  => 0b10110,
-    CapEx_PermitSealViolation           => 0b10111,
     CapEx_AccessSystemRegsViolation     => 0b11000,
     CapEx_PermitCInvokeViolation        => 0b11001,
-    CapEx_PermitUnsealViolation         => 0b11011,
     CapEx_PermitSetCIDViolation         => 0b11100
   }
 
@@ -135,7 +129,6 @@ function string_of_capex (ex) : CapEx -> string =
     CapEx_SealViolation                 => "SealViolation"               ,
     CapEx_TypeViolation                 => "TypeViolation"               ,
     CapEx_UserDefViolation              => "UserDefViolation"            ,
-    CapEx_InexactBounds                 => "InexactBounds"               ,
     CapEx_UnalignedBase                 => "UnalignedBounds"             ,
     CapEx_GlobalViolation               => "GlobalViolation"             ,
     CapEx_PermitExecuteViolation        => "PermitExecuteViolation"      ,
@@ -144,10 +137,8 @@ function string_of_capex (ex) : CapEx -> string =
     CapEx_PermitLoadCapViolation        => "PermitLoadCapViolation"      ,
     CapEx_PermitStoreCapViolation       => "PermitStoreCapViolation"     ,
     CapEx_PermitStoreLocalCapViolation  => "PermitStoreLocalCapViolation",
-    CapEx_PermitSealViolation           => "PermitSealViolation"         ,
     CapEx_AccessSystemRegsViolation     => "AccessSystemRegsViolation"   ,
     CapEx_PermitCInvokeViolation        => "PermitCInvokeViolation"      ,
-    CapEx_PermitUnsealViolation         => "PermitUnsealViolation"       ,
     CapEx_PermitSetCIDViolation         => "PermitSetCIDViolation"
   }
 
