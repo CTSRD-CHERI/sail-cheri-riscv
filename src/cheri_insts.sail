@@ -70,10 +70,7 @@ union clause ast = AUIPCC : (bits(20), regidx)
 function clause execute AUIPCC(imm, cd) = {
   let off : xlenbits = EXTS(imm @ 0x000);
   let (representable, newCap) = setCapAddr(PCC, PC + off);
-  if representable then
-    C(cd) = newCap
-  else
-    C(cd) = invalidateCap(newCap);
+  C(cd) = clearTagIf(newCap, not(representable));
   RETIRE_SUCCESS
 }
 
@@ -503,10 +500,7 @@ function clause execute (CIncOffset(cd, cs1, rs2)) = {
     RETIRE_FAIL
   } else {
     let (success, newCap) = incCapOffset(cs1_val, rs2_val);
-    if success then
-      C(cd) = newCap
-    else
-      C(cd) = invalidateCap(newCap);
+    C(cd) = clearTagIf(newCap, not(success));
     RETIRE_SUCCESS
   }
 }
@@ -533,10 +527,7 @@ function clause execute (CIncOffsetImmediate(cd, cs1, imm)) = {
     RETIRE_FAIL
   } else {
     let (success, newCap) = incCapOffset(cs1_val, immBits);
-    if success then
-      C(cd) = newCap
-    else
-      C(cd) = invalidateCap(newCap);
+    C(cd) = clearTagIf(newCap, not(success));
     RETIRE_SUCCESS
   }
 }
@@ -563,10 +554,7 @@ function clause execute (CSetOffset(cd, cs1, rs2)) = {
     RETIRE_FAIL
   } else {
     let (success, newCap) = setCapOffset(cs1_val, rs2_val);
-    if success then
-      C(cd) = newCap
-    else
-      C(cd) = invalidateCap(newCap);
+    C(cd) = clearTagIf(newCap, not(success));
     RETIRE_SUCCESS
   }
 }
@@ -592,10 +580,7 @@ function clause execute (CSetAddr(cd, cs1, rs2)) = {
     RETIRE_FAIL
   } else {
     let (representable, newCap) = setCapAddr(cs1_val, rs2_val);
-    if representable then
-      C(cd) = newCap
-    else
-      C(cd) = invalidateCap(newCap);
+    C(cd) = clearTagIf(newCap, not(representable));
     RETIRE_SUCCESS
   }
 }
@@ -726,7 +711,7 @@ union clause ast = CClearTag : (regidx, regidx)
  */
 function clause execute (CClearTag(cd, cs1)) = {
   let cs1_val = C(cs1);
-  C(cd) = {cs1_val with tag=false};
+  C(cd) = clearTag(cs1_val);
   RETIRE_SUCCESS
 }
 
@@ -846,10 +831,7 @@ function clause execute (CFromPtr(cd, cs1, rs2)) = {
     RETIRE_FAIL
   } else {
     let (success, newCap) = setCapOffset(cs1_val, rs2_val);
-    if success then
-      C(cd) = newCap
-    else
-      C(cd) = invalidateCap(newCap);
+    C(cd) = clearTagIf(newCap, not(success));
     RETIRE_SUCCESS
   }
 }
@@ -1498,9 +1480,7 @@ function handle_load_cap_via_cap(cd, auth_idx, auth_val, vaddrBits) = {
       let c = mem_read_cap(addr, aq, aq & rl, false);
       match c {
         MemValue(v) => {
-          let cr = if ptw_info.ptw_lc == PTW_LC_CLEAR
-                   then {v with tag = false} /* strip the tag */
-                   else {v with tag = v.tag & auth_val.permit_load_cap};
+          let cr = clearTagIf(v, ptw_info.ptw_lc == PTW_LC_CLEAR | not(auth_val.permit_load_cap));
           C(cd) = cr;
           RETIRE_SUCCESS
         },
@@ -1728,11 +1708,11 @@ if not(auth_val.tag) then {
       match c {
         MemValue(v) => {
           let cr = if ptw_info.ptw_lc == PTW_LC_CLEAR
-                   then {v with tag = false} /* strip the tag */
+                   then clearTag(v) /* strip the tag */
                    else {
                      /* the Sail model currently reserves virtual addresses */
                      load_reservation(addr);
-                     {v with tag = v.tag & auth_val.permit_load_cap}
+                     clearTagIf(v, not(auth_val.permit_load_cap))
                    };
           C(cd) = cr;
           RETIRE_SUCCESS
@@ -2320,9 +2300,7 @@ function clause execute AMOSwapCap(cd, cs2, rs1_cs1, aq, rl) = {
                   let wres : MemoryOpResult(bool) = mem_write_cap(addr, cs2_val, aq & rl, rl, false);
                   match wres {
                     MemValue(_) => {
-                      let cr = if ptw_info.ptw_lc == PTW_LC_CLEAR
-                        then {v with tag = false} /* strip the tag */
-                        else {v with tag = v.tag & auth_val.permit_load_cap};
+                      let cr = clearTagIf(v, ptw_info.ptw_lc == PTW_LC_CLEAR | not(auth_val.permit_load_cap));
                       C(cd) = cr;
                       RETIRE_SUCCESS
                     },

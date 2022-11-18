@@ -466,7 +466,14 @@ function getCapCursor(cap) : Capability -> CapAddrInt = unsigned(cap.address)
 function int_to_cap (offset) : CapAddrBits -> Capability =
     {null_cap with address = offset}
 
-function invalidateCap(cap) : Capability -> Capability = {cap with tag=false}
+function clearTagIf(cap, cond) : (Capability, bool) -> Capability =
+    {cap with tag = cap.tag & not(cond)}
+
+function clearTagIfSealed(cap) : Capability -> Capability =
+    clearTagIf(cap, isCapSealed(cap))
+
+function clearTag(cap) : Capability -> Capability =
+    {cap with tag = false}
 
 function capBoundsEqual (c1, c2) : (Capability, Capability) -> bool =
     let (base1, top1) = getCapBounds(c1) in
@@ -517,9 +524,9 @@ function setCapOffset(c, offset) : (Capability, CapAddrBits) -> (bool, Capabilit
     let representable = fastRepCheck(c, (newAddress - c.address)) in
     (representable, newCap)
 
-function setCapOffsetOrNull (cap, offset) : (Capability, CapAddrBits) -> Capability =
+function setCapOffsetChecked (cap, offset) : (Capability, CapAddrBits) -> Capability =
     let (representable, newCap) = setCapOffset(cap, offset) in
-    if representable & not(isCapSealed(cap)) then newCap else invalidateCap(newCap)
+    clearTagIf(newCap, not(representable) | isCapSealed(cap))
 
 function incCapOffset(c, delta) : (Capability, CapAddrBits) -> (bool, Capability) =
     let newAddress : CapAddrBits = c.address + delta in
