@@ -443,6 +443,7 @@ union clause ast = CSub : (regidx, regidx, regidx)
 function clause execute(CSub(rd, cs1, cs2)) = {
   let cs2_val = C(cs2);
   let cs1_val = C(cs1);
+
   X(rd) = cs1_val.address - cs2_val.address;
   RETIRE_SUCCESS
 }
@@ -849,10 +850,12 @@ union clause ast = CTestSubset : (regidx, regidx, regidx)
 function clause execute (CTestSubset(rd, cs1, cs2)) = {
   let cs1_val = if unsigned(cs1) == 0 then DDC else C(cs1);
   let cs2_val = C(cs2);
+
   let (cs2_base, cs2_top) = getCapBounds(cs2_val);
   let (cs1_base, cs1_top) = getCapBounds(cs1_val);
   let cs2_perms = getCapPerms(cs2_val);
   let cs1_perms = getCapPerms(cs1_val);
+
   let result = if cs1_val.tag != cs2_val.tag then
                  0b0
                else if cs2_base < cs1_base then
@@ -863,6 +866,7 @@ function clause execute (CTestSubset(rd, cs1, cs2)) = {
                  0b0
                else
                  0b1;
+
   X(rd) = EXTZ(result);
   RETIRE_SUCCESS
 }
