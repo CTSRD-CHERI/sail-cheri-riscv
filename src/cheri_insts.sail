@@ -482,107 +482,80 @@ union clause ast = CIncOffset : (regidx, regidx, regidx)
 /*!
  * Capability register *cd* is set equal to capability register *cs1* with its
  * **address** replaced with *cs1*.**address** $+$ *rs2*.
- * If the resulting capability cannot be represented exactly, then *cd*.**tag**
- * is cleared. The remaining capability fields are set to what the in-memory
- * representation of *cs1* with the address set to *cs1*.**address** $+$ *rs2*
- * decodes to.
- *
- * ## Exceptions
- *
- * An exception is raised if:
- *   - *cs1*.**tag** is set and *cs1* is sealed.
+ * If the resulting capability cannot be represented exactly, or if *cs1* was
+ * sealed, then *cd*.**tag** is cleared. The remaining capability fields are
+ * set to what the in-memory representation of *cs1* with the address set to
+ * *cs1*.**address** $+$ *rs2* decodes to.
  */
 function clause execute (CIncOffset(cd, cs1, rs2)) = {
   let cs1_val = C(cs1);
   let rs2_val = X(rs2);
-  if cs1_val.tag & isCapSealed(cs1_val) then {
-    handle_cheri_reg_exception(CapEx_SealViolation, cs1);
-    RETIRE_FAIL
-  } else {
-    let (success, newCap) = incCapOffset(cs1_val, rs2_val);
-    C(cd) = clearTagIf(newCap, not(success));
-    RETIRE_SUCCESS
-  }
+
+  let inCap = clearTagIfSealed(cs1_val);
+  let (success, newCap) = incCapOffset(inCap, rs2_val);
+
+  C(cd) = clearTagIf(newCap, not(success));
+  RETIRE_SUCCESS
 }
 
 union clause ast = CIncOffsetImmediate : (regidx, regidx, bits(12))
 /*!
  * Capability register *cd* is set equal to capability register *cs1* with its
  * **address** replaced with *cs1*.**address** $+$ *imm*.
- * If the resulting capability cannot be represented exactly, then *cd*.**tag**
- * is cleared. The remaining capability fields are set to what the in-memory
- * representation of *cs1* with the address set to *cs1*.**address** $+$ *imm*
- * decodes to.
- *
- * ## Exceptions
- *
- * An exception is raised if:
- *   - *cs1*.**tag** is set and *cs1* is sealed.
+ * If the resulting capability cannot be represented exactly, or if *cs1* was
+ * sealed, then *cd*.**tag** is cleared. The remaining capability fields are
+ * set to what the in-memory representation of *cs1* with the address set to
+ * *cs1*.**address** $+$ *imm* decodes to.
  */
 function clause execute (CIncOffsetImmediate(cd, cs1, imm)) = {
   let cs1_val = C(cs1);
   let immBits : xlenbits = EXTS(imm);
-  if cs1_val.tag & isCapSealed(cs1_val) then {
-    handle_cheri_reg_exception(CapEx_SealViolation, cs1);
-    RETIRE_FAIL
-  } else {
-    let (success, newCap) = incCapOffset(cs1_val, immBits);
-    C(cd) = clearTagIf(newCap, not(success));
-    RETIRE_SUCCESS
-  }
+
+  let inCap = clearTagIfSealed(cs1_val);
+  let (success, newCap) = incCapOffset(inCap, immBits);
+
+  C(cd) = clearTagIf(newCap, not(success));
+  RETIRE_SUCCESS
 }
 
 union clause ast = CSetOffset : (regidx, regidx, regidx)
 /*!
  * Capability register *cd* is set equal to capability register *cs1* with its
  * **address** replaced with *cs1*.**base** $+$ *rs2*.
- * If the resulting capability cannot be represented exactly, then *cd*.**tag**
- * is cleared. The remaining capability fields are set to what the in-memory
- * representation of *cs1* with the address set to *cs1*.**base** $+$ *rs2*
- * decodes to.
- *
- * ## Exceptions
- *
- * An exception is raised if:
- *   - *cs1*.**tag** is set and *cs1* is sealed.
+ * If the resulting capability cannot be represented exactly, or if *cs1* was
+ * sealed, then *cd*.**tag** is cleared. The remaining capability fields are
+ * set to what the in-memory representation of *cs1* with the address set to
+ * *cs1*.**base** $+$ *rs2* decodes to.
  */
 function clause execute (CSetOffset(cd, cs1, rs2)) = {
   let cs1_val = C(cs1);
   let rs2_val = X(rs2);
-  if cs1_val.tag & isCapSealed(cs1_val) then {
-    handle_cheri_reg_exception(CapEx_SealViolation, cs1);
-    RETIRE_FAIL
-  } else {
-    let (success, newCap) = setCapOffset(cs1_val, rs2_val);
-    C(cd) = clearTagIf(newCap, not(success));
-    RETIRE_SUCCESS
-  }
+
+  let inCap = clearTagIfSealed(cs1_val);
+  let (success, newCap) = setCapOffset(inCap, rs2_val);
+
+  C(cd) = clearTagIf(newCap, not(success));
+  RETIRE_SUCCESS
 }
 
 union clause ast = CSetAddr : (regidx, regidx, regidx)
 /*!
  * Capability register *cd* is set equal to capability register *cs1* with its
  * **address** replaced with *rs2*.
- * If the resulting capability cannot be represented exactly, then *cd*.**tag**
- * is cleared. The remaining capability fields are set to what the in-memory
- * representation of *cs1* with the address set to *rs2* decodes to.
- *
- * ## Exceptions
- *
- * An exception is raised if:
- *   - *cs1*.**tag** is set and *cs1* is sealed.
+ * If the resulting capability cannot be represented exactly, or if *cs1* was
+ * sealed, then *cd*.**tag** is cleared. The remaining capability fields are
+ * set to what the in-memory representation of *cs1* with the address set to
+ * *rs2* decodes to.
  */
 function clause execute (CSetAddr(cd, cs1, rs2)) = {
   let cs1_val = C(cs1);
   let rs2_val = X(rs2);
-  if cs1_val.tag & isCapSealed(cs1_val) then {
-    handle_cheri_reg_exception(CapEx_SealViolation, cs1);
-    RETIRE_FAIL
-  } else {
-    let (representable, newCap) = setCapAddr(cs1_val, rs2_val);
-    C(cd) = clearTagIf(newCap, not(representable));
-    RETIRE_SUCCESS
-  }
+
+  let inCap = clearTagIfSealed(cs1_val);
+  let (representable, newCap) = setCapAddr(inCap, rs2_val);
+
+  C(cd) = clearTagIf(newCap, not(representable));
+  RETIRE_SUCCESS
 }
 
 
