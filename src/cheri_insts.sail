@@ -1310,10 +1310,6 @@ function clause execute (LoadCapCap(cd, cs1)) = {
 }
 
 union clause ast = CLoadTags : (regidx, regidx)
-/*
- * XXX: [LC] should be [LC](LoadCapImm) but that syntax does not generate
- * valspec links, it always uses the argument literally.
- */
 /*!
  * Integer register *rd* is replaced with the tags of the capabilities located
  * in memory at and above *cs1*.**address**. The 0th bit corresponds to the
@@ -1352,7 +1348,7 @@ union clause ast = CLoadTags : (regidx, regidx)
  *   return the same number of tags, which will often be based on the smallest
  *   cache line size in the system.
  *
- * - Unlike [LC], this instuction traps if tags will always be unset due to
+ * - Unlike [CLC], this instruction traps if tags will always be unset due to
  *   lacking **Permit_Load_Capability** or page table entry permissions, since
  *   that is likely indicative of a software bug that could lead to temporal
  *   safety vulnerabilities if capabilities are erroneously missed.
