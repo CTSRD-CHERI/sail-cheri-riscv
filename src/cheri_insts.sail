@@ -1388,10 +1388,11 @@ union clause ast = CLoadTags : (regidx, regidx)
  *   return the same number of tags, which will often be based on the smallest
  *   cache line size in the system.
  *
- * - Unlike [CLC], this instruction traps if tags will always be unset due to
- *   lacking **Permit_Load_Capability** or page table entry permissions, since
- *   that is likely indicative of a software bug that could lead to temporal
- *   safety vulnerabilities if capabilities are erroneously missed.
+ * - Unlike [CLC][LoadCapImm], this instruction traps if tags will always be
+ *   unset due to lacking **Permit_Load_Capability** or page table entry
+ *   permissions, since that is likely indicative of a software bug that could
+ *   lead to temporal safety vulnerabilities if capabilities are erroneously
+ *   missed.
  */
 function clause execute (CLoadTags(rd, cs1)) = {
   let cs1_val = C(cs1);
