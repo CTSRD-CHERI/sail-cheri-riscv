@@ -174,8 +174,7 @@ function get_cheri_mode_cap_addr (base_reg : regidx, offset : xlenbits) = {
     let base_cap = C(base_reg) in
     (base_cap, base_cap.address + offset, 0b0 @ base_reg)
   else
-    let ddc = DDC in
-    (ddc, ddc.address + X(base_reg) + offset, DDC_IDX);
+    (DDC, DDC.address + X(base_reg) + offset, DDC_IDX);
 }
 
 function ext_data_get_addr(base_reg : regidx, offset : xlenbits, acc : AccessType(ext_access_type), width : word_width)
