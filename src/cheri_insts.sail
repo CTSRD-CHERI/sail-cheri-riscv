@@ -684,29 +684,6 @@ function clause execute (CMove(cd, cs1)) = {
   RETIRE_SUCCESS
 }
 
-union clause ast = Clear : (bits(2), bits(8))
-/*!
- * Integer registers 8 $\times$ *q* $+$ *i* are each set to 0 if the *i*th bit
- * of *m* is set. This instruction is only present on implementations with a
- * split register file. On implementations with a merged register file the
- * functionality of this instruction is covered by [CClear].
- *
- * ## Notes
- *
- * - This instruction is designed to accelerate the register clearing that is
- *   required for secure domain transitions. It is expected that it can be
- *   implemented efficiently in hardware using a single \`valid' bit per
- *   register that is cleared by this instruction and set on any subsequent
- *   write to the register.
- */
-function clause execute (Clear(q, m)) = {
-  let q_u = unsigned(q);
-  foreach (i from 0 to 7)
-    if m[i] == bitone then
-      X(8 * q_u + i) = zeros();
-  RETIRE_SUCCESS
-}
-
 union clause ast = CClear : (bits(2), bits(8))
 /*!
  * Capability registers 8 $\times$ *q* $+$ *i* are each set to **NULL** if the
@@ -2166,7 +2143,6 @@ mapping clause encdec = CLoadTags(rd, cs1) if (haveXcheri()) <-> 0b1111111 @ 0b1
 mapping clause encdec = CRRL(rd, rs1) if (haveXcheri()) <-> 0b1111111 @ 0b01000 @ rs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CRAM(rd, rs1) if (haveXcheri()) <-> 0b1111111 @ 0b01001 @ rs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 
-mapping clause encdec = Clear(q, m3 @ m5)   if (haveXcheri() & haveSplitRegFile) <-> 0b1111111 @ 0b01101 @ q : bits(2) @ m3 : bits(3) @ 0b000 @ m5 : regidx @ 0b1011011 if (haveXcheri() & haveSplitRegFile)
 mapping clause encdec = CClear(q, m3 @ m5)  if (haveXcheri()) <-> 0b1111111 @ 0b01110 @ q : bits(2) @ m3 : bits(3) @ 0b000 @ m5 : regidx @ 0b1011011 if (haveXcheri())
 mapping clause encdec = FPClear(q, m3 @ m5) if (haveXcheri()) <-> 0b1111111 @ 0b10000 @ q : bits(2) @ m3 : bits(3) @ 0b000 @ m5 : regidx @ 0b1011011 if (haveXcheri())
 
@@ -2195,7 +2171,6 @@ mapping clause assembly = CLoadTags(rd, cs1) <-> "cloadtags" ^ spc() ^ reg_name(
 mapping clause assembly = CRRL(rd, rs1) <-> "crrl" ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1)
 mapping clause assembly = CRAM(rd, rs1) <-> "cram" ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1)
 
-mapping clause assembly = Clear(q, m8)   <-> "clear"   ^ spc() ^ hex_bits_2(q) ^ sep() ^ hex_bits_8(m8)
 mapping clause assembly = CClear(q, m8)  <-> "cclear"  ^ spc() ^ hex_bits_2(q) ^ sep() ^ hex_bits_8(m8)
 mapping clause assembly = FPClear(q, m8) <-> "fpclear" ^ spc() ^ hex_bits_2(q) ^ sep() ^ hex_bits_8(m8)
 
