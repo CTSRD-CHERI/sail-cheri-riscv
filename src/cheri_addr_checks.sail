@@ -65,7 +65,8 @@
 val handle_cheri_cap_exception : (CapEx, capreg_idx) -> unit effect {escape, rreg, wreg}
 function handle_cheri_cap_exception(capEx, regnum) =
   {
-    print("CHERI " ^ string_of_capex(capEx) ^ " Reg=" ^ BitStr(regnum));
+    if get_config_print_platform()
+    then print("CHERI " ^ string_of_capex(capEx) ^ " Reg=" ^ BitStr(regnum));
     let t : sync_exception = struct {
       trap    = E_Extension(EXC_CHERI),
       excinfo = Some(EXTZ(regnum @ CapExCode(capEx)) : xlenbits),
