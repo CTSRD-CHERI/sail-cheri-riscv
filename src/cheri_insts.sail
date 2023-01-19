@@ -2358,3 +2358,30 @@ mapping clause encdec = LOADRES(aq, rl, rs1, size, rd) if (size == BYTE) | (size
   <-> 0b00010 @ bool_bits(aq) @ bool_bits(rl) @ 0b00000 @ rs1 @ 0b0 @ size_bits(size) @ rd @ 0b0101111 if (size == BYTE) | (size == HALF)
 mapping clause encdec = STORECON(aq, rl, rs2, rs1, size, rd) if (size == BYTE) | (size == HALF)
   <-> 0b00011 @ bool_bits(aq) @ bool_bits(rl) @ rs2 @ rs1 @ 0b0 @ size_bits(size) @ rd @ 0b0101111 if (size == BYTE) | (size == HALF)
+
+/*
+ * Capability-mode specific encodings that overlap with baseline RISC-V
+ * encodings. This does not include loads/stores since they are not decoded
+ * differently, since the semantic differences are handled via hooks.
+ */
+val encdec_capmode : ast <-> bits(32) effect {rreg}
+scattered mapping encdec_capmode
+
+mapping clause encdec_capmode = AUIPCC(imm, cd) <-> imm @ cd @ 0b0010111
+mapping clause assembly = AUIPCC(imm, cd)
+  <-> "auipcc" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ hex_bits_20(imm)
+mapping clause encdec_capmode = CJALR(imm, cs1, cd) <-> imm @ cs1 @ 0b000 @ cd @ 0b1100111
+mapping clause assembly = CJALR(imm, cs1, cd)
+  <-> "cjalr" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ hex_bits_12(imm)
+/* See `mapping clause encdec = RISCV_JAL` for why we have to use this syntax */
+mapping clause encdec_capmode = CJAL(imm_19 @ imm_7_0 @ imm_8 @ imm_18_13 @ imm_12_9 @ 0b0, cd)
+  <-> imm_19 : bits(1) @ imm_18_13 : bits(6) @ imm_12_9 : bits(4) @ imm_8 : bits(1) @ imm_7_0 : bits(8) @ cd @ 0b1101111
+mapping clause assembly = CJAL(imm, cd)
+  <-> "cjal" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ hex_bits_21(imm)
+
+
+/* Wildcard match for non-capmode encodings. */
+union clause ast = CAPMODE_ILLEGAL : word
+function clause execute CAPMODE_ILLEGAL(s) = { internal_error("should be unreachable"); RETIRE_FAIL }
+mapping clause encdec_capmode = CAPMODE_ILLEGAL(s) <-> s
+end encdec_capmode

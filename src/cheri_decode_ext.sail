@@ -60,13 +60,14 @@
 /*  SUCH DAMAGE.                                                                         */
 /*=======================================================================================*/
 
+function ext_decode_compressed(bv : bits(16)) -> ast = encdec_compressed(bv)
 
-function ext_post_decode_hook(x) : ast -> ast = {
-  if (PCC.flag_cap_mode) then match(x) {
-    UTYPE(imm, cd, RISCV_AUIPC) => AUIPCC(imm, cd),
-    RISCV_JAL(imm, cd) => CJAL(imm, cd),
-    RISCV_JALR(imm, cs1, cd) => CJALR(imm, cs1, cd),
-    OTHERS => OTHERS
-  } else
-    x
+function ext_decode(bv : bits(32)) -> ast = {
+  if (PCC.flag_cap_mode) then {
+    match(encdec_capmode(bv)) {
+      /* Use the default decoding for non-capmode encodings. */
+      CAPMODE_ILLEGAL(_) => encdec(bv),
+      CAPMODE_AST => CAPMODE_AST
+    }
+  } else encdec(bv)
 }
