@@ -60,22 +60,13 @@
 /*  SUCH DAMAGE.                                                                         */
 /*=======================================================================================*/
 
-function ext_decode_compressed(bv : bits(16)) -> ast = {
-  if (PCC.flag_cap_mode) then {
-    match(encdec_compressed_capmode(bv)) {
-      /* Use the default decoding for non-capmode encodings. */
-      NOT_C_CAPMODE(_) => encdec_compressed(bv),
-      C_CAPMODE_AST => C_CAPMODE_AST
-    }
-  } else encdec_compressed(bv)
-}
+/*
+ * We add a separate capability-mode encdec clause to handle encodings that overlap
+ * with baseline RISC-V encodings.
+ */
+val encdec_capmode : ast <-> bits(32) effect {rreg}
+scattered mapping encdec_capmode
 
-function ext_decode(bv : bits(32)) -> ast = {
-  if (PCC.flag_cap_mode) then {
-    match(encdec_capmode(bv)) {
-      /* Use the default decoding for non-capmode encodings. */
-      NOT_CAPMODE(_) => encdec(bv),
-      CAPMODE_AST => CAPMODE_AST
-    }
-  } else encdec(bv)
-}
+val encdec_compressed_capmode : ast <-> bits(16) effect {rreg}
+scattered mapping encdec_compressed_capmode
+
