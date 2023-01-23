@@ -2360,13 +2360,10 @@ mapping clause encdec = STORECON(aq, rl, rs2, rs1, size, rd) if (size == BYTE) |
   <-> 0b00011 @ bool_bits(aq) @ bool_bits(rl) @ rs2 @ rs1 @ 0b0 @ size_bits(size) @ rd @ 0b0101111 if (size == BYTE) | (size == HALF)
 
 /*
- * Capability-mode specific encodings that overlap with baseline RISC-V
- * encodings. This does not include loads/stores since they are not decoded
- * differently, since the semantic differences are handled via hooks.
+ * Encoding/assembly mappings for capmode specific instructions. This does not
+ * include loads/stores since they are not decoded differently, but instead
+ * use hooks for semantic differences.
  */
-val encdec_capmode : ast <-> bits(32) effect {rreg}
-scattered mapping encdec_capmode
-
 mapping clause encdec_capmode = AUIPCC(imm, cd) <-> imm @ cd @ 0b0010111
 mapping clause assembly = AUIPCC(imm, cd)
   <-> "auipcc" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ hex_bits_20(imm)
@@ -2378,10 +2375,3 @@ mapping clause encdec_capmode = CJAL(imm_19 @ imm_7_0 @ imm_8 @ imm_18_13 @ imm_
   <-> imm_19 : bits(1) @ imm_18_13 : bits(6) @ imm_12_9 : bits(4) @ imm_8 : bits(1) @ imm_7_0 : bits(8) @ cd @ 0b1101111
 mapping clause assembly = CJAL(imm, cd)
   <-> "cjal" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ hex_bits_21(imm)
-
-
-/* Wildcard match for non-capmode encodings. */
-union clause ast = CAPMODE_ILLEGAL : word
-function clause execute CAPMODE_ILLEGAL(s) = { internal_error("should be unreachable"); RETIRE_FAIL }
-mapping clause encdec_capmode = CAPMODE_ILLEGAL(s) <-> s
-end encdec_capmode
