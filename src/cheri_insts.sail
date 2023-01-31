@@ -98,7 +98,7 @@ function clause execute(CJAL(imm, cd)) = {
   } else {
     let (success, linkCap) = setCapAddr(PCC, nextPC); /* Note that nextPC accounts for compressed instructions */
     assert(success, "Link cap should always be representable.");
-    assert(not (isCapSealed(linkCap)), "Link cap should always be unsealed");
+    assert(not(isCapSealed(linkCap)), "Link cap should always be unsealed");
     C(cd) = sealCap(linkCap, to_bits(cap_otype_width, otype_sentry));
     nextPC = newPC;
     RETIRE_SUCCESS
@@ -129,14 +129,14 @@ function clause execute(CJALR(imm, cs1, cd)) = {
   let off : xlenbits = EXTS(imm);
   let newPC = [cs1_val.address + off with 0 = bitzero]; /* clear bit zero as for RISCV JALR */
   let newPCCBase = getCapBaseBits(cs1_val);
-  if not (cs1_val.tag) then {
+  if not(cs1_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cs1);
     RETIRE_FAIL
   } else if isCapSealed(cs1_val) &
             ((signed(cs1_val.otype) != otype_sentry) | imm != zeros()) then {
     handle_cheri_reg_exception(CapEx_SealViolation, cs1);
     RETIRE_FAIL
-  } else if not (cs1_val.permit_execute) then {
+  } else if not(cs1_val.permit_execute) then {
     handle_cheri_reg_exception(CapEx_PermitExecuteViolation, cs1);
     RETIRE_FAIL
   } else if not(inCapBounds(cs1_val, newPC, min_instruction_bytes())) then {
@@ -151,7 +151,7 @@ function clause execute(CJALR(imm, cs1, cd)) = {
   } else {
     let (success, linkCap) = setCapAddr(PCC, nextPC); /* Note that nextPC accounts for compressed instructions */
     assert(success, "Link cap should always be representable.");
-    assert(not (isCapSealed(linkCap)), "Link cap should always be unsealed");
+    assert(not(isCapSealed(linkCap)), "Link cap should always be unsealed");
     C(cd) = sealCap(linkCap, to_bits(cap_otype_width, otype_sentry));
     nextPC = newPC;
     nextPCC = unsealCap(cs1_val);
@@ -486,7 +486,7 @@ function clause execute(CToPtr(rd, cs1, cs2)) = {
   let cs1_val = C(cs1);
 
   /* Note: returning zero for untagged values breaks magic constants such as SIG_IGN */
-  X(rd) = if not (cs1_val.tag) then
+  X(rd) = if not(cs1_val.tag) then
             zeros()
           else
             cs1_val.address - getCapBaseBits(cs2_val);
@@ -1087,10 +1087,10 @@ function clause execute (CInvoke(cs1, cs2)) = {
   let cs2_val = C(cs2);
   let newPC = [cs1_val.address with 0 = bitzero]; /* clear bit zero as for RISCV JALR */
   let newPCCBase = getCapBaseBits(cs1_val);
-  if not (cs1_val.tag) then {
+  if not(cs1_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cs1);
     RETIRE_FAIL
-  } else if not (cs2_val.tag) then {
+  } else if not(cs2_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cs2);
     RETIRE_FAIL
   } else if hasReservedOType(cs1_val) then {
@@ -1102,13 +1102,13 @@ function clause execute (CInvoke(cs1, cs2)) = {
   } else if cs1_val.otype != cs2_val.otype then {
     handle_cheri_reg_exception(CapEx_TypeViolation, cs1);
     RETIRE_FAIL
-  } else if not (cs1_val.permit_cinvoke) then {
+  } else if not(cs1_val.permit_cinvoke) then {
     handle_cheri_reg_exception(CapEx_PermitCInvokeViolation, cs1);
     RETIRE_FAIL
-  } else if not (cs2_val.permit_cinvoke) then {
+  } else if not(cs2_val.permit_cinvoke) then {
     handle_cheri_reg_exception(CapEx_PermitCInvokeViolation, cs2);
     RETIRE_FAIL
-  } else if not (cs1_val.permit_execute) then {
+  } else if not(cs1_val.permit_execute) then {
     handle_cheri_reg_exception(CapEx_PermitExecuteViolation, cs1);
     RETIRE_FAIL
   } else if cs2_val.permit_execute then {
@@ -1181,7 +1181,7 @@ function handle_load_data_via_cap(rd, auth_idx, auth_val, vaddrBits, is_unsigned
   } else if isCapSealed(auth_val) then {
     handle_cheri_cap_exception(CapEx_SealViolation, auth_idx);
     RETIRE_FAIL
-  } else if not (auth_val.permit_load) then {
+  } else if not(auth_val.permit_load) then {
     handle_cheri_cap_exception(CapEx_PermitLoadViolation, auth_idx);
     RETIRE_FAIL
   } else if not(inCapBounds(auth_val, vaddrBits, size)) then {
@@ -1254,7 +1254,7 @@ function handle_load_cap_via_cap(cd, auth_idx, auth_val, vaddrBits) = {
   } else if isCapSealed(auth_val) then {
     handle_cheri_cap_exception(CapEx_SealViolation, auth_idx);
     RETIRE_FAIL
-  } else if not (auth_val.permit_load) then {
+  } else if not(auth_val.permit_load) then {
     handle_cheri_cap_exception(CapEx_PermitLoadViolation, auth_idx);
     RETIRE_FAIL
   } else if not(inCapBounds(auth_val, vaddrBits, cap_size)) then {
@@ -1376,22 +1376,22 @@ function clause execute (CLoadTags(rd, cs1)) = {
   let vaddr = cs1_val.address;
   let aq : bool = false;
   let rl : bool = false;
-  if not (cs1_val.tag) then {
+  if not(cs1_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cs1);
     RETIRE_FAIL
   } else if isCapSealed(cs1_val) then {
     handle_cheri_reg_exception(CapEx_SealViolation, cs1);
     RETIRE_FAIL
-  } else if not (cs1_val.permit_load) then {
+  } else if not(cs1_val.permit_load) then {
     handle_cheri_reg_exception(CapEx_PermitLoadViolation, cs1);
     RETIRE_FAIL
-  } else if not (cs1_val.permit_load_cap) then {
+  } else if not(cs1_val.permit_load_cap) then {
     handle_cheri_reg_exception(CapEx_PermitLoadCapViolation, cs1);
     RETIRE_FAIL
-  } else if not (inCapBounds(cs1_val, vaddr, caps_per_cache_line * cap_size)) then {
+  } else if not(inCapBounds(cs1_val, vaddr, caps_per_cache_line * cap_size)) then {
     handle_cheri_reg_exception(CapEx_LengthViolation, cs1);
     RETIRE_FAIL
-  } else if not (unsigned(vaddr) % (caps_per_cache_line * cap_size) == 0) then {
+  } else if not(unsigned(vaddr) % (caps_per_cache_line * cap_size) == 0) then {
     handle_mem_exception(vaddr, E_Load_Addr_Align());
     RETIRE_FAIL
   } else match translateAddr(vaddr, Read(Cap)) {
@@ -1447,7 +1447,7 @@ function handle_loadres_data_via_cap(rd, auth_idx, auth_val, vaddrBits, width) =
   } else if isCapSealed(auth_val) then {
     handle_cheri_cap_exception(CapEx_SealViolation, auth_idx);
     RETIRE_FAIL
-  } else if not (auth_val.permit_load) then {
+  } else if not(auth_val.permit_load) then {
     handle_cheri_cap_exception(CapEx_PermitLoadViolation, auth_idx);
     RETIRE_FAIL
   } else if not(inCapBounds(auth_val, vaddrBits, size)) then {
@@ -1478,7 +1478,7 @@ if not(auth_val.tag) then {
   } else if isCapSealed(auth_val) then {
     handle_cheri_cap_exception(CapEx_SealViolation, auth_idx);
     RETIRE_FAIL
-  } else if not (auth_val.permit_load) then {
+  } else if not(auth_val.permit_load) then {
     handle_cheri_cap_exception(CapEx_PermitLoadViolation, auth_idx);
     RETIRE_FAIL
   } else if not(inCapBounds(auth_val, vaddrBits, cap_size)) then {
@@ -1585,7 +1585,7 @@ function handle_store_data_via_cap(rs2, auth_idx, auth_val, vaddrBits, width) = 
   } else if isCapSealed(auth_val) then {
     handle_cheri_cap_exception(CapEx_SealViolation, auth_idx);
     RETIRE_FAIL
-  } else if not (auth_val.permit_store) then {
+  } else if not(auth_val.permit_store) then {
     handle_cheri_cap_exception(CapEx_PermitStoreViolation, auth_idx);
     RETIRE_FAIL
   } else if not(inCapBounds(auth_val, vaddrBits, size)) then {
@@ -1671,13 +1671,13 @@ function handle_store_cap_via_cap(cs2, auth_idx, auth_val, vaddrBits) = {
   } else if isCapSealed(auth_val) then {
     handle_cheri_cap_exception(CapEx_SealViolation, auth_idx);
     RETIRE_FAIL
-  } else if not (auth_val.permit_store) then {
+  } else if not(auth_val.permit_store) then {
     handle_cheri_cap_exception(CapEx_PermitStoreViolation, auth_idx);
     RETIRE_FAIL
-  } else if not (auth_val.permit_store_cap) & cs2_val.tag then {
+  } else if not(auth_val.permit_store_cap) & cs2_val.tag then {
     handle_cheri_cap_exception(CapEx_PermitStoreCapViolation, auth_idx);
     RETIRE_FAIL
-  } else if not (auth_val.permit_store_local_cap) & cs2_val.tag & not(cs2_val.global) then {
+  } else if not(auth_val.permit_store_local_cap) & cs2_val.tag & not(cs2_val.global) then {
     handle_cheri_cap_exception(CapEx_PermitStoreLocalCapViolation, auth_idx);
     RETIRE_FAIL
   } else if not(inCapBounds(auth_val, vaddrBits, cap_size)) then {
@@ -1839,7 +1839,7 @@ function handle_store_cond_data_via_cap(rs2, auth_idx, auth_val, vaddrBits, widt
   } else if isCapSealed(auth_val) then {
     handle_cheri_cap_exception(CapEx_SealViolation, auth_idx);
     RETIRE_FAIL
-  } else if not (auth_val.permit_store) then {
+  } else if not(auth_val.permit_store) then {
     handle_cheri_cap_exception(CapEx_PermitStoreViolation, auth_idx);
     RETIRE_FAIL
   } else if not(inCapBounds(auth_val, vaddrBits, size)) then {
@@ -1903,13 +1903,13 @@ function handle_store_cond_cap_via_cap(rd, cs2, auth_idx, auth_val, vaddrBits, a
   } else if isCapSealed(auth_val) then {
     handle_cheri_cap_exception(CapEx_SealViolation, auth_idx);
     RETIRE_FAIL
-  } else if not (auth_val.permit_store) then {
+  } else if not(auth_val.permit_store) then {
     handle_cheri_cap_exception(CapEx_PermitStoreViolation, auth_idx);
     RETIRE_FAIL
-  } else if not (auth_val.permit_store_cap) & cs2_val.tag then {
+  } else if not(auth_val.permit_store_cap) & cs2_val.tag then {
     handle_cheri_cap_exception(CapEx_PermitStoreCapViolation, auth_idx);
     RETIRE_FAIL
-  } else if not (auth_val.permit_store_local_cap) & cs2_val.tag & not(cs2_val.global) then {
+  } else if not(auth_val.permit_store_local_cap) & cs2_val.tag & not(cs2_val.global) then {
     handle_cheri_cap_exception(CapEx_PermitStoreLocalCapViolation, auth_idx);
     RETIRE_FAIL
   } else if not(inCapBounds(auth_val, vaddrBits, cap_size)) then {
@@ -2055,16 +2055,16 @@ function clause execute AMOSwapCap(cd, cs2, rs1_cs1, aq, rl) = {
     } else if isCapSealed(auth_val) then {
       handle_cheri_cap_exception(CapEx_SealViolation, auth_idx);
       RETIRE_FAIL
-    } else if not (auth_val.permit_load) then {
+    } else if not(auth_val.permit_load) then {
       handle_cheri_cap_exception(CapEx_PermitLoadViolation, auth_idx);
       RETIRE_FAIL
-    } else if not (auth_val.permit_store) then {
+    } else if not(auth_val.permit_store) then {
       handle_cheri_cap_exception(CapEx_PermitStoreViolation, auth_idx);
       RETIRE_FAIL
-    } else if not (auth_val.permit_store_cap) & cs2_val.tag then {
+    } else if not(auth_val.permit_store_cap) & cs2_val.tag then {
       handle_cheri_cap_exception(CapEx_PermitStoreCapViolation, auth_idx);
       RETIRE_FAIL
-    } else if not (auth_val.permit_store_local_cap) & cs2_val.tag & not(cs2_val.global) then {
+    } else if not(auth_val.permit_store_local_cap) & cs2_val.tag & not(cs2_val.global) then {
       handle_cheri_cap_exception(CapEx_PermitStoreLocalCapViolation, auth_idx);
       RETIRE_FAIL
     } else if not(inCapBounds(auth_val, vaddr, cap_size)) then {
