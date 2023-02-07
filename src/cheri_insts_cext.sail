@@ -103,3 +103,26 @@ mapping clause assembly = C_CLCSP(cd, uimm)
  */
 function clause execute(C_CLCSP(cd, uimm)) =
   execute(LoadCapImm(cd, sp, EXTZ(uimm)))
+
+union clause ast = C_CSC : (cregidx, cregidx, bits(9))
+
+mapping clause encdec_compressed_capmode = C_CSC(csc2, csc1, ui8 @ ui76 @ ui54 @ 0b0000) if sizeof(xlen) == 64
+  <-> 0b101 @ ui54 : bits(2) @ ui8 : bits(1) @ csc1 : bits(3) @ ui76 : bits(2) @ csc2 : bits(3) @ 0b00 if sizeof(xlen) == 64
+mapping clause encdec_compressed_capmode = C_CSC(csc2, csc1, 0b0 @ ui76 @ ui53 @ 0b000) if sizeof(xlen) == 32
+  <-> 0b111 @ ui53 : bits(3) @ csc1 : bits(3) @ ui76 : bits(2) @ csc2 : bits(3) @ 0b00 if sizeof(xlen) == 32
+mapping clause assembly = C_CSC(csc2, csc1, uimm)
+  <-> "c.csc" ^ spc() ^ cap_creg_name(csc2) ^ sep() ^ cap_creg_name(csc1) ^ sep() ^ hex_bits_9(uimm)
+
+/*!
+ * Compressed 16-bit encoding for [CSC][StoreCapImm].
+ *
+ * ## Notes
+ *
+ * - This instruction is only available in capability encoding mode.
+ * - For RV32 this replaces the encoding of [C.FSW], RV64 uses [C.FSD].
+ */
+function clause execute(C_CSC(csc2, csc1, uimm)) = {
+  let cs2 = creg2reg_idx(csc2) in
+  let cs1 = creg2reg_idx(csc1) in
+  execute(StoreCapImm(cs2, cs1, EXTZ(uimm)))
+}
