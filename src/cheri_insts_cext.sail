@@ -146,3 +146,25 @@ mapping clause assembly = C_CSCSP(cs2, uimm)
  */
 function clause execute(C_CSCSP(cs2, uimm)) =
   execute(StoreCapImm(cs2, sp, EXTZ(uimm)))
+
+/* Capability arithmetic instructions */
+union clause ast = C_CIncOffset16CSP : (bits(10))
+
+mapping clause encdec_compressed_capmode = C_CIncOffset16CSP(nzi9 @ nzi87 @ nzi6 @ nzi5 @ nzi4 @ 0b0000)
+      if nzi9 @ nzi87 @ nzi6 @ nzi5 @ nzi4 != 0b000000
+  <-> 0b011 @ nzi9 : bits(1) @ /* x2 */ 0b00010 @ nzi4 : bits(1) @ nzi6 : bits(1) @ nzi87 : bits(2) @ nzi5 : bits(1) @ 0b01
+      if nzi9 @ nzi87 @ nzi6 @ nzi5 @ nzi4 != 0b000000
+mapping clause assembly = C_CIncOffset16CSP(nzimm) if nzimm != 0b0000000000
+  <-> "c.cincoffset16csp" ^ spc() ^ hex_bits_10(nzimm) if nzimm != 0b0000000000
+
+/*!
+ * Compressed 16-bit encoding for [CIncOffsetImmediate] with source and
+ * destination registers set to `csp` and an immediate scaled by 16.
+ *
+ * ## Notes
+ *
+ * - This instruction is only available in capability encoding mode.
+ * - This instruction replaces the encoding of [C.ADDI16SP].
+ */
+function clause execute(C_CIncOffset16CSP(nzimm)) =
+  execute(CIncOffsetImmediate(sp, sp, EXTS(nzimm)))
