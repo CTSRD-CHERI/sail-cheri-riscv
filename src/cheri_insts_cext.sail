@@ -228,3 +228,23 @@ mapping clause assembly = C_CJR(cs1) if cs1 != zreg
  * - This instruction replaces the encoding of [C.JR].
  */
 function clause execute(C_CJR(cs1)) = execute(CJALR(zeros(), cs1, zreg))
+
+union clause ast = C_CJAL : (bits(12))
+
+mapping clause encdec_compressed_capmode = C_CJAL(i11 @ i10 @ i98 @ i7 @ i6 @ i5 @ i4 @ i31 @ 0b0) if sizeof(xlen) == 32
+  <-> 0b001 @ i11 : bits(1) @ i4 : bits(1) @ i98 : bits(2) @ i10 : bits(1) @ i6 : bits(1) @ i7 : bits(1) @ i31 : bits(3) @ i5 : bits(1) @ 0b01
+      if sizeof(xlen) == 32
+mapping clause assembly = C_CJAL(imm) if sizeof(xlen) == 32
+  <-> "c.cjal" ^ spc() ^ hex_bits_12(imm) if sizeof(xlen) == 32
+
+/*!
+ * Compressed 16-bit encoding for [CJAL] with the destination register set
+ * to `cra`.
+ *
+ * ## Notes
+ *
+ * - This instruction is only available in capability encoding mode.
+ * - This instruction is only available in RV32.
+ * - This instruction replaces the encoding of [C.JAL].
+ */
+function clause execute(C_CJAL(imm)) = execute(CJAL(EXTS(imm), ra))
