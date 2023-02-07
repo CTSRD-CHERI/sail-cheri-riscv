@@ -83,3 +83,23 @@ function clause execute(C_CLC(cdc, csc1, uimm)) = {
   let cs1 = creg2reg_idx(csc1) in
   execute(LoadCapImm(cd, cs1, EXTZ(uimm)))
 }
+
+union clause ast = C_CLCSP : (regidx, bits(10))
+
+mapping clause encdec_compressed_capmode = C_CLCSP(cd, ui96 @ ui5 @ ui4 @ 0b0000) if sizeof(xlen) == 64 & cd != zeros()
+  <-> 0b001 @ ui5 : bits(1) @ cd : regidx @ ui4 : bits(1) @ ui96 : bits(4) @ 0b10 if sizeof(xlen) == 64 & cd != zeros()
+mapping clause encdec_compressed_capmode = C_CLCSP(cd, 0b0 @ ui86 @ ui5 @ ui43 @ 0b000) if sizeof(xlen) == 32 & cd != zeros()
+  <-> 0b011 @ ui5 : bits(1) @ cd : regidx @ ui43 : bits(2) @ ui86 : bits(3) @ 0b10 if sizeof(xlen) == 32 & cd != zeros()
+mapping clause assembly = C_CLCSP(cd, uimm)
+  <-> "c.clcsp" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ hex_bits_10(uimm)
+
+/*!
+ * Compressed 16-bit encoding for a stack-pointer-relative [CLC][LoadCapImm].
+ *
+ * ## Notes
+ *
+ * - This instruction is only available in capability encoding mode.
+ * - For RV32 this replaces the encoding of [C.FLWSP], RV64 uses [C.FLDSP].
+ */
+function clause execute(C_CLCSP(cd, uimm)) =
+  execute(LoadCapImm(cd, sp, EXTZ(uimm)))
