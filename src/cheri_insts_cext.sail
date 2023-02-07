@@ -210,3 +210,21 @@ mapping clause assembly = C_CJALR(cs1) if cs1 != zreg
  * - This instruction replaces the encoding of [C.JALR].
  */
 function clause execute(C_CJALR(cs1)) = execute(CJALR(zeros(), cs1, ra))
+
+union clause ast = C_CJR : (regidx)
+
+mapping clause encdec_compressed_capmode = C_CJR(cs1) if cs1 != zreg
+  <-> 0b100 @ 0b0 @ cs1 : regidx @ 0b00000 @ 0b10 if cs1 != zreg
+mapping clause assembly = C_CJR(cs1) if cs1 != zreg
+  <-> "c.cjr" ^ spc() ^ reg_name(cs1) if cs1 != zreg
+
+/*!
+ * Compressed 16-bit encoding for [CJALR] with the source register set to
+ * `cnull` and destination register set to `cra`.
+ *
+ * ## Notes
+ *
+ * - This instruction is only available in capability encoding mode.
+ * - This instruction replaces the encoding of [C.JR].
+ */
+function clause execute(C_CJR(cs1)) = execute(CJALR(zeros(), cs1, zreg))
