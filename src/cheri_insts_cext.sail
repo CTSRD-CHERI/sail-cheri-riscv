@@ -191,3 +191,22 @@ function clause execute(C_CIncOffset4CSPN(cdc, nzuimm)) = {
   let cd = creg2reg_idx(cdc) in
   execute(CIncOffsetImmediate(cd, sp, EXTZ(nzuimm)))
 }
+
+/* Control flow */
+union clause ast = C_CJALR : (regidx)
+
+mapping clause encdec_compressed_capmode = C_CJALR(cs1) if cs1 != zreg
+  <-> 0b100 @ 0b1 @ cs1 : regidx @ 0b00000 @ 0b10 if cs1 != zreg
+mapping clause assembly = C_CJALR(cs1) if cs1 != zreg
+  <-> "c.cjalr" ^ spc() ^ reg_name(cs1) if cs1 != zreg
+
+/*!
+ * Compressed 16-bit encoding for [CJALR] with the destination register set
+ * to `cra`.
+ *
+ * ## Notes
+ *
+ * - This instruction is only available in capability encoding mode.
+ * - This instruction replaces the encoding of [C.JALR].
+ */
+function clause execute(C_CJALR(cs1)) = execute(CJALR(zeros(), cs1, ra))
