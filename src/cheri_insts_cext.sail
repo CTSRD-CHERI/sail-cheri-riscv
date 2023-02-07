@@ -168,3 +168,26 @@ mapping clause assembly = C_CIncOffset16CSP(nzimm) if nzimm != 0b0000000000
  */
 function clause execute(C_CIncOffset16CSP(nzimm)) =
   execute(CIncOffsetImmediate(sp, sp, EXTS(nzimm)))
+
+union clause ast = C_CIncOffset4CSPN : (cregidx, bits(10))
+
+mapping clause encdec_compressed_capmode = C_CIncOffset4CSPN(cdc, nz96 @ nz54 @ nz3 @ nz2 @ 0b00)
+      if nz96 @ nz54 @ nz3 @ nz2 != 0b00000000
+  <-> 0b000 @ nz54 : bits(2) @ nz96 : bits(4) @ nz2 : bits(1) @ nz3 : bits(1) @ cdc : cregidx @ 0b00
+      if nz96 @ nz54 @ nz3 @ nz2 != 0b00000000
+mapping clause assembly = C_CIncOffset4CSPN(cdc, nzuimm) if nzuimm != 0b0000000000
+  <-> "c.cincoffset4cspn" ^ spc() ^ cap_creg_name(cdc) ^ sep() ^ hex_bits_10(nzuimm) if nzuimm != 0b0000000000
+
+/*!
+ * Compressed 16-bit encoding for [CIncOffsetImmediate] with the source register
+ * set to `csp` and an immediate scaled by 4.
+ *
+ * ## Notes
+ *
+ * - This instruction is only available in capability encoding mode.
+ * - This instruction replaces the encoding of [C.ADDI4SPN].
+ */
+function clause execute(C_CIncOffset4CSPN(cdc, nzuimm)) = {
+  let cd = creg2reg_idx(cdc) in
+  execute(CIncOffsetImmediate(cd, sp, EXTZ(nzuimm)))
+}
