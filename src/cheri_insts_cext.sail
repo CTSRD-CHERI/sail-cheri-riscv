@@ -126,3 +126,23 @@ function clause execute(C_CSC(csc2, csc1, uimm)) = {
   let cs1 = creg2reg_idx(csc1) in
   execute(StoreCapImm(cs2, cs1, EXTZ(uimm)))
 }
+
+union clause ast = C_CSCSP : (regidx, bits(10))
+
+mapping clause encdec_compressed_capmode = C_CSCSP(cs2, ui96 @ ui54 @ 0b0000) if sizeof(xlen) == 64
+  <-> 0b101 @ ui54 : bits(2) @ ui96 : bits(4) @ cs2 : regidx @ 0b10 if sizeof(xlen) == 64
+mapping clause encdec_compressed_capmode = C_CSCSP(cs2, 0b0 @ ui86 @ ui53 @ 0b000) if sizeof(xlen) == 32
+  <-> 0b111 @ ui53 : bits(3) @ ui86 : bits(3) @ cs2 : regidx @ 0b10 if sizeof(xlen) == 32
+mapping clause assembly = C_CSCSP(cs2, uimm)
+  <-> "c.cscsp" ^ spc() ^ cap_reg_name(cs2) ^ sep() ^ hex_bits_10(uimm)
+
+/*!
+ * Compressed 16-bit encoding for a stack-pointer-relative [CSC][StoreCapImm].
+ *
+ * ## Notes
+ *
+ * - This instruction is only available in capability encoding mode.
+ * - For RV32 this replaces the encoding of [C.FSWSP], RV64 uses [C.FSDSP].
+ */
+function clause execute(C_CSCSP(cs2, uimm)) =
+  execute(StoreCapImm(cs2, sp, EXTZ(uimm)))
