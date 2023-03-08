@@ -102,7 +102,7 @@ function translationException(a : AccessType(ext_access_type), f : PTW_Error) ->
     (ReadWrite(_, Cap), PTW_Ext_Error(AT_CAP_ERR)) => E_Extension(EXC_SAMO_CAP_PAGE_FAULT),
 
     /* No other operations should raise CHERI-specific page faults */
-    (_, PTW_Ext_Error(_))                          => internal_error("Unexpected PTW Extension Error"),
+    (_, PTW_Ext_Error(_))                          => internal_error(__FILE__, __LINE__, "Unexpected PTW Extension Error"),
 
     /* For other exceptions, Cap and Data accesses fault in the same way. */
     (ReadWrite(_, _), PTW_Access())                => E_SAMO_Access_Fault(),

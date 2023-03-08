@@ -1191,7 +1191,7 @@ function handle_load_data_via_cap(rd, auth_idx, auth_val, vaddrBits, is_unsigned
     handle_mem_exception(vaddrBits, E_Load_Addr_Align());
     RETIRE_FAIL
   } else match translateAddr(vaddrBits, Read(Data)) {
-    TR_Failure(E_Extension(_), _) => { internal_error("unexpected cheri exception for data load") },
+    TR_Failure(E_Extension(_), _) => { internal_error(__FILE__, __LINE__, "unexpected cheri exception for data load") },
     TR_Failure(e, _) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
     TR_Address(addr, _) =>
       match (width, sizeof(xlen)) {
@@ -1264,7 +1264,7 @@ function handle_load_cap_via_cap(cd, auth_idx, auth_val, vaddrBits) = {
     handle_mem_exception(vaddrBits, E_Load_Addr_Align());
     RETIRE_FAIL
   } else match translateAddr(vaddrBits, Read(Cap)) {
-    TR_Failure(E_Extension(_), _) => { internal_error("unexpected cheri exception for cap load") },
+    TR_Failure(E_Extension(_), _) => { internal_error(__FILE__, __LINE__, "unexpected cheri exception for cap load") },
     TR_Failure(e, _) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
     TR_Address(addr, ptw_info) => {
       let c = mem_read_cap(addr, aq, aq & rl, false);
@@ -1395,7 +1395,7 @@ function clause execute (CLoadTags(rd, cs1)) = {
     handle_mem_exception(vaddr, E_Load_Addr_Align());
     RETIRE_FAIL
   } else match translateAddr(vaddr, Read(Cap)) {
-    TR_Failure(E_Extension(_), _) => { internal_error("unexpected cheri exception for tags load") },
+    TR_Failure(E_Extension(_), _) => { internal_error(__FILE__, __LINE__, "unexpected cheri exception for tags load") },
     TR_Failure(e, _) => { handle_mem_exception(vaddr, e); RETIRE_FAIL },
     TR_Address(addr, ptw_info) => {
       if ptw_info.ptw_lc != PTW_LC_OK then {
@@ -1457,7 +1457,7 @@ function handle_loadres_data_via_cap(rd, auth_idx, auth_val, vaddrBits, width) =
     handle_mem_exception(vaddrBits, E_Load_Addr_Align());
     RETIRE_FAIL
   } else match translateAddr(vaddrBits, Read(Data)) {
-    TR_Failure(E_Extension(_), _) => { internal_error("unexpected cheri exception for data load") },
+    TR_Failure(E_Extension(_), _) => { internal_error(__FILE__, __LINE__, "unexpected cheri exception for data load") },
     TR_Failure(e, _) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
     TR_Address(addr, _) =>
       match (width, sizeof(xlen)) {
@@ -1488,7 +1488,7 @@ if not(auth_val.tag) then {
     handle_mem_exception(vaddrBits, E_Load_Addr_Align());
     RETIRE_FAIL
   } else match translateAddr(vaddrBits, Read(Cap)) {
-    TR_Failure(E_Extension(_), _) => { internal_error("unexpected cheri exception for cap load") },
+    TR_Failure(E_Extension(_), _) => { internal_error(__FILE__, __LINE__, "unexpected cheri exception for cap load") },
     TR_Failure(e, _) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
     TR_Address(addr, ptw_info) => {
       let c = mem_read_cap(addr, aq, aq & rl, false);
@@ -1595,7 +1595,7 @@ function handle_store_data_via_cap(rs2, auth_idx, auth_val, vaddrBits, width) = 
     handle_mem_exception(vaddrBits, E_SAMO_Addr_Align());
     RETIRE_FAIL
   } else match translateAddr(vaddrBits, Write(Data)) {
-    TR_Failure(E_Extension(_), _) => { internal_error("unexpected cheri exception for data store") },
+    TR_Failure(E_Extension(_), _) => { internal_error(__FILE__, __LINE__, "unexpected cheri exception for data store") },
     TR_Failure(e, _) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
     TR_Address(addr, _) => {
       let eares : MemoryOpResult(unit) = mem_write_ea(addr, size, aq & rl, rl, false);
@@ -1611,7 +1611,7 @@ function handle_store_data_via_cap(rs2, auth_idx, auth_val, vaddrBits, width) = 
           };
           match (res) {
             MemValue(true)  => RETIRE_SUCCESS,
-            MemValue(false) => internal_error("store got false from mem_write_value"),
+            MemValue(false) => internal_error(__FILE__, __LINE__, "store got false from mem_write_value"),
             MemException(e) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL }
           }
         }
@@ -1696,7 +1696,7 @@ function handle_store_cap_via_cap(cs2, auth_idx, auth_val, vaddrBits) = {
           let res : MemoryOpResult(bool) = mem_write_cap(addr, cs2_val, aq & rl, rl, false);
           match (res) {
             MemValue(true)  => RETIRE_SUCCESS,
-            MemValue(false) => internal_error("store got false from mem_write_value"),
+            MemValue(false) => internal_error(__FILE__, __LINE__, "store got false from mem_write_value"),
             MemException(e) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL }
           }
         }
@@ -1854,7 +1854,7 @@ function handle_store_cond_data_via_cap(rs2, auth_idx, auth_val, vaddrBits, widt
     RETIRE_SUCCESS
   } else {
     match translateAddr(vaddrBits, Write(Data)) {
-      TR_Failure(E_Extension(_), _) => { internal_error("unexpected cheri exception for data store") },
+      TR_Failure(E_Extension(_), _) => { internal_error(__FILE__, __LINE__, "unexpected cheri exception for data store") },
       TR_Failure(e, _) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
       TR_Address(addr, _) => {
         let eares : MemoryOpResult(unit) = mem_write_ea(addr, size, aq & rl, rl, false);

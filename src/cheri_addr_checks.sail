@@ -187,10 +187,10 @@ function ext_data_get_addr(base_reg : regidx, offset : xlenbits, acc : AccessTyp
     Read(Data)            => (auth_val.permit_load, true                 ),
     Write(Data)           => (true                , auth_val.permit_store),
     ReadWrite(Data, Data) => (auth_val.permit_load, auth_val.permit_store),
-    Execute()             => internal_error("ext_data_get_addr for Execute"),
-    Read(_)               => internal_error("ext_data_get_addr for Read(_)"),
-    Write(_)              => internal_error("ext_data_get_addr for Write(_)"),
-    ReadWrite(_, _)       => internal_error("ext_data_get_addr for ReadWrite(_, _)")
+    Execute()             => internal_error(__FILE__, __LINE__, "ext_data_get_addr for Execute"),
+    Read(_)               => internal_error(__FILE__, __LINE__, "ext_data_get_addr for Read(_)"),
+    Write(_)              => internal_error(__FILE__, __LINE__, "ext_data_get_addr for Write(_)"),
+    ReadWrite(_, _)       => internal_error(__FILE__, __LINE__, "ext_data_get_addr for ReadWrite(_, _)")
   };
 
   if not(auth_val.tag) then

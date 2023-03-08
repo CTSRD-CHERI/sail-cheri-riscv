@@ -136,7 +136,7 @@ function checkPTEPermission(ac : AccessType(ext_access_type), priv : Privilege, 
     (ReadWrite(_), Supervisor) => (p.U() == 0b0 | do_sum) & p.W() == 0b1 & (p.R() == 0b1 | (p.X() == 0b1 & mxr)),
     (Execute(),    Supervisor) => p.U() == 0b0 & p.X() == 0b1,
 
-    (_,            Machine)    => internal_error("m-mode mem perm check")
+    (_,            Machine)    => internal_error(__FILE__, __LINE__, "m-mode mem perm check")
   };
 
   let e = Mk_Ext_PTE_Bits(ext);
