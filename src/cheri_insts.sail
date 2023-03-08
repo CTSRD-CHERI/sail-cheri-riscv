@@ -1194,11 +1194,13 @@ function handle_load_data_via_cap(rd, auth_idx, auth_val, vaddrBits, is_unsigned
     TR_Failure(E_Extension(_), _) => { internal_error(__FILE__, __LINE__, "unexpected cheri exception for data load") },
     TR_Failure(e, _) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
     TR_Address(addr, _) =>
-      match (width, sizeof(xlen)) {
-        (BYTE, _)    => process_load(rd, vaddrBits, mem_read(Read(Data), addr, 1, aq, aq & rl, false), is_unsigned),
-        (HALF, _)    => process_load(rd, vaddrBits, mem_read(Read(Data), addr, 2, aq, aq & rl, false), is_unsigned),
-        (WORD, _)    => process_load(rd, vaddrBits, mem_read(Read(Data), addr, 4, aq, aq & rl, false), is_unsigned),
-        (DOUBLE, 64) => process_load(rd, vaddrBits, mem_read(Read(Data), addr, 8, aq, aq & rl, false), is_unsigned)
+      match (width) {
+        BYTE => process_load(rd, vaddrBits, mem_read(Read(Data), addr, 1, aq, aq & rl, false), is_unsigned),
+        HALF => process_load(rd, vaddrBits, mem_read(Read(Data), addr, 2, aq, aq & rl, false), is_unsigned),
+        WORD => process_load(rd, vaddrBits, mem_read(Read(Data), addr, 4, aq, aq & rl, false), is_unsigned),
+        DOUBLE if sizeof(xlen) >= 64
+             => process_load(rd, vaddrBits, mem_read(Read(Data), addr, 8, aq, aq & rl, false), is_unsigned),
+        _    => report_invalid_width(__FILE__, __LINE__, width, "handle_load_data_via_cap")
       }
   }
 }
@@ -1460,11 +1462,13 @@ function handle_loadres_data_via_cap(rd, auth_idx, auth_val, vaddrBits, width) =
     TR_Failure(E_Extension(_), _) => { internal_error(__FILE__, __LINE__, "unexpected cheri exception for data load") },
     TR_Failure(e, _) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
     TR_Address(addr, _) =>
-      match (width, sizeof(xlen)) {
-        (BYTE, _)    => process_loadres(rd, vaddrBits, mem_read(Read(Data), addr, 1, aq, aq & rl, false), is_unsigned),
-        (HALF, _)    => process_loadres(rd, vaddrBits, mem_read(Read(Data), addr, 2, aq, aq & rl, false), is_unsigned),
-        (WORD, _)    => process_loadres(rd, vaddrBits, mem_read(Read(Data), addr, 4, aq, aq & rl, false), is_unsigned),
-        (DOUBLE, 64) => process_loadres(rd, vaddrBits, mem_read(Read(Data), addr, 8, aq, aq & rl, false), is_unsigned)
+      match (width) {
+        BYTE => process_loadres(rd, vaddrBits, mem_read(Read(Data), addr, 1, aq, aq & rl, false), is_unsigned),
+        HALF => process_loadres(rd, vaddrBits, mem_read(Read(Data), addr, 2, aq, aq & rl, false), is_unsigned),
+        WORD => process_loadres(rd, vaddrBits, mem_read(Read(Data), addr, 4, aq, aq & rl, false), is_unsigned),
+        DOUBLE if sizeof(xlen) >= 64
+             => process_loadres(rd, vaddrBits, mem_read(Read(Data), addr, 8, aq, aq & rl, false), is_unsigned),
+        _    => report_invalid_width(__FILE__, __LINE__, width, "handle_loadres_data_via_cap")
       }
   }
 }
@@ -1603,11 +1607,13 @@ function handle_store_data_via_cap(rs2, auth_idx, auth_val, vaddrBits, width) = 
         MemException(e) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
         MemValue(_) => {
           let rs2_val = X(rs2);
-          let res : MemoryOpResult(bool) = match (width, sizeof(xlen)) {
-            (BYTE, _)     => mem_write_value(addr, 1, rs2_val[7..0],  aq & rl, rl, false),
-            (HALF, _)     => mem_write_value(addr, 2, rs2_val[15..0], aq & rl, rl, false),
-            (WORD, _)     => mem_write_value(addr, 4, rs2_val[31..0], aq & rl, rl, false),
-            (DOUBLE, 64) => mem_write_value(addr, 8, rs2_val,        aq & rl, rl, false)
+          let res : MemoryOpResult(bool) = match (width) {
+            BYTE => mem_write_value(addr, 1, rs2_val[7..0],  aq & rl, rl, false),
+            HALF => mem_write_value(addr, 2, rs2_val[15..0], aq & rl, rl, false),
+            WORD => mem_write_value(addr, 4, rs2_val[31..0], aq & rl, rl, false),
+            DOUBLE if sizeof(xlen) >= 64
+                 => mem_write_value(addr, 8, rs2_val,        aq & rl, rl, false),
+            _    => report_invalid_width(__FILE__, __LINE__, width, "handle_store_data_via_cap")
           };
           match (res) {
             MemValue(true)  => RETIRE_SUCCESS,
@@ -1862,11 +1868,13 @@ function handle_store_cond_data_via_cap(rs2, auth_idx, auth_val, vaddrBits, widt
           MemException(e) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
           MemValue(_) => {
             let rs2_val = X(rs2);
-            let res : MemoryOpResult(bool) = match (width, sizeof(xlen)) {
-              (BYTE, _)     => mem_write_value(addr, 1, rs2_val[7..0],  aq & rl, rl, false),
-              (HALF, _)     => mem_write_value(addr, 2, rs2_val[15..0], aq & rl, rl, false),
-              (WORD, _)     => mem_write_value(addr, 4, rs2_val[31..0], aq & rl, rl, false),
-              (DOUBLE, 64)  => mem_write_value(addr, 8, rs2_val,        aq & rl, rl, false)
+            let res : MemoryOpResult(bool) = match (width) {
+              BYTE => mem_write_value(addr, 1, rs2_val[7..0],  aq & rl, rl, false),
+              HALF => mem_write_value(addr, 2, rs2_val[15..0], aq & rl, rl, false),
+              WORD => mem_write_value(addr, 4, rs2_val[31..0], aq & rl, rl, false),
+              DOUBLE if sizeof(xlen) >= 64
+                   => mem_write_value(addr, 8, rs2_val,        aq & rl, rl, false),
+              _    => report_invalid_width(__FILE__, __LINE__, width, "handle_store_cond_data_via_cap")
             };
             match (res) {
               MemValue(true)  => { X(rs2) = EXTZ(0b0); cancel_reservation(); RETIRE_SUCCESS },
