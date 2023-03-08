@@ -101,7 +101,7 @@ function prepare_trap_vector(p : Privilege, c : Mcause) -> xlenbits = {
      be the same because we enforce aligned tcc base. */
   match tvec_addr(Mk_Mtvec(tcc.address), c) { 
     Some(addr) => { nextPCC = tcc; addr },
-    None()     => internal_error("Invalid tvec mode")
+    None()     => internal_error(__FILE__, __LINE__, "Invalid tvec mode")
   }
 }
 
