@@ -161,14 +161,18 @@ SAIL:=$(SAIL_DIR)/sail
 export SAIL_DIR
 else
 # Use sail from opam package
-SAIL_DIR=$(shell opam config var sail:share)
-SAIL:=sail
+SAIL_DIR=$(shell env OPAMCLI=2.0 opam config var sail:share)
+SAIL:=$(shell env OPAMCLI=2.0 opam config var sail:bin)/sail
 endif
-SAIL_LIB_DIR:=$(SAIL_DIR)/lib
+SAIL_LIB_DIR:=$(shell $(SAIL) -dir)/lib
 export SAIL_LIB_DIR
 SAIL_SRC_DIR:=$(SAIL_DIR)/src
+SAIL_LIB_SRCS?=$(wildcard $(SAIL_LIB_DIR)/*.c)
+ifeq ($(SAIL_LIB_SRCS),)
+$(error "Could not find sail C sources in $(SAIL_LIB_DIR)")
+endif
 
-LEM_DIR?=$(shell opam config var lem:share)
+LEM_DIR?=$(shell env OPAMCLI=2.0 opam config var lem:share)
 export LEM_DIR
 #Coq BBV library hopefully checked out in directory above us
 BBV_DIR?=../bbv
@@ -298,7 +302,7 @@ $(SOFTFLOAT_LIBS):
 
 c_emulator/cheri_riscv_sim_%: generated_definitions/c/riscv_model_%.c $(SAIL_RISCV_DIR)/c_emulator/riscv_sim.c $(C_INCS) $(C_SRCS) $(SOFTFLOAT_LIBS) Makefile
 	mkdir -p c_emulator
-	gcc -g $(C_WARNINGS) $(C_FLAGS) $< $(SAIL_RISCV_DIR)/c_emulator/riscv_sim.c $(C_SRCS) $(SAIL_LIB_DIR)/*.c $(C_LIBS) -o $@
+	gcc -g $(C_WARNINGS) $(C_FLAGS) $< $(SAIL_RISCV_DIR)/c_emulator/riscv_sim.c $(C_SRCS) $(SAIL_LIB_SRCS) $(C_LIBS) -o $@
 
 # Note: We have to add -c_preserve since the functions might be optimized out otherwise
 rvfi_preserve_fns=-c_preserve rvfi_set_instr_packet \
@@ -322,7 +326,7 @@ generated_definitions/c/riscv_rvfi_model_%.c: $(SAIL_RVFI_SRCS) $(SAIL_RISCV_MOD
 
 c_emulator/cheri_riscv_rvfi_%: generated_definitions/c/riscv_rvfi_model_%.c $(SAIL_RISCV_DIR)/c_emulator/riscv_sim.c $(C_INCS) $(C_SRCS) $(SOFTFLOAT_LIBS) Makefile
 	mkdir -p c_emulator
-	gcc -g $(C_WARNINGS) $(C_FLAGS) $< -DRVFI_DII $(SAIL_RISCV_DIR)/c_emulator/riscv_sim.c $(C_SRCS) $(SAIL_LIB_DIR)/*.c $(C_LIBS) -o $@
+	gcc -g $(C_WARNINGS) $(C_FLAGS) $< -DRVFI_DII $(SAIL_RISCV_DIR)/c_emulator/riscv_sim.c $(C_SRCS) $(SAIL_LIB_SRCS) $(C_LIBS) -o $@
 
 latex: $(SAIL_SRCS) Makefile
 	$(SAIL) -latex -latex_prefix sailRISCV -o sail_latex_riscv $(SAIL_SRCS)
