@@ -110,17 +110,11 @@ function clause execute(C_CLCSP(cd, uimm)) =
  * The c.clcsp encoding with cd == 0 should raise an illegal instruction trap
  * instead of falling back to the non-capmode (legal) instruction
  * `c.flwsp/fldsp f0` so we need an explicit capmode illegal match clause.
- * TODO: Should use C_ILLEGAL instead once this is exported from sail-riscv.
  */
-union clause ast = C_CLCSP_RESERVED_CD0 : (bits(10))
-mapping clause encdec_compressed_capmode = C_CLCSP_RESERVED_CD0(ui96 @ ui5 @ ui4 @ 0b0000) if sizeof(xlen) == 64
+mapping clause encdec_compressed_capmode = C_ILLEGAL(0b001 @ ui5 @ 0b00000 @ ui4 @ ui96 @ 0b10) if sizeof(xlen) == 64
   <-> 0b001 @ ui5 : bits(1) @ 0b00000 @ ui4 : bits(1) @ ui96 : bits(4) @ 0b10 if sizeof(xlen) == 64
-mapping clause encdec_compressed_capmode = C_CLCSP_RESERVED_CD0(0b0 @ ui86 @ ui5 @ ui43 @ 0b000) if sizeof(xlen) == 32
+mapping clause encdec_compressed_capmode = C_ILLEGAL(0b011 @ ui5 @ 0b00000 @ ui43 @ ui86 @ 0b10) if sizeof(xlen) == 32
   <-> 0b011 @ ui5 : bits(1) @ 0b00000 @ ui43 : bits(2) @ ui86 : bits(3) @ 0b10 if sizeof(xlen) == 32
-mapping clause assembly = C_CLCSP_RESERVED_CD0(uimm)
-  <-> "c.clcsp.reserved.cd0" ^ spc() ^ hex_bits_10(uimm)
-function clause execute(C_CLCSP_RESERVED_CD0(uimm)) =
-  { handle_illegal(); RETIRE_FAIL }
 
 union clause ast = C_CSC : (cregidx, cregidx, bits(9))
 
