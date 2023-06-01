@@ -471,28 +471,6 @@ function clause execute(CSetFlags(cd, cs1, rs2)) = {
   RETIRE_SUCCESS
 }
 
-union clause ast = CToPtr : (regidx, regidx, regidx)
-/*!
- * If the **tag** field of capability register *cs1* is not set, integer
- * register *rd* is set to 0, otherwise integer register *rd* is set to
- * *cs1*.**address** $-$ *cs2*.**base**.
- *
- * ## Notes
- *
- * - *cs2* being sealed will not set *rd* to 0. This is for further study.
- */
-function clause execute(CToPtr(rd, cs1, cs2)) = {
-  let cs2_val = if unsigned(cs2) == 0 then DDC else C(cs2);
-  let cs1_val = C(cs1);
-
-  /* Note: returning zero for untagged values breaks magic constants such as SIG_IGN */
-  X(rd) = if not(cs1_val.tag) then
-            zeros()
-          else
-            cs1_val.address - getCapBaseBits(cs2_val);
-  RETIRE_SUCCESS
-}
-
 union clause ast = CSub : (regidx, regidx, regidx)
 /*!
  * Integer register *rd* is set equal to (*cs1*.**address** $-$
@@ -735,31 +713,6 @@ function clause execute (FPClear(q, m)) = {
   } else {
     handle_illegal();
     RETIRE_FAIL
-  }
-}
-
-union clause ast = CFromPtr : (regidx, regidx, regidx)
-/*!
- * If the value of integer register *rs2* is 0 then capability register *cd* is
- * set to **NULL**. Otherwise capability register *cd* is set to capability
- * register *cs1* with its **offset** replaced with *rs2*. If the resulting
- * capability cannot be represented exactly, or if *cs1* was sealed, then
- * *cd*.**tag** is cleared. The remaining capability fields are set to what the
- * in-memory representation of *cs1* with the address set to *cd*.**address**
- * decodes to.
- */
-function clause execute (CFromPtr(cd, cs1, rs2)) = {
-  let cs1_val = if unsigned(cs1) == 0 then DDC else C(cs1);
-  let rs2_val = X(rs2);
-
-  if rs2_val == zeros() then {
-    C(cd) = null_cap;
-    RETIRE_SUCCESS
-  } else {
-    let inCap = clearTagIfSealed(cs1_val);
-    let (success, newCap) = setCapOffset(inCap, rs2_val);
-    C(cd) = clearTagIf(newCap, not(success));
-    RETIRE_SUCCESS
   }
 }
 
@@ -2198,8 +2151,6 @@ mapping clause encdec = CBuildCap(cd, cs1, cs2)   if (haveXcheri()) <-> 0b001110
 mapping clause encdec = CCopyType(cd, cs1, cs2)   if (haveXcheri()) <-> 0b0011110 @ cs2 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CCSeal(cd, cs1, cs2)      if (haveXcheri()) <-> 0b0011111 @ cs2 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
 
-mapping clause encdec = CToPtr(rd, cs1, cs2)      if (haveXcheri()) <-> 0b0010010 @ cs2 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
-mapping clause encdec = CFromPtr(cd, cs1, rs2)    if (haveXcheri()) <-> 0b0010011 @ rs2 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CSub(rd, cs1, cs2)        if (haveXcheri()) <-> 0b0010100 @ cs2 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 
 mapping clause encdec = CTestSubset(rd, cs1, cs2) if (haveXcheri()) <-> 0b0100000 @ cs2 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
@@ -2224,8 +2175,6 @@ mapping clause assembly = CBuildCap(cd, cs1, cs2) <-> "cbuildcap"   ^ spc() ^ ca
 mapping clause assembly = CCopyType(cd, cs1, cs2) <-> "ccopytype"   ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ cap_reg_name(cs2)
 mapping clause assembly = CCSeal(cd, cs1, cs2)    <-> "ccseal"      ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ cap_reg_name(cs2)
 
-mapping clause assembly = CToPtr(rd, cs1, cs2)    <-> "ctoptr"      ^ spc() ^ reg_name(rd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ cap_reg_name(cs2)
-mapping clause assembly = CFromPtr(cd, cs1, rs2)  <-> "cfromptr"    ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ reg_name(rs2)
 mapping clause assembly = CSub(rd, cs1, cs2)      <-> "csub"        ^ spc() ^ reg_name(rd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ cap_reg_name(cs2)
 
 mapping clause assembly = CTestSubset(rd, cs1, cs2) <-> "ctestsubset" ^ spc() ^ reg_name(rd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ cap_reg_name(cs2)
