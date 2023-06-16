@@ -67,6 +67,7 @@
 bitfield ccsr : xlenbits = {
   /* Bits allocated from 31 downwards are used for feature flags. */
   tc      :  31,     /* tag-clearing error semantics */
+  ndr     :  30,     /* no DDC relocation */
   e       :  0       /* enable */
 }
 
@@ -82,8 +83,10 @@ function legalize_ccsr(c : ccsr, v : xlenbits) -> ccsr = {
   // Technically, WPRI does not need a legalizer, since software is
   // assumed to legalize; so we could remove this function.
   let v = Mk_ccsr(v);
-  /* For now these bits are not really supported so hardwired to true */
+  /* For now the e bit is not really supported so hardwired to true */
   let c = update_e(c, 0b1);
+  /* Read-only feature bits to allow for software to detect CHERI semantics. */
+  let c = update_ndr(c, bool_to_bits(not(have_ddc_relocation())));
   let c = update_tc(c, 0b1);
   c
 }

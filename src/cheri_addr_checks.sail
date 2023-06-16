@@ -162,6 +162,14 @@ function ext_handle_control_check_error(err : ext_control_addr_error) -> unit = 
 
 type ext_data_addr_error = (CapEx, capreg_idx)
 
+/**
+ * Returns the current value of DDC (for subsequent access checks) as well as
+ * the resulting address for a non-CHERI integer-based memory access.
+ */
+function ddc_and_resulting_addr (addr : xlenbits) -> (Capability, xlenbits) = {
+  let ddc_val = DDC in
+  (ddc_val, if (have_ddc_relocation()) then ddc_val.address + addr else addr)
+}
 
 /*!
  * For given base register and offset returns, depending on current capability
@@ -174,8 +182,8 @@ function get_cheri_mode_cap_addr (base_reg : regidx, offset : xlenbits) = {
     let base_cap = C(base_reg) in
     (base_cap, base_cap.address + offset, 0b0 @ base_reg)
   else
-    let ddc = DDC in
-    (ddc, ddc.address + X(base_reg) + offset, DDC_IDX);
+    let (ddc_val, addr) = ddc_and_resulting_addr(X(base_reg) + offset) in
+    (ddc_val, addr, DDC_IDX);
 }
 
 function ext_data_get_addr(base_reg : regidx, offset : xlenbits, acc : AccessType(ext_access_type), width : word_width)

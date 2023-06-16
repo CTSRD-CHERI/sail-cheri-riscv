@@ -72,3 +72,13 @@ val not = {coq:"negb", _:"not"} : bool -> bool
 
 val bool_to_bit : bool -> bit
 function bool_to_bit x = if x then bitone else bitzero
+
+/*
+ * DDC relocation will not be part of an initial standardized version of
+ * CHERI-RISC-V. However, it may be useful to enable for research
+ * prototypes and could potentially be an optional extensions, so we use
+ * this hardcoded boolean and a helper function (ddc_and_resulting_addr)
+ * to allow turning it back on again rather than removing the code outright.
+ */
+val have_ddc_relocation : unit -> bool
+function have_ddc_relocation() = false
