@@ -550,8 +550,8 @@ function capToString (cap) = {
   concat_str(BitStr(0b0 @ getCapPerms(cap)),
   concat_str(" type:",
   concat_str(BitStr(otype64),
-  concat_str(" offset:",
-  concat_str(BitStr(getCapOffsetBits(cap)),
+  concat_str(" address:",
+  concat_str(BitStr(cap.address),
   concat_str(" base:",
   concat_str(BitStr(getCapBaseBits(cap)),
   concat_str(" length:", len_str)))))))))))))
