@@ -1221,8 +1221,7 @@ union clause ast = LoadDataDDC : (regidx, regidx, bool, word_width)
  *   - **DDC**.**address** $+$ *rs1* $+$ *size* $\gt$ **DDC**.**top**.
  */
 function clause execute (LoadDataDDC(rd, rs1, is_unsigned, width)) = {
-  let ddc_val = DDC;
-  let vaddr = ddc_val.address + X(rs1);
+  let (ddc_val, vaddr) = ddc_and_resulting_addr(X(rs1));
   handle_load_data_via_cap(rd, DDC_IDX, ddc_val, vaddr, is_unsigned, width)
 }
 
@@ -1300,8 +1299,7 @@ union clause ast = LoadCapDDC : (regidx, regidx)
  *     implementation supports unaligned data accesses.
  */
 function clause execute (LoadCapDDC(cd, rs1)) = {
-  let ddc_val = DDC;
-  let vaddr = ddc_val.address + X(rs1);
+  let (ddc_val, vaddr) = ddc_and_resulting_addr(X(rs1));
   handle_load_cap_via_cap(cd, DDC_IDX, ddc_val, vaddr)
 }
 
@@ -1517,8 +1515,7 @@ if not(auth_val.tag) then {
 union clause ast = LoadResDataDDC : (regidx, regidx, word_width)
 function clause execute (LoadResDataDDC(rd, rs1, width)) = {
   if haveAtomics() then {
-    let ddc_val = DDC;
-    let vaddr = ddc_val.address + X(rs1);
+    let (ddc_val, vaddr) = ddc_and_resulting_addr(X(rs1));
     handle_loadres_data_via_cap(rd, DDC_IDX, ddc_val, vaddr, width)
   } else {
     handle_illegal();
@@ -1529,8 +1526,7 @@ function clause execute (LoadResDataDDC(rd, rs1, width)) = {
 union clause ast = LoadResCapDDC : (regidx, regidx)
 function clause execute (LoadResCapDDC(cd, rs1)) = {
   if haveAtomics() then {
-    let ddc_val = DDC;
-    let vaddr = ddc_val.address + X(rs1);
+    let (ddc_val, vaddr) = ddc_and_resulting_addr(X(rs1));
     handle_loadres_cap_via_cap(cd, DDC_IDX, ddc_val, vaddr, false, false)
   } else {
     handle_illegal();
@@ -1641,8 +1637,7 @@ union clause ast = StoreDataDDC : (regidx, regidx, word_width)
  *   - **DDC**.**address** $+$ *rs1* $+$ *size* $\gt$ **DDC**.**top**.
  */
 function clause execute (StoreDataDDC(rs2, rs1, width)) = {
-  let ddc_val = DDC;
-  let vaddr = ddc_val.address + X(rs1);
+  let (ddc_val, vaddr) = ddc_and_resulting_addr(X(rs1));
   handle_store_data_via_cap(rs2, DDC_IDX, ddc_val, vaddr, width)
 }
 
@@ -1730,8 +1725,7 @@ union clause ast = StoreCapDDC : (regidx, regidx)
  *   - **DDC**.**address** $+$ *rs1* $+$ **CLEN** $/$ 8 $\gt$ **DDC**.**top**.
  */
 function clause execute (StoreCapDDC(cs2, rs1)) = {
-  let ddc_val = DDC;
-  let vaddr = ddc_val.address + X(rs1);
+  let (ddc_val, vaddr) = ddc_and_resulting_addr(X(rs1));
   handle_store_cap_via_cap(cs2, DDC_IDX, ddc_val, vaddr)
 }
 
@@ -1972,8 +1966,7 @@ function clause execute StoreCondDataDDC(rs2, rs1, width) = {
     X(rs2) = EXTZ(0b1);
     RETIRE_SUCCESS
   } else if haveAtomics() then {
-    let ddc_val = DDC;
-    let vaddr = ddc_val.address + X(rs1);
+    let (ddc_val, vaddr) = ddc_and_resulting_addr(X(rs1));
     handle_store_cond_data_via_cap(rs2, DDC_IDX, ddc_val, vaddr, width)
   } else {
     handle_illegal();
@@ -1990,8 +1983,7 @@ function clause execute StoreCondCapDDC(cs2, rs1) = {
     C(cs2) = int_to_cap(EXTZ(0b1));
     RETIRE_SUCCESS
   } else if haveAtomics() then {
-    let ddc_val = DDC;
-    let vaddr = ddc_val.address + X(rs1);
+    let (ddc_val, vaddr) = ddc_and_resulting_addr(X(rs1));
     handle_store_cond_cap_via_cap(cs2, cs2, DDC_IDX, ddc_val, vaddr, false, false, true)
   } else {
     handle_illegal();
