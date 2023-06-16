@@ -67,7 +67,6 @@
 bitfield ccsr : xlenbits = {
   /* Bits allocated from 31 downwards are used for feature flags. */
   tc      :  31,     /* tag-clearing error semantics */
-  d       :  1,      /* dirty  */
   e       :  0       /* enable */
 }
 
@@ -84,7 +83,6 @@ function legalize_ccsr(c : ccsr, v : xlenbits) -> ccsr = {
   // assumed to legalize; so we could remove this function.
   let v = Mk_ccsr(v);
   /* For now these bits are not really supported so hardwired to true */
-  let c = update_d(c, 0b1);
   let c = update_e(c, 0b1);
   let c = update_tc(c, 0b1);
   c

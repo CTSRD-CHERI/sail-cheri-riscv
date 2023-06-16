@@ -65,12 +65,9 @@
 val ext_init : unit -> unit effect {wreg}
 function ext_init () = {
   misa->X() = 0b1;
-  mccsr->d() = 0b1;
-  mccsr->e() = 0b1;
-  sccsr->d() = 0b1;
-  sccsr->e() = 0b1;
-  uccsr->d() = 0b1;
-  uccsr->e() = 0b1;
+  mccsr = legalize_ccsr(mccsr, zeros());
+  sccsr = legalize_ccsr(sccsr, zeros());
+  uccsr = legalize_ccsr(uccsr, zeros());
 }
 
 /* other hooks are not currently used. */
