@@ -97,9 +97,9 @@ function prepare_trap_vector(p : Privilege, c : Mcause) -> xlenbits = {
                          };
 
   /* NB we use address, not offset here because even though tvec is the offset
-     we want the absolute address to insert in PC. The bottom two bits (mode) should 
+     we want the absolute address to insert in PC. The bottom two bits (mode) should
      be the same because we enforce aligned tcc base. */
-  match tvec_addr(Mk_Mtvec(tcc.address), c) { 
+  match tvec_addr(Mk_Mtvec(tcc.address), c) {
     Some(addr) => { nextPCC = tcc; addr },
     None()     => internal_error(__FILE__, __LINE__, "Invalid tvec mode")
   }

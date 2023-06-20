@@ -44,7 +44,7 @@ all: qtest
 $(QTEST_BUILD): $(QTEST_SAIL_FILES)
 	$(SAIL) -ocaml -ocaml-nobuild -ocaml_build_dir $@ -o cheri_cc $^
 
-$(QTEST_BUILD)/main.native: $(QTEST_BUILD) 
+$(QTEST_BUILD)/main.native: $(QTEST_BUILD)
 	cp qtest.ml $(QTEST_BUILD)/main.ml
 	cd $(QTEST_BUILD) && \
 	ocamlbuild -use-ocamlfind -tag 'package(qcheck)' main.native

@@ -1,2 +1,1 @@
 bin: ["c_emulator/cheri_riscv_sim_RV64" "c_emulator/cheri_riscv_sim_RV32"]
-

@@ -69,4 +69,3 @@ scattered mapping encdec_capmode
 
 val encdec_compressed_capmode : ast <-> bits(16) effect {rreg}
 scattered mapping encdec_compressed_capmode
-

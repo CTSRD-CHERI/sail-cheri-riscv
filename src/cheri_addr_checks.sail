@@ -225,7 +225,7 @@ function ext_check_xret_priv (p : Privilege) : Privilege -> bool =
   pcc_access_system_regs()
 
 /* Called if above check fails */
-function ext_fail_xret_priv () : unit -> unit = 
+function ext_fail_xret_priv () : unit -> unit =
   handle_cheri_pcc_exception(CapEx_AccessSystemRegsViolation)
 
 function ext_check_CSR (csrno : bits(12), p : Privilege, isWrite : bool) -> bool =
