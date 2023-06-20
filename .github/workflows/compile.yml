@@ -9,13 +9,15 @@ jobs:
     - name: Install opam2
       run: |
         sudo apt install -y opam zlib1g-dev pkg-config libgmp-dev z3
-    - name: Init opam
-      run: opam init -y
-    - name: Install sail
-      run: opam install -y sail
     - name: Check out repository code
       uses: actions/checkout@HEAD
       with:
         submodules: true
+    - name: Ensure pre-commit checks pass
+      run: pip install pre-commit && pre-commit run --all-files --show-diff-on-failure --color=always
+    - name: Init opam
+      run: opam init -y
+    - name: Install sail
+      run: opam install -y sail
     - name: Build simulators
       run: eval $(opam env) && make -j4 c_emulator/cheri_riscv_{sim,rvfi}_RV{32,64}
