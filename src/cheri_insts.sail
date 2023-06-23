@@ -139,14 +139,14 @@ function clause execute(CJALR(imm, cs1, cd)) = {
   } else if not(cs1_val.permit_execute) then {
     handle_cheri_reg_exception(CapEx_PermitExecuteViolation, cs1);
     RETIRE_FAIL
-  } else if not(inCapBounds(cs1_val, newPC, min_instruction_bytes())) then {
-    handle_cheri_reg_exception(CapEx_LengthViolation, cs1);
-    RETIRE_FAIL
   } else if newPCCBase[0] == bitone | (newPCCBase[1] == bitone & ~(haveRVC())) then {
     handle_cheri_reg_exception(CapEx_UnalignedBase, cs1);
     RETIRE_FAIL
   } else if newPC[1] == bitone & ~(haveRVC()) then {
     handle_mem_exception(newPC,  E_Fetch_Addr_Align());
+    RETIRE_FAIL
+  } else if not(inCapBounds(cs1_val, newPC, min_instruction_bytes())) then {
+    handle_cheri_reg_exception(CapEx_LengthViolation, cs1);
     RETIRE_FAIL
   } else {
     let (success, linkCap) = setCapAddr(PCC, nextPC); /* Note that nextPC accounts for compressed instructions */
@@ -1114,14 +1114,14 @@ function clause execute (CInvoke(cs1, cs2)) = {
   } else if cs2_val.permit_execute then {
     handle_cheri_reg_exception(CapEx_PermitExecuteViolation, cs2);
     RETIRE_FAIL
-  } else if not(inCapBounds(cs1_val, newPC, min_instruction_bytes())) then {
-    handle_cheri_reg_exception(CapEx_LengthViolation, cs1);
-    RETIRE_FAIL
   } else if newPCCBase[0] == bitone | (newPCCBase[1] == bitone & ~(haveRVC())) then {
     handle_cheri_reg_exception(CapEx_UnalignedBase, cs1);
     RETIRE_FAIL
   } else if newPC[1] == bitone & ~(haveRVC()) then {
     handle_mem_exception(newPC,  E_Fetch_Addr_Align());
+    RETIRE_FAIL
+  } else if not(inCapBounds(cs1_val, newPC, min_instruction_bytes())) then {
+    handle_cheri_reg_exception(CapEx_LengthViolation, cs1);
     RETIRE_FAIL
   } else {
     C(31) = unsealCap(cs2_val);
