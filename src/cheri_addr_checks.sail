@@ -112,12 +112,12 @@ function ext_fetch_check_pc(start_pc, pc) = {
     then    Ext_FetchAddr_Error(CapEx_SealViolation)
     else if not(PCC.permit_execute)
     then    Ext_FetchAddr_Error(CapEx_PermitExecuteViolation)
-    else if not(inCapBounds(PCC, pc, 2))
-    then    Ext_FetchAddr_Error(CapEx_LengthViolation)
     /* Require that PCC.base be as aligned as PC. This
        is also enforced when setting PCC in most places. */
     else if pcc_base[0] != bitzero | (pcc_base[1] != bitzero & ~(haveRVC()))
     then    Ext_FetchAddr_Error(CapEx_UnalignedBase)
+    else if not(inCapBounds(PCC, pc, 2))
+    then    Ext_FetchAddr_Error(CapEx_LengthViolation)
     else    Ext_FetchAddr_OK(pc)
   } else {
     /* Perform only the bounds checks on the current granule, i.e. pc. */
