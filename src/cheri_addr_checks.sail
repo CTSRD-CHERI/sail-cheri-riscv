@@ -104,7 +104,7 @@ val ext_fetch_check_pc : (xlenbits, xlenbits) -> Ext_FetchAddr_Check(ext_fetch_a
 function ext_fetch_check_pc(start_pc, pc) = {
   if   start_pc == pc
   then {
-    pcc_base = getCapBaseBits(PCC);
+    let pcc_base = getCapBaseBits(PCC);
     /* We need to perform the permission checks only for the first granule. */
     if      not(PCC.tag)
     then    Ext_FetchAddr_Error(CapEx_TagViolation)
@@ -112,9 +112,9 @@ function ext_fetch_check_pc(start_pc, pc) = {
     then    Ext_FetchAddr_Error(CapEx_SealViolation)
     else if not(PCC.permit_execute)
     then    Ext_FetchAddr_Error(CapEx_PermitExecuteViolation)
-    /* Require that PCC.base be as aligned as PC. This
-       is also enforced when setting PCC in most places. */
-    else if pcc_base[0] != bitzero | (pcc_base[1] != bitzero & ~(haveRVC()))
+    /* If PCC relocation is enabled, require that PCC.base be as aligned as PC.
+       This is also enforced when setting PCC in most places. */
+    else if have_pcc_relocation() & (pcc_base[0] != bitzero | (pcc_base[1] != bitzero & ~(haveRVC())))
     then    Ext_FetchAddr_Error(CapEx_UnalignedBase)
     else if not(inCapBounds(PCC, pc, 2))
     then    Ext_FetchAddr_Error(CapEx_LengthViolation)
@@ -136,12 +136,12 @@ type ext_control_addr_error = (CapEx, capreg_idx)
 
 /* the control address is derived from a non-PC register, e.g. in JALR */
 function ext_control_check_addr(pc : xlenbits) -> Ext_ControlAddr_Check(ext_control_addr_error) = {
-  let pcc_base = getCapBaseBits(PCC);
   /* We are given the addr without any bit[0] clearing, so the addition
    * below may include a set addr[0], and so the bounds checks should
    * be accurate.
    */
-  let target : xlenbits = [pcc_base + pc with 0=bitzero];
+  let pc = if have_pcc_relocation() then getCapBaseBits(PCC) + pc else pc;
+  let target : xlenbits = [pc with 0=bitzero];
   if   not(inCapBounds(PCC, target, min_instruction_bytes ()))
   then Ext_ControlAddr_Error(CapEx_LengthViolation, PCC_IDX)
   else Ext_ControlAddr_OK(target)

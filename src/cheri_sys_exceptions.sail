@@ -121,7 +121,7 @@ function get_xret_target(p) = {
     Supervisor => SEPCC,
     User       => UEPCC
   };
-  legalize_xepc(getCapOffsetBits(cap))
+  legalize_xepc(cap_to_integer_pc(cap))
 }
 
 /*
@@ -134,9 +134,9 @@ function get_xret_target(p) = {
 val set_xret_target : (Privilege, xlenbits) -> xlenbits effect {rreg, wreg}
 function set_xret_target(p, value) = {
   match p {
-    Machine    => MEPCC = setCapOffsetChecked(MEPCC, value),
-    Supervisor => SEPCC = setCapOffsetChecked(SEPCC, value),
-    User       => UEPCC = setCapOffsetChecked(UEPCC, value)
+    Machine    => MEPCC = update_cap_with_integer_pc(MEPCC, value),
+    Supervisor => SEPCC = update_cap_with_integer_pc(SEPCC, value),
+    User       => UEPCC = update_cap_with_integer_pc(UEPCC, value)
   };
   value
 }
@@ -168,28 +168,28 @@ function prepare_xret_target(p) = {
 /* other trap-related CSRs */
 
 function get_mtvec() -> xlenbits =
-  getCapOffsetBits(MTCC)
+  cap_to_integer_pc(MTCC)
 
 function get_stvec() -> xlenbits =
-  getCapOffsetBits(STCC)
+  cap_to_integer_pc(STCC)
 
 function get_utvec() -> xlenbits =
-  getCapOffsetBits(UTCC)
+  cap_to_integer_pc(UTCC)
 
 function set_mtvec(value : xlenbits) -> xlenbits = {
-  let mtv = legalize_tvec(Mk_Mtvec(getCapOffsetBits(MTCC)), value);
-  MTCC = setCapOffsetChecked(MTCC, mtv.bits());
+  let mtv = legalize_tvec(Mk_Mtvec(cap_to_integer_pc(MTCC)), value);
+  MTCC = update_cap_with_integer_pc(MTCC, mtv.bits());
   mtv.bits()
 }
 
 function set_stvec(value : xlenbits) -> xlenbits = {
-  let stv = legalize_tvec(Mk_Mtvec(getCapOffsetBits(STCC)), value);
-  STCC = setCapOffsetChecked(STCC, stv.bits());
+  let stv = legalize_tvec(Mk_Mtvec(cap_to_integer_pc(STCC)), value);
+  STCC = update_cap_with_integer_pc(STCC, stv.bits());
   stv.bits()
 }
 
 function set_utvec(value : xlenbits) -> xlenbits = {
-  let utv = legalize_tvec(Mk_Mtvec(getCapOffsetBits(UTCC)), value);
-  UTCC = setCapOffsetChecked(UTCC, utv.bits());
+  let utv = legalize_tvec(Mk_Mtvec(cap_to_integer_pc(UTCC)), value);
+  UTCC = update_cap_with_integer_pc(UTCC, utv.bits());
   utv.bits()
 }
