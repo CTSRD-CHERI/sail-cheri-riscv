@@ -67,8 +67,7 @@
 bitfield ccsr : xlenbits = {
   /* Bits allocated from 31 downwards are used for feature flags. */
   tc      :  31,     /* tag-clearing error semantics */
-  ndr     :  30,     /* no DDC relocation */
-  npr     :  29,     /* no PCC relocation */
+  nr      :  30,     /* no DDC/PCC relocation */
   e       :  0       /* enable */
 }
 
@@ -87,8 +86,7 @@ function legalize_ccsr(c : ccsr, v : xlenbits) -> ccsr = {
   /* For now the e bit is not really supported so hardwired to true */
   let c = update_e(c, 0b1);
   /* Read-only feature bits to allow for software to detect CHERI semantics. */
-  let c = update_npr(c, bool_to_bits(not(have_pcc_relocation())));
-  let c = update_ndr(c, bool_to_bits(not(have_ddc_relocation())));
+  let c = update_nr(c, bool_to_bits(not(have_cheri_relocation())));
   let c = update_tc(c, 0b1);
   c
 }

@@ -74,6 +74,14 @@ val bool_to_bit : bool -> bit
 function bool_to_bit x = if x then bitone else bitzero
 
 /*
+ * We use a single feature flag controlling DDC/PCC relocation.
+ * However, the code uses two separate guards to make it possible
+ * to bring back only one of the two for future experiments.
+ */
+val have_cheri_relocation : unit -> bool
+function have_cheri_relocation() = false
+
+/*
  * DDC relocation will not be part of an initial standardized version of
  * CHERI-RISC-V. However, it may be useful to enable for research
  * prototypes and could potentially be an optional extensions, so we use
@@ -81,7 +89,7 @@ function bool_to_bit x = if x then bitone else bitzero
  * to allow turning it back on again rather than removing the code outright.
  */
 val have_ddc_relocation : unit -> bool
-function have_ddc_relocation() = false
+function have_ddc_relocation() = have_cheri_relocation()
 
 /*
  * PCC relocation will not be part of an initial standardized version of
@@ -90,4 +98,4 @@ function have_ddc_relocation() = false
  * (e.g. writes to SCRs that could end up in PCC)
  */
 val have_pcc_relocation : unit -> bool
-function have_pcc_relocation() = false
+function have_pcc_relocation() = have_cheri_relocation()
