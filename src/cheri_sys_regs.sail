@@ -68,6 +68,7 @@ bitfield ccsr : xlenbits = {
   /* Bits allocated from 31 downwards are used for feature flags. */
   tc      :  31,     /* tag-clearing error semantics */
   ndr     :  30,     /* no DDC relocation */
+  npr     :  29,     /* no PCC relocation */
   e       :  0       /* enable */
 }
 
@@ -86,6 +87,7 @@ function legalize_ccsr(c : ccsr, v : xlenbits) -> ccsr = {
   /* For now the e bit is not really supported so hardwired to true */
   let c = update_e(c, 0b1);
   /* Read-only feature bits to allow for software to detect CHERI semantics. */
+  let c = update_npr(c, bool_to_bits(not(have_pcc_relocation())));
   let c = update_ndr(c, bool_to_bits(not(have_ddc_relocation())));
   let c = update_tc(c, 0b1);
   c
@@ -143,15 +145,15 @@ function haveXcheri () -> bool =
 
 
 function legalize_tcc(o : Capability, v : Capability) -> Capability = {
-  new_base = getCapBaseBits(v);
+  let new_base = getCapBaseBits(v);
   /* Ignore writes that attempt to set unaligned TCC base */
-  if new_base[0] != bitzero | new_base[1] != bitzero then
+  if have_pcc_relocation() & (new_base[0] != bitzero | new_base[1] != bitzero) then
     o /* keep original TCC value */
   else {
-    /* legalize new TCC offset (RISC-V tvec) */
-    new_tvec = v.address - new_base;
-    legalized_tvec = legalize_tvec(Mk_Mtvec(getCapOffsetBits(o)), new_tvec);
-    setCapOffsetChecked(v, legalized_tvec.bits())
+    /* legalize new TCC (RISC-V tvec) */
+    let new_tvec = cap_to_integer_pc(v);
+    let legalized_tvec = legalize_tvec(Mk_Mtvec(cap_to_integer_pc(o)), new_tvec);
+    update_cap_with_integer_pc(v, legalized_tvec.bits())
   }
 }
 
@@ -175,10 +177,10 @@ function legalize_tcc(o : Capability, v : Capability) -> Capability = {
  * untagged lie.
  */
 function legalize_epcc (v : Capability) -> Capability = {
-  let voffset = getCapOffsetBits(v);
-  let legalized = legalize_xepc(voffset);
+  let int_val = cap_to_integer_pc(v);
+  let legalized = legalize_xepc(int_val);
 
-  if   legalized == voffset
+  if   legalized == int_val
   then v /* avoid possibly attempting to set the offset of a sentry */
-  else setCapOffsetChecked(v, legalized)
+  else update_cap_with_integer_pc(v, legalized)
 }

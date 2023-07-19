@@ -486,6 +486,10 @@ function setCapAddr(c, addr) =
     let representable = capBoundsEqual(c, newCap) in
     (representable, newCap)
 
+function setCapAddrChecked(c, addr) : (Capability, CapAddrBits) -> Capability =
+    let (representable, newCap) = setCapAddr(c, addr) in
+    clearTagIf(newCap, not(representable) | isCapSealed(c))
+
 infix 1 >>_s
 overload operator >> = {sail_shiftright}
 overload operator << = {sail_shiftleft}
@@ -566,4 +570,24 @@ function getRepresentableAlignmentMask(len) : xlenbits -> xlenbits = {
 function getRepresentableLength(len) : xlenbits -> xlenbits = {
   let m = getRepresentableAlignmentMask(len);
   (len + ~(m)) & m
+}
+
+/**
+ * Returns an integer program counter from a given capability.
+ * By default this is equivalent to reading the address field of the capability,
+ * but if PCC relocation is enabled (not part of standardized CHERI-RISC-V) it
+ * returns the capability offset instead.
+ */
+function cap_to_integer_pc (cap: Capability) -> xlenbits = {
+  if (have_pcc_relocation()) then getCapOffsetBits(cap) else cap.address
+}
+
+/**
+ * Updates a capability to reference an integer program counter.
+ * By default this is equivalent to updating the address field of the capability,
+ * but if PCC relocation is enabled (not part of standardized CHERI-RISC-V) it
+ * updates the capability offset instead.
+ */
+function update_cap_with_integer_pc (cap: Capability, pc: xlenbits) -> Capability = {
+  if (have_pcc_relocation()) then setCapOffsetChecked(cap, pc) else setCapAddrChecked(cap, pc)
 }

@@ -82,3 +82,12 @@ function bool_to_bit x = if x then bitone else bitzero
  */
 val have_ddc_relocation : unit -> bool
 function have_ddc_relocation() = false
+
+/*
+ * PCC relocation will not be part of an initial standardized version of
+ * CHERI-RISC-V. Without PCC relocation the RISC-V integer PC is always
+ * equal to PCC.address which allows us to simplify various corner cases
+ * (e.g. writes to SCRs that could end up in PCC)
+ */
+val have_pcc_relocation : unit -> bool
+function have_pcc_relocation() = false

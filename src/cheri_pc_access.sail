@@ -64,10 +64,11 @@
 
 val get_arch_pc : unit -> xlenbits effect {rreg}
 function get_arch_pc () =
-  PC - getCapBaseBits(PCC)
+  if have_pcc_relocation() then PC - getCapBaseBits(PCC) else PC
 
-/* FIXME: The asymmetry between get_next_pc and set_next_pc where one
- * returns the architectural PC but the other set the PCC-relative PC
+/* FIXME: When have_pcc_relocation() is true, there is asymmetry
+ * between get_next_pc and set_next_pc where one returns the
+ * architectural PC but the other set the PCC-relative PC, which
  * is a bit weird. The way they are currently used it is correct but
  * we should either rename one of the functions or call set_next_pc
  * with the original target address instead of the munged one. - RNW.
@@ -75,7 +76,7 @@ function get_arch_pc () =
 
 val get_next_pc : unit -> xlenbits effect {rreg}
 function get_next_pc() =
-  nextPC - getCapBaseBits(PCC)
+  if have_pcc_relocation() then nextPC - getCapBaseBits(PCC) else nextPC
 
 val set_next_pc : xlenbits -> unit effect {wreg}
 function set_next_pc(pc) =

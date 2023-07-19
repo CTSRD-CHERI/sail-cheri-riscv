@@ -121,7 +121,7 @@ union clause ast = CJALR : (bits(12), regidx, regidx)
  *   - *cs1*.**perms** does not grant **Permit_Execute**.
  *   - *cs1*.**address** $+$ *imm* $\lt$ *cs1*.**base**.
  *   - *cs1*.**address** $+$ *imm* $+$ min_instruction_bytes $\gt$ *cs1*.**top**.
- *   - *cs1*.**base** is unaligned.
+ *   - *cs1*.**base** is unaligned (only possible if PCC relocation is enabled).
  *   - *cs1*.**address** $+$ *imm* is unaligned, ignoring bit 0.
  */
 function clause execute(CJALR(imm, cs1, cd)) = {
@@ -139,7 +139,7 @@ function clause execute(CJALR(imm, cs1, cd)) = {
   } else if not(cs1_val.permit_execute) then {
     handle_cheri_reg_exception(CapEx_PermitExecuteViolation, cs1);
     RETIRE_FAIL
-  } else if newPCCBase[0] == bitone | (newPCCBase[1] == bitone & ~(haveRVC())) then {
+  } else if have_pcc_relocation() & (newPCCBase[0] == bitone | (newPCCBase[1] == bitone & ~(haveRVC()))) then {
     handle_cheri_reg_exception(CapEx_UnalignedBase, cs1);
     RETIRE_FAIL
   } else if newPC[1] == bitone & ~(haveRVC()) then {
@@ -1069,7 +1069,7 @@ union clause ast = CInvoke : (regidx, regidx)
  *   - *cs2*.**perms** grants **Permit_Execute**.
  *   - *cs1*.**address** $\lt$ *cs1*.**base**.
  *   - *cs1*.**address** $+$ min_instruction_bytes $\gt$ *cs1*.**top**.
- *   - *cs1*.**base** is unaligned.
+ *   - *cs1*.**base** is unaligned (only possible if PCC relocation is enabled).
  *   - *cs1*.**address** is unaligned, ignoring bit 0.
  *
  * ## Notes
@@ -1114,7 +1114,7 @@ function clause execute (CInvoke(cs1, cs2)) = {
   } else if cs2_val.permit_execute then {
     handle_cheri_reg_exception(CapEx_PermitExecuteViolation, cs2);
     RETIRE_FAIL
-  } else if newPCCBase[0] == bitone | (newPCCBase[1] == bitone & ~(haveRVC())) then {
+  } else if have_pcc_relocation() & (newPCCBase[0] == bitone | (newPCCBase[1] == bitone & ~(haveRVC()))) then {
     handle_cheri_reg_exception(CapEx_UnalignedBase, cs1);
     RETIRE_FAIL
   } else if newPC[1] == bitone & ~(haveRVC()) then {
@@ -1146,7 +1146,7 @@ union clause ast = JALR_CAP : (regidx, regidx)
  *   - *cs1*.**perms** does not grant **Permit_Execute**.
  *   - *cs1*.**address** $\lt$ *cs1*.**base**.
  *   - *cs1*.**address** $+$ min_instruction_bytes $\gt$ *cs1*.**top**.
- *   - *cs1*.**base** is unaligned.
+ *   - *cs1*.**base** is unaligned (only possible if PCC relocation is enabled).
  *   - *cs1*.**address** is unaligned, ignoring bit 0.
  */
 function clause execute(JALR_CAP(cd, cs1)) = {
