@@ -425,7 +425,9 @@ function clause execute (CSpecialRW(cd, scr, cs1)) = {
         30 => MScratchC = cs1_val,
         31 => MEPCC = cs1_val,
         _  => assert(false, "unreachable")
-      }
+      };
+      if get_config_print_reg() then
+        print_reg(scr_name_map(scr) ^ " <- " ^ RegStr(cs1_val));
     };
     RETIRE_SUCCESS
   }
