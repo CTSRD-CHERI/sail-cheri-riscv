@@ -765,6 +765,39 @@ function clause execute (CFromPtr(cd, cs1, rs2)) = {
   }
 }
 
+union clause ast = CRelocate : (regidx, regidx, regidx)
+/*!
+ * Capability register *cd* is set equal to capability register *cs1*, with the
+ * **tag** field cleared, and its **base** and **address* replaced with
+ * *cs1*.**base** $+$ *rs2* and *cs1*.**address** $+$ *rs2* respectively,
+ * subject to representability. If the resulting capability is not
+ * representable, the value of *rs2* as used for both calculations is
+ * truncated, and for out-of-bounds capabilities where the **address* is not
+ * representable with the requested **base** the **address** is further
+ * adjusted to yield the requested **base**.
+ *
+ * ## Notes
+ *
+ * This instruction is designed to accelerate relocating capabilities in
+ * position-independent code at load time which will then be given to
+ * [CBuildCap].
+ *
+ * Unlike instructions like [CIncOffset] where unrepresentable capabilities
+ * result in changing the **base** but keeping the **address**, this
+ * instruction instead keeps the **base** but changes the **address** in order
+ * to avoid introducing accidental aliasing for invalid requests where *rs2* is
+ * nevertheless sufficiently aligned.
+ */
+function clause execute(CRelocate(cd, cs1, rs2)) = {
+  let cs1_val = C(cs1);
+  let rs2_val = X(rs2);
+
+  let cd1      = invalidateCap(cs1_val);
+  let (_, cd2) = relocateCap(cd1, rs2_val);
+  C(cd) = cd2;
+  RETIRE_SUCCESS
+}
+
 union clause ast = CBuildCap : (regidx, regidx, regidx)
 /*!
  * Capability register *cd* is set equal to capability register *cs1* with its
@@ -2191,6 +2224,7 @@ mapping clause encdec = CSetBoundsExact(cd, cs1, rs2) if (haveXcheri()) <-> 0b00
 mapping clause encdec = CBuildCap(cd, cs1, cs2)   if (haveXcheri()) <-> 0b0011101 @ cs2 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CCopyType(cd, cs1, cs2)   if (haveXcheri()) <-> 0b0011110 @ cs2 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CCSeal(cd, cs1, cs2)      if (haveXcheri()) <-> 0b0011111 @ cs2 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CRelocate(cd, cs1, rs2)   if (haveXcheri()) <-> 0b0010101 @ rs2 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
 
 mapping clause encdec = CToPtr(rd, cs1, cs2)      if (haveXcheri()) <-> 0b0010010 @ cs2 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CFromPtr(cd, cs1, rs2)    if (haveXcheri()) <-> 0b0010011 @ rs2 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
@@ -2217,6 +2251,7 @@ mapping clause assembly = CSetBoundsExact(cd, cs1, rs2) <-> "csetboundsexact" ^ 
 mapping clause assembly = CBuildCap(cd, cs1, cs2) <-> "cbuildcap"   ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ cap_reg_name(cs2)
 mapping clause assembly = CCopyType(cd, cs1, cs2) <-> "ccopytype"   ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ cap_reg_name(cs2)
 mapping clause assembly = CCSeal(cd, cs1, cs2)    <-> "ccseal"      ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ cap_reg_name(cs2)
+mapping clause assembly = CRelocate(cd, cs1, rs2) <-> "crelocate"   ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ reg_name(rs2)
 
 mapping clause assembly = CToPtr(rd, cs1, cs2)    <-> "ctoptr"      ^ spc() ^ reg_name(rd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ cap_reg_name(cs2)
 mapping clause assembly = CFromPtr(cd, cs1, rs2)  <-> "cfromptr"    ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ reg_name(rs2)
