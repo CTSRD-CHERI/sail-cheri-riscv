@@ -5,17 +5,18 @@ directories except for the snapshots of the Lem and Sail libraries in the
 prover_snapshots directory (which include copies of their licenses), is subject
 to the BSD two-clause licence below.
 
-Copyright (c) 2017-2021
+Copyright (c) 2017-2023
   Alasdair Armstrong
   Thomas Bauereiss
   Brian Campbell
   Jessica Clarke
   Nathaniel Wesley Filardo (contributions prior to July 2020, thereafter Microsoft)
+  Google
   Alexandre Joannou
   Microsoft
   Prashanth Mundkur
   Robert Norton-Wright (contributions prior to March 2020, thereafter Microsoft)
-  Alexander Richardson
+  Alexander Richardson (contributions prior to October 2021, thereafter Google)
   Peter Rugg
   Peter Sewell
 
