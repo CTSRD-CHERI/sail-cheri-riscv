@@ -167,7 +167,8 @@ type ext_data_addr_error = (CapEx, capreg_idx)
  * Returns the current value of DDC (for subsequent access checks) as well as
  * the resulting address for a non-CHERI integer-based memory access.
  */
-function ddc_and_resulting_addr (addr : xlenbits) -> (Capability, xlenbits) = {
+val ddc_and_resulting_addr : (xlenbits) -> (Capability, xlenbits)
+function ddc_and_resulting_addr (addr) = {
   let ddc_val = DDC in
   (ddc_val, if (have_ddc_relocation()) then ddc_val.address + addr else addr)
 }
