@@ -163,7 +163,7 @@ function ext_handle_control_check_error(err : ext_control_addr_error) -> unit = 
 
 type ext_data_addr_error = (CapEx, capreg_idx)
 
-/**
+/*!
  * Returns the current value of DDC (for subsequent access checks) as well as
  * the resulting address for a non-CHERI integer-based memory access.
  */
