@@ -79,7 +79,7 @@ function __WriteRAM_Meta(addr, width, tag) = {
   let tag_addr = addr_to_tag_addr(addr);
   if get_config_print_mem() then
     print_mem("tag[" ^ BitStr(tag_addr_to_addr(tag_addr)) ^ "] <- " ^ (if tag then "1" else "0"));
-  MEMw_tag(EXTZ(tag_addr), tag);
+  MEMw_tag(zero_extend(tag_addr), tag);
   /* If the write crosses a cap_size alignment boundary then we need
    * to write the tag for the subsequent region.  Writes greater than
    * cap_size that might span more than two regions are not supported.
@@ -88,7 +88,7 @@ function __WriteRAM_Meta(addr, width, tag) = {
   if tag_addr != tag_addr2 then {
     if get_config_print_mem() then
       print_mem("tag[" ^ BitStr(tag_addr_to_addr(tag_addr2)) ^ "] <- " ^ (if tag then "1" else "0"));
-    MEMw_tag(EXTZ(tag_addr2), tag);
+    MEMw_tag(zero_extend(tag_addr2), tag);
   }
 }
 
@@ -96,7 +96,7 @@ function __WriteRAM_Meta(addr, width, tag) = {
 val __ReadRAM_Meta  : forall 'n. (xlenbits, atom('n)) -> mem_meta effect {rmemt}
 function __ReadRAM_Meta(addr, width) = {
   let tag_addr = addr_to_tag_addr(addr);
-  let tag = MEMr_tag(EXTZ(tag_addr));
+  let tag = MEMr_tag(zero_extend(tag_addr));
   if get_config_print_mem() then
     print_mem("tag[R," ^ BitStr(tag_addr_to_addr(tag_addr)) ^ "] -> " ^ (if tag then "1" else "0"));
   tag

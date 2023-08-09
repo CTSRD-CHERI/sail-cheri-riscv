@@ -68,7 +68,7 @@ union clause ast = AUIPCC : (bits(20), regidx)
  * **address** replaced with **PCC**.**address** $+$ *imm* $\times$ 4096.
  */
 function clause execute AUIPCC(imm, cd) = {
-  let off : xlenbits = EXTS(imm @ 0x000);
+  let off : xlenbits = sign_extend(imm @ 0x000);
   let (representable, newCap) = setCapAddr(PCC, PC + off);
   C(cd) = clearTagIf(newCap, not(representable));
   RETIRE_SUCCESS
@@ -87,7 +87,7 @@ union clause ast = CJAL : (bits(21), regidx)
  *   - **PCC**.**address** $+$ *imm* is unaligned, ignoring bit 0.
  */
 function clause execute(CJAL(imm, cd)) = {
-  let off : xlenbits = EXTS(imm);
+  let off : xlenbits = sign_extend(imm);
   let newPC = PC + off;
   if not(inCapBounds(PCC, newPC, min_instruction_bytes())) then {
     handle_cheri_cap_exception(CapEx_LengthViolation, PCC_IDX);
@@ -126,7 +126,7 @@ union clause ast = CJALR : (bits(12), regidx, regidx)
  */
 function clause execute(CJALR(imm, cs1, cd)) = {
   let cs1_val = C(cs1);
-  let off : xlenbits = EXTS(imm);
+  let off : xlenbits = sign_extend(imm);
   let newPC = [cs1_val.address + off with 0 = bitzero]; /* clear bit zero as for RISCV JALR */
   let newPCCBase = getCapBaseBits(cs1_val);
   if not(cs1_val.tag) then {
@@ -182,7 +182,7 @@ union clause ast = CGetTop    : (regidx, regidx)
  */
 function clause execute (CGetPerm(rd, cs1)) = {
   let capVal = C(cs1);
-  X(rd) = EXTZ(getCapPerms(capVal));
+  X(rd) = zero_extend(getCapPerms(capVal));
   RETIRE_SUCCESS
 }
 
@@ -192,7 +192,7 @@ function clause execute (CGetPerm(rd, cs1)) = {
  */
 function clause execute (CGetFlags(rd, cs1)) = {
   let capVal = C(cs1);
-  X(rd) = EXTZ(getCapFlags(capVal));
+  X(rd) = zero_extend(getCapFlags(capVal));
   RETIRE_SUCCESS
 }
 
@@ -203,8 +203,8 @@ function clause execute (CGetFlags(rd, cs1)) = {
 function clause execute (CGetType(rd, cs1)) = {
   let capVal = C(cs1);
   X(rd) = if   hasReservedOType(capVal)
-          then EXTS(capVal.otype)
-          else EXTZ(capVal.otype);
+          then sign_extend(capVal.otype)
+          else zero_extend(capVal.otype);
   RETIRE_SUCCESS
 }
 
@@ -311,7 +311,7 @@ function clause execute (CGetTop(rd, cs1)) = {
  */
 function clause execute (CGetTag(rd, cs1)) = {
   let capVal = C(cs1);
-  X(rd) = EXTZ(bool_to_bits(capVal.tag));
+  X(rd) = zero_extend(bool_to_bits(capVal.tag));
   RETIRE_SUCCESS
 }
 
@@ -322,7 +322,7 @@ function clause execute (CGetTag(rd, cs1)) = {
  */
 function clause execute (CGetSealed(rd, cs1)) = {
   let capVal = C(cs1);
-  X(rd) = EXTZ(bool_to_bits(isCapSealed(capVal)));
+  X(rd) = zero_extend(bool_to_bits(isCapSealed(capVal)));
   RETIRE_SUCCESS
 }
 
@@ -539,7 +539,7 @@ union clause ast = CIncOffsetImmediate : (regidx, regidx, bits(12))
  */
 function clause execute (CIncOffsetImmediate(cd, cs1, imm)) = {
   let cs1_val = C(cs1);
-  let immBits : xlenbits = EXTS(imm);
+  let immBits : xlenbits = sign_extend(imm);
 
   let inCap = clearTagIfSealed(cs1_val);
   let (success, newCap) = incCapOffset(inCap, immBits);
@@ -605,7 +605,7 @@ function clause execute (CSetBounds(cd, cs1, rs2)) = {
   let rs2_val = X(rs2);
 
   let newBase = cs1_val.address;
-  let newTop : CapLenBits = EXTZ(newBase) + EXTZ(rs2_val);
+  let newTop : CapLenBits = zero_extend(newBase) + zero_extend(rs2_val);
   let inBounds = inCapBounds(cs1_val, newBase, unsigned(rs2_val));
 
   let inCap = clearTagIfSealed(cs1_val);
@@ -629,7 +629,7 @@ function clause execute (CSetBoundsImmediate(cd, cs1, uimm)) = {
   let cs1_val = C(cs1);
 
   let newBase = cs1_val.address;
-  let newTop : CapLenBits = EXTZ(newBase) + EXTZ(uimm);
+  let newTop : CapLenBits = zero_extend(newBase) + zero_extend(uimm);
   let inBounds = inCapBounds(cs1_val, newBase, unsigned(uimm));
 
   let inCap = clearTagIfSealed(cs1_val);
@@ -656,7 +656,7 @@ function clause execute (CSetBoundsExact(cd, cs1, rs2)) = {
   let rs2_val = X(rs2);
 
   let newBase = cs1_val.address;
-  let newTop : CapLenBits = EXTZ(newBase) + EXTZ(rs2_val);
+  let newTop : CapLenBits = zero_extend(newBase) + zero_extend(rs2_val);
   let inBounds = inCapBounds(cs1_val, newBase, unsigned(rs2_val));
 
   let inCap = clearTagIfSealed(cs1_val);
@@ -835,8 +835,8 @@ function clause execute (CCopyType(cd, cs1, cs2)) = {
   let cs2_val = C(cs2);
 
   let reserved = hasReservedOType(cs2_val);
-  let otype : xlenbits = if reserved then EXTS(cs2_val.otype)
-                                     else EXTZ(cs2_val.otype);
+  let otype : xlenbits = if reserved then sign_extend(cs2_val.otype)
+                                     else zero_extend(cs2_val.otype);
 
   let inCap = clearTagIfSealed(cs1_val);
   let (representable, newCap) = setCapAddr(inCap, otype);
@@ -904,7 +904,7 @@ function clause execute (CTestSubset(rd, cs1, cs2)) = {
                else
                  0b1;
 
-  X(rd) = EXTZ(result);
+  X(rd) = zero_extend(result);
   RETIRE_SUCCESS
 }
 
@@ -917,7 +917,7 @@ union clause ast = CSEQX : (regidx, regidx, regidx)
 function clause execute (CSEQX(rd, cs1, cs2)) = {
   let cs1_val = C(cs1);
   let cs2_val = C(cs2);
-  X(rd) = EXTZ(bool_to_bits(cs1_val == cs2_val));
+  X(rd) = zero_extend(bool_to_bits(cs1_val == cs2_val));
   RETIRE_SUCCESS
 }
 
@@ -1421,7 +1421,7 @@ function clause execute (CLoadTags(rd, cs1)) = {
 
         match mtags {
           MemException(e) => { handle_mem_exception(vaddr, e); RETIRE_FAIL },
-          MemValue(v) => { X(rd) = EXTZ(v); RETIRE_SUCCESS }
+          MemValue(v) => { X(rd) = zero_extend(v); RETIRE_SUCCESS }
         }
       }
     }
@@ -1787,7 +1787,7 @@ union clause ast = LoadCapImm : (regidx, regidx, bits(12))
  *     implementation supports unaligned data accesses.
  */
 function clause execute LoadCapImm(cd, rs1_cs1, imm) = {
-  let offset : xlenbits = EXTS(imm);
+  let offset : xlenbits = sign_extend(imm);
   let (auth_val, vaddr, auth_idx) = get_cheri_mode_cap_addr(rs1_cs1, offset);
   handle_load_cap_via_cap(cd, auth_idx, auth_val, vaddr)
 }
@@ -1825,7 +1825,7 @@ union clause ast = StoreCapImm : (regidx, regidx, bits(12))
  *   - *cs1*.**address** $+$ *imm* $+$ **CLEN** $/$ 8 $\gt$ *cs1*.**top**.
  */
 function clause execute StoreCapImm(cs2, rs1_cs1, imm) = {
-  let offset : xlenbits = EXTS(imm);
+  let offset : xlenbits = sign_extend(imm);
   let (auth_val, vaddr, auth_idx) = get_cheri_mode_cap_addr(rs1_cs1, offset);
   handle_store_cap_via_cap(cs2, auth_idx, auth_val, vaddr)
 }
@@ -1851,7 +1851,7 @@ function handle_store_cond_data_via_cap(rs2, auth_idx, auth_val, vaddrBits, widt
     handle_mem_exception(vaddrBits, E_SAMO_Addr_Align());
     RETIRE_FAIL
   } else if match_reservation(vaddrBits) == false then {
-    X(rs2) = EXTZ(0b1);
+    X(rs2) = zero_extend(0b1);
     cancel_reservation();
     RETIRE_SUCCESS
   } else {
@@ -1873,8 +1873,8 @@ function handle_store_cond_data_via_cap(rs2, auth_idx, auth_val, vaddrBits, widt
               _    => report_invalid_width(__FILE__, __LINE__, width, "handle_store_cond_data_via_cap")
             };
             match (res) {
-              MemValue(true)  => { X(rs2) = EXTZ(0b0); cancel_reservation(); RETIRE_SUCCESS },
-              MemValue(false) => { X(rs2) = EXTZ(0b1); cancel_reservation(); RETIRE_SUCCESS },
+              MemValue(true)  => { X(rs2) = zero_extend(0b0); cancel_reservation(); RETIRE_SUCCESS },
+              MemValue(false) => { X(rs2) = zero_extend(0b1); cancel_reservation(); RETIRE_SUCCESS },
               MemException(e) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL }
             }
           }
@@ -1892,9 +1892,9 @@ function write_sc_cap_result(rd : regidx, cap_dest : bool, result : bits(1)) -> 
     is a capability register but the destination may be either a capability or
     an general purpose register depending on the instruction. */
   if cap_dest then {
-    C(rd) = int_to_cap(EXTZ(result));
+    C(rd) = int_to_cap(zero_extend(result));
   } else {
-    X(rd) = EXTZ(result);
+    X(rd) = zero_extend(result);
   }
 }
 
@@ -1965,7 +1965,7 @@ function clause execute StoreCondDataDDC(rs2, rs1, width) = {
     /* should only happen in rmem
      * rmem: allow SC to fail very early
      */
-    X(rs2) = EXTZ(0b1);
+    X(rs2) = zero_extend(0b1);
     RETIRE_SUCCESS
   } else if haveAtomics() then {
     let (ddc_val, vaddr) = ddc_and_resulting_addr(X(rs1));
@@ -1982,7 +1982,7 @@ function clause execute StoreCondCapDDC(cs2, rs1) = {
     /* should only happen in rmem
      * rmem: allow SC to fail very early
      */
-    C(cs2) = int_to_cap(EXTZ(0b1));
+    C(cs2) = int_to_cap(zero_extend(0b1));
     RETIRE_SUCCESS
   } else if haveAtomics() then {
     let (ddc_val, vaddr) = ddc_and_resulting_addr(X(rs1));
@@ -1999,7 +1999,7 @@ function clause execute StoreCondCap(rs2, cs1, width) = {
     /* should only happen in rmem
      * rmem: allow SC to fail very early
      */
-    X(rs2) = EXTZ(0b1);
+    X(rs2) = zero_extend(0b1);
     RETIRE_SUCCESS
   } else if haveAtomics() then {
     let cs1_val = C(cs1);
@@ -2017,7 +2017,7 @@ function clause execute StoreCondCapCap(cs2, cs1) = {
     /* should only happen in rmem
      * rmem: allow SC to fail very early
      */
-    C(cs2) = int_to_cap(EXTZ(0b1));
+    C(cs2) = int_to_cap(zero_extend(0b1));
     RETIRE_SUCCESS
   } else if haveAtomics() then {
     let cs1_val = C(cs1);
@@ -2035,7 +2035,7 @@ function clause execute StoreCondCapMode(rd, cs2, rs1_cs1, aq, rl) = {
     /* should only happen in rmem
      * rmem: allow SC to fail very early
      */
-    X(rd) = EXTZ(0b1);
+    X(rd) = zero_extend(0b1);
     RETIRE_SUCCESS
   } else if haveAtomics() then {
     let (auth_val, vaddr, auth_idx) = get_cheri_mode_cap_addr(rs1_cs1, zeros());

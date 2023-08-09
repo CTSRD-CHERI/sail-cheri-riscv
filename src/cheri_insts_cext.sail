@@ -81,7 +81,7 @@ mapping clause assembly = C_CLC(cdc, csc1, uimm)
 function clause execute(C_CLC(cdc, csc1, uimm)) = {
   let cd = creg2reg_idx(cdc) in
   let cs1 = creg2reg_idx(csc1) in
-  execute(LoadCapImm(cd, cs1, EXTZ(uimm)))
+  execute(LoadCapImm(cd, cs1, zero_extend(uimm)))
 }
 
 union clause ast = C_CLCSP : (regidx, bits(10))
@@ -104,7 +104,7 @@ mapping clause assembly = C_CLCSP(cd, uimm)
  *   instruction trap.
  */
 function clause execute(C_CLCSP(cd, uimm)) =
-  execute(LoadCapImm(cd, sp, EXTZ(uimm)))
+  execute(LoadCapImm(cd, sp, zero_extend(uimm)))
 
 /*
  * The c.clcsp encoding with cd == 0 should raise an illegal instruction trap
@@ -136,7 +136,7 @@ mapping clause assembly = C_CSC(csc2, csc1, uimm)
 function clause execute(C_CSC(csc2, csc1, uimm)) = {
   let cs2 = creg2reg_idx(csc2) in
   let cs1 = creg2reg_idx(csc1) in
-  execute(StoreCapImm(cs2, cs1, EXTZ(uimm)))
+  execute(StoreCapImm(cs2, cs1, zero_extend(uimm)))
 }
 
 union clause ast = C_CSCSP : (regidx, bits(10))
@@ -157,7 +157,7 @@ mapping clause assembly = C_CSCSP(cs2, uimm)
  * - For RV32 this replaces the encoding of [C.FSWSP], RV64 uses [C.FSDSP].
  */
 function clause execute(C_CSCSP(cs2, uimm)) =
-  execute(StoreCapImm(cs2, sp, EXTZ(uimm)))
+  execute(StoreCapImm(cs2, sp, zero_extend(uimm)))
 
 /* Capability arithmetic instructions */
 union clause ast = C_CIncOffset16CSP : (bits(10))
@@ -179,7 +179,7 @@ mapping clause assembly = C_CIncOffset16CSP(nzimm) if nzimm != 0b0000000000
  * - This instruction replaces the encoding of [C.ADDI16SP].
  */
 function clause execute(C_CIncOffset16CSP(nzimm)) =
-  execute(CIncOffsetImmediate(sp, sp, EXTS(nzimm)))
+  execute(CIncOffsetImmediate(sp, sp, sign_extend(nzimm)))
 
 union clause ast = C_CIncOffset4CSPN : (cregidx, bits(10))
 
@@ -201,7 +201,7 @@ mapping clause assembly = C_CIncOffset4CSPN(cdc, nzuimm) if nzuimm != 0b00000000
  */
 function clause execute(C_CIncOffset4CSPN(cdc, nzuimm)) = {
   let cd = creg2reg_idx(cdc) in
-  execute(CIncOffsetImmediate(cd, sp, EXTZ(nzuimm)))
+  execute(CIncOffsetImmediate(cd, sp, zero_extend(nzuimm)))
 }
 
 /* Control flow */
@@ -259,4 +259,4 @@ mapping clause assembly = C_CJAL(imm) if sizeof(xlen) == 32
  * - This instruction is only available in RV32.
  * - This instruction replaces the encoding of [C.JAL].
  */
-function clause execute(C_CJAL(imm)) = execute(CJAL(EXTS(imm), ra))
+function clause execute(C_CJAL(imm)) = execute(CJAL(sign_extend(imm), ra))

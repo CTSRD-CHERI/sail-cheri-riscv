@@ -336,7 +336,7 @@ function setCapBounds(cap, base, top) : (Capability, CapAddrBits, CapLenBits) ->
     /* Find out whether we have lost significant bits of base and top using a
      * mask of bits that we will lose (including 3 extra for exp).
      */
-    maskLo : CapLenBits = EXTZ(ones(e+3));
+    maskLo : CapLenBits = zero_extend(ones(e+3));
     lostSignificantBase = unsigned(ext_base & maskLo) != 0;
     lostSignificantTop  = unsigned(top & maskLo) != 0;
 
@@ -371,7 +371,7 @@ function setCapBounds(cap, base, top) : (Capability, CapAddrBits, CapLenBits) ->
 }
 
 function getCapPerms(cap) : Capability -> CapPermsBits =
-    let perms : bits(cap_uperms_shift) = EXTZ(getCapHardPerms(cap)) in
+    let perms : bits(cap_uperms_shift) = zero_extend(getCapHardPerms(cap)) in
     cap.uperms @ perms
 
 function setCapPerms(cap, perms) : (Capability, CapPermsBits) -> Capability =
@@ -545,7 +545,7 @@ function capToString (cap) = {
   let len = getCapLength(cap);
   let len_str = BitStr(to_bits(cap_len_width + 3, len));
   /* Print architectural type which is -1 for unsealed caps */
-  let otype64 : CapAddrBits = if hasReservedOType(cap) then EXTS(cap.otype) else EXTZ(cap.otype);
+  let otype64 : CapAddrBits = if hasReservedOType(cap) then sign_extend(cap.otype) else zero_extend(cap.otype);
   concat_str(" t:",
   concat_str(if cap.tag then "1" else "0",
   concat_str(" s:",
