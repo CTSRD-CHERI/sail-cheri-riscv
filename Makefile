@@ -38,6 +38,10 @@ SAIL_DEFAULT_INST = $(SAIL_RISCV_MODEL_DIR)/riscv_insts_base.sail \
                     $(SAIL_RISCV_MODEL_DIR)/riscv_insts_cfext.sail \
                     $(SAIL_RISCV_MODEL_DIR)/riscv_insts_dext.sail \
                     $(SAIL_RISCV_MODEL_DIR)/riscv_insts_cdext.sail \
+                    $(SAIL_RISCV_MODEL_DIR)/riscv_insts_zba.sail \
+                    $(SAIL_RISCV_MODEL_DIR)/riscv_insts_zbb.sail \
+                    $(SAIL_RISCV_MODEL_DIR)/riscv_insts_zbc.sail \
+                    $(SAIL_RISCV_MODEL_DIR)/riscv_insts_zbs.sail \
                     $(SAIL_CHERI_MODEL_DIR)/cheri_insts_begin.sail \
                     $(SAIL_CHERI_MODEL_DIR)/cheri_insts.sail \
                     $(SAIL_CHERI_MODEL_DIR)/cheri_insts_cext.sail \
