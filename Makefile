@@ -19,6 +19,7 @@ CHERI_CAP_RV64_IMPL := cheri_prelude_128.sail
 
 SAIL_XLEN = $(SAIL_$(ARCH)_XLEN)
 SAIL_FLEN = $(SAIL_RISCV_MODEL_DIR)/riscv_flen_D.sail
+SAIL_VLEN = $(SAIL_RISCV_MODEL_DIR)/riscv_vlen.sail
 CHERI_CAP_IMPL = $(CHERI_CAP_$(ARCH)_IMPL)
 
 
@@ -76,9 +77,9 @@ SAIL_VM_SRCS += $(SAIL_$(ARCH)_VM_SRCS)
 
 # Non-instruction sources
 PRELUDE = $(SAIL_RISCV_MODEL_DIR)/prelude.sail \
-          $(SAIL_RISCV_MODEL_DIR)/prelude_mapping.sail \
           $(SAIL_XLEN) \
           $(SAIL_FLEN) \
+          $(SAIL_VLEN) \
           $(SAIL_CHERI_MODEL_DIR)/cheri_prelude.sail \
           $(SAIL_CHERI_MODEL_DIR)/cheri_types.sail \
           $(SAIL_CHERI_MODEL_DIR)/$(CHERI_CAP_IMPL) \
@@ -98,6 +99,9 @@ SAIL_REGS_SRCS = $(SAIL_CHERI_MODEL_DIR)/cheri_reg_type.sail \
                  $(SAIL_CHERI_MODEL_DIR)/cheri_sys_regs.sail \
                  $(SAIL_CHERI_MODEL_DIR)/cheri_regs.sail \
                  $(SAIL_CHERI_MODEL_DIR)/cheri_pc_access.sail
+
+SAIL_REGS_SRCS += $(SAIL_RISCV_MODEL_DIR)/riscv_vreg_type.sail \
+                  $(SAIL_RISCV_MODEL_DIR)/riscv_vext_regs.sail
 
 SAIL_ARCH_SRCS = $(PRELUDE) \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_types_common.sail \
