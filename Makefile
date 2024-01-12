@@ -364,7 +364,7 @@ endif
 
 generated_definitions/lem/$(ARCH)/riscv.lem: $(SAIL_SRCS) Makefile handwritten_support/dummy_assembly_mappings.sail
 	mkdir -p generated_definitions/lem/$(ARCH) generated_definitions/isabelle/$(ARCH)
-	$(SAIL) $(SAIL_FLAGS) -lem -lem_output_dir generated_definitions/lem/$(ARCH) -isa_output_dir generated_definitions/isabelle/$(ARCH) -o riscv -lem_mwords -lem_lib Riscv_extras -lem_lib Riscv_extras_fdext -lem_lib Cheri_extras -no_effects -mono_rewrites $(SAIL_LIB_DIR)/mono_rewrites.sail $(SAIL_SRCS) -splice handwritten_support/dummy_assembly_mappings.sail
+	$(SAIL) $(SAIL_FLAGS) -lem -lem_output_dir generated_definitions/lem/$(ARCH) -isa_output_dir generated_definitions/isabelle/$(ARCH) -o riscv -lem_mwords -lem_lib Riscv_extras -lem_lib Riscv_extras_fdext -lem_lib Cheri_extras -mono_rewrites $(SAIL_LIB_DIR)/mono_rewrites.sail $(SAIL_SRCS) -splice handwritten_support/dummy_assembly_mappings.sail
 	echo "declare {isabelle} rename field sync_exception_ext = sync_exception_ext_exception" >> generated_definitions/lem/$(ARCH)/riscv_types.lem
 
 generated_definitions/isabelle/$(ARCH)/Riscv.thy: generated_definitions/isabelle/$(ARCH)/ROOT generated_definitions/lem/$(ARCH)/riscv.lem $(RISCV_EXTRAS_LEM) handwritten_support/cheri_extras.lem Makefile
@@ -409,7 +409,7 @@ riscv_coq_build: generated_definitions/coq/$(ARCH)/riscv.vo
 
 $(addprefix generated_definitions/coq/$(ARCH)/,riscv.v riscv_types.v): $(SAIL_COQ_SRCS) Makefile handwritten_support/dummy_assembly_mappings.sail
 	mkdir -p generated_definitions/coq/$(ARCH)
-	$(SAIL) $(SAIL_FLAGS) -dcoq_undef_axioms -coq -coq_output_dir generated_definitions/coq/$(ARCH) -o riscv -coq_lib cheri_extras -coq_lib riscv_extras -no_effects $(SAIL_COQ_SRCS) -splice handwritten_support/dummy_assembly_mappings.sail
+	$(SAIL) $(SAIL_FLAGS) -dcoq_undef_axioms -coq -coq_output_dir generated_definitions/coq/$(ARCH) -o riscv -coq_lib cheri_extras -coq_lib riscv_extras $(SAIL_COQ_SRCS) -splice handwritten_support/dummy_assembly_mappings.sail
 $(addprefix generated_definitions/coq/$(ARCH)/,riscv_duopod.v riscv_duopod_types.v): $(PRELUDE_SRCS) $(SAIL_RISCV_MODEL_DIR)/riscv_duopod.sail
 	mkdir -p generated_definitions/coq/$(ARCH)
 	$(SAIL) $(SAIL_FLAGS) -dcoq_undef_axioms -coq -coq_output_dir generated_definitions/coq/$(ARCH) -o riscv_duopod -coq_lib riscv_extras $^
@@ -433,7 +433,7 @@ generated_definitions/lem-for-rmem/riscv.lem: SAIL_FLAGS += -lem_lib Riscv_extra
 generated_definitions/lem-for-rmem/riscv.lem: $(SAIL_RMEM_SRCS)
 	mkdir -p $(dir $@)
 #	We do not need the isabelle .thy files, but sail always generates them
-	$(SAIL) $(SAIL_FLAGS) -lem -lem_mwords -lem_output_dir $(dir $@) -isa_output_dir $(dir $@) -o $(notdir $(basename $@)) -no_effects $^
+	$(SAIL) $(SAIL_FLAGS) -lem -lem_mwords -lem_output_dir $(dir $@) -isa_output_dir $(dir $@) -o $(notdir $(basename $@)) $^
 
 isail:
 	$(SAIL) $(SAIL_FLAGS) -i $(PRELUDE_SRCS)
