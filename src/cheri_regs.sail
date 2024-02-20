@@ -143,7 +143,7 @@ function wC (r, v) = {
   if (r != 0) then {
      rvfi_wX(r, v.address);
      if get_config_print_reg() then
-       print_reg("x" ^ string_of_int(r) ^ " <- " ^ RegStr(v));
+       print_reg("x" ^ dec_str(r) ^ " <- " ^ RegStr(v));
   }
 }
 
