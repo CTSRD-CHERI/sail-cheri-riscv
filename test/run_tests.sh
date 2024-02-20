@@ -6,6 +6,12 @@ cd $DIR
 RISCVDIR="$DIR/.."
 RISCVTESTDIR="$RISCVDIR/sail-riscv/test"
 
+DTC_PATH=$(which dtc)
+if [ -z "$DTC_PATH" ]; then
+    echo "dtc not found. Install it via your package manager."
+    exit 1
+fi
+
 RED='\033[0;91m'
 GREEN='\033[0;92m'
 YELLOW='\033[0;93m'
@@ -71,7 +77,7 @@ for test in $RISCVTESTDIR/riscv-tests/rv64*.elf; do
     if [[ $(basename $test) =~ $pat ]];
     then continue
     fi
-    if $RISCVDIR/ocaml_emulator/cheri_riscv_ocaml_sim_RV64 "$test" >"${test/.elf/.out}" 2>&1 && grep -q SUCCESS "${test/.elf/.out}"
+    if $RISCVDIR/ocaml_emulator/cheri_riscv_ocaml_sim_RV64 -with-dtc "$DTC_PATH" "$test" >"${test/.elf/.out}" 2>&1 && grep -q SUCCESS "${test/.elf/.out}"
     then
        green "OCaml-64 $(basename $test)" "ok"
     else
