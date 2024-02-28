@@ -270,14 +270,12 @@ function getCapBoundsBits(c) : Capability -> (CapAddrBits, CapLenBits) =
   let E = min(cap_max_E, unsigned(c.E)) in
   let a : CapAddrBits = c.address in
   /* Extract bits we need to make the top correction and calculate representable limit */
-  let a3 = truncate(a >> (E + cap_mantissa_width - 3), 3) in
-  let B3 = truncateLSB(c.B, 3) in
-  let T3 = truncateLSB(c.T, 3) in
-  let R3 = B3 - 0b001 in /* wraps */
+  let a_mid = truncate(a >> E, cap_mantissa_width) in
+  let R = c.B - (0b01 @ zeros(cap_mantissa_width - 2)) in /* wraps */
   /* Do address, base and top lie in the R aligned region above the one containing R? */
-  let aHi = if a3 <_u R3 then 1 else 0 in
-  let bHi = if B3 <_u R3 then 1 else 0 in
-  let tHi = if T3 <_u R3 then 1 else 0 in
+  let aHi = if a_mid <_u R then 1 else 0 in
+  let bHi = if c.B   <_u R then 1 else 0 in
+  let tHi = if c.T   <_u R then 1 else 0 in
   /* Compute region corrections for top and base relative to a */
   let correction_base = bHi - aHi in
   let correction_top  = tHi - aHi in
@@ -503,9 +501,7 @@ function fastRepCheck(c, i) : (Capability, CapAddrBits) -> bool=
         let i_top    = signed(i >>_s (E + cap_mantissa_width)) in
         let i_mid    = truncate(i >> E, cap_mantissa_width)in
         let a_mid    = truncate(c.address >> E, cap_mantissa_width) in
-        let B3 = truncateLSB(c.B, 3) in
-        let R3 = B3 - 0b001 in
-        let R  = R3 @ zeros(cap_mantissa_width - 3) in
+        let R = c.B - (0b01 @ zeros(cap_mantissa_width - 2)) in
         let diff  = R - a_mid in
         let diff1 = diff - 1 in
         /* i_top determines 1. whether the increment is inRange
