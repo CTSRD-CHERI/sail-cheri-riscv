@@ -1174,7 +1174,7 @@ function clause execute(JALR_PCC(rd, rs1)) = {
 
 val handle_load_data_via_cap : (regidx, capreg_idx, Capability, xlenbits, bool, word_width) -> Retired effect {escape, rmem, rmemt, rreg, wmv, wmvt, wreg}
 function handle_load_data_via_cap(rd, auth_idx, auth_val, vaddrBits, is_unsigned, width) = {
-  let size = word_width_bytes(width);
+  let size = size_bytes(width);
   let aq : bool = false;
   let rl : bool = false;
   if not(auth_val.tag) then {
@@ -1439,7 +1439,7 @@ function check_res_misaligned(vaddr : xlenbits, width : word_width) -> bool =
 
 val handle_loadres_data_via_cap : (regidx, capreg_idx, Capability, xlenbits, word_width) -> Retired effect {escape, rmem, rmemt, rreg, wmv, wmvt, wreg}
 function handle_loadres_data_via_cap(rd, auth_idx, auth_val, vaddrBits, width) = {
-  let size = word_width_bytes(width);
+  let size = size_bytes(width);
   let aq : bool = false;
   let rl : bool = false;
   let is_unsigned = false;
@@ -1578,7 +1578,7 @@ function clause execute (LoadResCapMode(cd, rs1_cs1, aq, rl)) = {
 
 val handle_store_data_via_cap : (regidx, capreg_idx, Capability, xlenbits, word_width) -> Retired effect {eamem, escape, rmem, rmemt, rreg, wmv, wmvt, wreg}
 function handle_store_data_via_cap(rs2, auth_idx, auth_val, vaddrBits, width) = {
-  let size = word_width_bytes(width);
+  let size = size_bytes(width);
   let aq : bool = false;
   let rl : bool = false;
   if not(auth_val.tag) then {
@@ -1832,7 +1832,7 @@ function clause execute StoreCapImm(cs2, rs1_cs1, imm) = {
 
 val handle_store_cond_data_via_cap : (regidx, capreg_idx, Capability, xlenbits, word_width) -> Retired effect {eamem, escape, rmem, rmemt, rreg, wmv, wmvt, wreg}
 function handle_store_cond_data_via_cap(rs2, auth_idx, auth_val, vaddrBits, width) = {
-  let size = word_width_bytes(width);
+  let size = size_bytes(width);
   let aq : bool = true; /* cheri-specific aq/rl */
   let rl : bool = true;
   if not(auth_val.tag) then {

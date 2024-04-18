@@ -70,8 +70,10 @@ function MAX(n) = pow2(n) - 1
 
 val not = {coq:"negb", _:"not"} : bool -> bool
 
+/*
 val bool_to_bit : bool -> bit
 function bool_to_bit x = if x then bitone else bitzero
+*/
 
 /*
  * We use a single feature flag controlling DDC/PCC relocation.
