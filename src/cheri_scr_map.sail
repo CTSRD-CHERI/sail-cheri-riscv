@@ -69,6 +69,7 @@ scattered mapping scr_name_map
 mapping clause scr_name_map = 0b00000 <-> "pcc"
 mapping clause scr_name_map = 0b00001 <-> "ddc"
 
+mapping clause scr_name_map = 0b00011 <-> "utidc"
 mapping clause scr_name_map = 0b00100 <-> "utcc"
 mapping clause scr_name_map = 0b00101 <-> "utdc"
 mapping clause scr_name_map = 0b00110 <-> "uscratchc"
