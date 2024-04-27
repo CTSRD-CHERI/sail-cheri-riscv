@@ -12,7 +12,7 @@ struct zMisa;
 typedef int unit;
 typedef uint64_t mach_bits;
 
-unit z_set_Misa_C(struct zMisa *, mach_bits) {
+unit z_set_Misa_C(struct zMisa * isa, mach_bits bits) {
     fprintf(stderr, "z_set_Misa_C is not supported\n");
     exit(EXIT_FAILURE);
 }
