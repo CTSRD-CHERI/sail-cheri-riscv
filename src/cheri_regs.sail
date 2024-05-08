@@ -171,6 +171,7 @@ function ext_init_regs () = {
   SScratchC = null_cap;
   SEPCC = default_cap;
 
+  MTIDC = null_cap;
   MTCC = default_cap;
   MTDC = null_cap;
   MScratchC = null_cap;

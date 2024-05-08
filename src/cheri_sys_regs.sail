@@ -124,6 +124,7 @@ register STCC      : Capability
 register STDC      : Capability
 register SScratchC : Capability
 register SEPCC     : Capability
+register MTIDC     : Capability
 register MTCC      : Capability
 register MTDC      : Capability
 register MScratchC : Capability

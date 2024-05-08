@@ -75,11 +75,13 @@ mapping clause scr_name_map = 0b00101 <-> "utdc"
 mapping clause scr_name_map = 0b00110 <-> "uscratchc"
 mapping clause scr_name_map = 0b00111 <-> "uepcc"
 
+mapping clause scr_name_map = 0b01011 <-> "stidc"
 mapping clause scr_name_map = 0b01100 <-> "stcc"
 mapping clause scr_name_map = 0b01101 <-> "stdc"
 mapping clause scr_name_map = 0b01110 <-> "sscratchc"
 mapping clause scr_name_map = 0b01111 <-> "sepcc"
 
+mapping clause scr_name_map = 0b11011 <-> "mtidc"
 mapping clause scr_name_map = 0b11100 <-> "mtcc"
 mapping clause scr_name_map = 0b11101 <-> "mtdc"
 mapping clause scr_name_map = 0b11110 <-> "mscratchc"
