@@ -361,27 +361,33 @@ union clause ast = CSpecialRW : (regidx, screg, regidx)
  *   **DDC** should need clearing, which can be done with [CClear].
  */
 function clause execute (CSpecialRW(cd, scr, cs1)) = {
-  let (specialExists, ro, priv, needASR) : (bool, bool, Privilege, bool) = match unsigned(scr) {
-    0  => (true, true,  User, false),
-    1  => (true, false, User, false),
-    4 if haveNExt() => (true, false, User, true),
-    5 if haveNExt() => (true, false, User, true),
-    6 if haveNExt() => (true, false, User, true),
-    7 if haveNExt() => (true, false, User, true),
-    12 if haveSupMode() => (true, false, Supervisor, true),
-    13 if haveSupMode() => (true, false, Supervisor, true),
-    14 if haveSupMode() => (true, false, Supervisor, true),
-    15 if haveSupMode() => (true, false, Supervisor, true),
-    28 => (true, false, Machine, true),
-    29 => (true, false, Machine, true),
-    30 => (true, false, Machine, true),
-    31 => (true, false, Machine, true),
-    _  => (false, true, Machine, true)
+  let (specialExists, ro, priv, needASR, needASRW) : (bool, bool, Privilege, bool, bool) = match unsigned(scr) {
+    0  => (true, true,  User, false, false),
+    1  => (true, false, User, false, false),
+    3 if haveUsrMode() => (true, true, User, false, true),
+    4 if haveNExt() => (true, false, User, true, true),
+    5 if haveNExt() => (true, false, User, true, true),
+    6 if haveNExt() => (true, false, User, true, true),
+    7 if haveNExt() => (true, false, User, true, true),
+    11 if haveSupMode() => (true, false, Supervisor, false, true),
+    12 if haveSupMode() => (true, false, Supervisor, true, true),
+    13 if haveSupMode() => (true, false, Supervisor, true, true),
+    14 if haveSupMode() => (true, false, Supervisor, true, true),
+    15 if haveSupMode() => (true, false, Supervisor, true, true),
+    27 => (true, false, Machine, false, true),
+    28 => (true, false, Machine, true, true),
+    29 => (true, false, Machine, true, true),
+    30 => (true, false, Machine, true, true),
+    31 => (true, false, Machine, true, true),
+    _  => (false, true, Machine, true, true)
   };
   if (not(specialExists) |
       ro & cs1 != zeros() |
       (privLevel_to_bits(cur_privilege) <_u privLevel_to_bits(priv))) then {
     handle_illegal();
+    RETIRE_FAIL
+  } else if (needASRW & (cs1 != zeros()) & not(pcc_access_system_regs())) then {
+    handle_cheri_cap_exception(CapEx_AccessSystemRegsViolation, 0b1 @ scr);
     RETIRE_FAIL
   } else if (needASR & not(pcc_access_system_regs())) then {
     handle_cheri_cap_exception(CapEx_AccessSystemRegsViolation, 0b1 @ scr);
@@ -395,14 +401,17 @@ function clause execute (CSpecialRW(cd, scr, cs1)) = {
         pcc
       },
       1  => DDC,
+      3  => UTIDC,
       4  => UTCC,
       5  => UTDC,
       6  => UScratchC,
       7  => legalize_epcc(UEPCC),
+      11 => STIDC,
       12 => STCC,
       13 => STDC,
       14 => SScratchC,
       15 => legalize_epcc(SEPCC),
+      27 => MTIDC,
       28 => MTCC,
       29 => MTDC,
       30 => MScratchC,
@@ -412,14 +421,17 @@ function clause execute (CSpecialRW(cd, scr, cs1)) = {
     if (cs1 != zeros()) then {
       match unsigned(scr) {
         1  => DDC = cs1_val,
+        3  => UTIDC = cs1_val,
         4  => UTCC = legalize_tcc(UTCC, cs1_val),
         5  => UTDC = cs1_val,
         6  => UScratchC = cs1_val,
         7  => UEPCC = cs1_val,
+        11 => STIDC = cs1_val,
         12 => STCC = legalize_tcc(STCC, cs1_val),
         13 => STDC = cs1_val,
         14 => SScratchC = cs1_val,
         15 => SEPCC = cs1_val,
+        27 => MTIDC = cs1_val,
         28 => MTCC = legalize_tcc(MTCC, cs1_val),
         29 => MTDC = cs1_val,
         30 => MScratchC = cs1_val,

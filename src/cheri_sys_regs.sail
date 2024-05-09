@@ -114,14 +114,17 @@ register PCC       : Capability
 register nextPCC   : Capability
 register DDC       : Capability
 
+register UTIDC     : Capability
 register UTCC      : Capability
 register UTDC      : Capability
 register UScratchC : Capability
 register UEPCC     : Capability
+register STIDC     : Capability
 register STCC      : Capability
 register STDC      : Capability
 register SScratchC : Capability
 register SEPCC     : Capability
+register MTIDC     : Capability
 register MTCC      : Capability
 register MTDC      : Capability
 register MScratchC : Capability
