@@ -421,15 +421,17 @@ function clause execute (CSpecialRW(cd, scr, cs1)) = {
     if (cs1 != zeros()) then {
       match unsigned(scr) {
         1  => DDC = cs1_val,
+        3  => UTIDC = cs1_val,
         4  => UTCC = legalize_tcc(UTCC, cs1_val),
         5  => UTDC = cs1_val,
         6  => UScratchC = cs1_val,
         7  => UEPCC = cs1_val,
-        12 => STIDC = cs1_val,
+        11 => STIDC = cs1_val,
         12 => STCC = legalize_tcc(STCC, cs1_val),
         13 => STDC = cs1_val,
         14 => SScratchC = cs1_val,
         15 => SEPCC = cs1_val,
+        27 => MTIDC = cs1_val,
         28 => MTCC = legalize_tcc(MTCC, cs1_val),
         29 => MTDC = cs1_val,
         30 => MScratchC = cs1_val,
