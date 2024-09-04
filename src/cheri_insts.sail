@@ -2140,7 +2140,7 @@ mapping clause encdec = JALR_CAP(cd, cs1)   if (haveXcheri()) <-> 0b1111111 @ 0b
 mapping clause encdec = CSealEntry(cd, cs1) if (haveXcheri()) <-> 0b1111111 @ 0b10001 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = JALR_PCC(rd, rs1)   if (haveXcheri()) <-> 0b1111111 @ 0b10100 @ rs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 
-mapping clause encdec = CLoadTags(rd, cs1) if (haveXcheri()) <-> 0b1111111 @ 0b10010 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CLoadTags(rd, cs1) if (haveXcheri() & haveCLoadTags()) <-> 0b1111111 @ 0b10010 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri() & haveCLoadTags())
 
 mapping clause encdec = CRRL(rd, rs1) if (haveXcheri()) <-> 0b1111111 @ 0b01000 @ rs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CRAM(rd, rs1) if (haveXcheri()) <-> 0b1111111 @ 0b01001 @ rs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())

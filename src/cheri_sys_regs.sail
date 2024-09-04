@@ -141,6 +141,8 @@ function haveXcheri () -> bool =
   /* This is a necessary but not sufficient condition, but should do for now. */
   misa.X() == 0b1
 
+function haveCLoadTags () -> bool = false
+
 
 function legalize_tcc(o : Capability, v : Capability) -> Capability = {
   let new_base = getCapBaseBits(v);
