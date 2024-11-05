@@ -1,127 +1,95 @@
 /*=======================================================================================*/
-/*  CHERI RISCV Sail Model                                                               */
+/*  This Sail RISC-V architecture model, comprising all files and                        */
+/*  directories except where otherwise noted is subject the BSD                          */
+/*  two-clause license in the LICENSE file.                                              */
 /*                                                                                       */
-/*  This CHERI Sail RISC-V architecture model here, comprising all files and             */
-/*  directories except for the snapshots of the Lem and Sail libraries in the            */
-/*  prover_snapshots directory (which include copies of their licenses), is subject      */
-/*  to the BSD two-clause licence below.                                                 */
-/*                                                                                       */
-/*  Copyright (c) 2017-2021                                                              */
-/*    Alasdair Armstrong                                                                 */
-/*    Thomas Bauereiss                                                                   */
-/*    Brian Campbell                                                                     */
-/*    Jessica Clarke                                                                     */
-/*    Nathaniel Wesley Filardo (contributions prior to July 2020, thereafter Microsoft)  */
-/*    Alexandre Joannou                                                                  */
-/*    Microsoft                                                                          */
-/*    Prashanth Mundkur                                                                  */
-/*    Robert Norton-Wright (contributions prior to March 2020, thereafter Microsoft)     */
-/*    Alexander Richardson                                                               */
-/*    Peter Rugg                                                                         */
-/*    Peter Sewell                                                                       */
-/*                                                                                       */
-/*  All rights reserved.                                                                 */
-/*                                                                                       */
-/*  This software was developed by SRI International and the University of               */
-/*  Cambridge Computer Laboratory (Department of Computer Science and                    */
-/*  Technology) under DARPA/AFRL contract FA8650-18-C-7809 ("CIFV"), and                 */
-/*  under DARPA contract HR0011-18-C-0016 ("ECATS") as part of the DARPA                 */
-/*  SSITH research programme.                                                            */
-/*                                                                                       */
-/*  This software was developed within the Rigorous Engineering of                       */
-/*  Mainstream Systems (REMS) project, partly funded by EPSRC grant                      */
-/*  EP/K008528/1, at the Universities of Cambridge and Edinburgh.                        */
-/*                                                                                       */
-/*  This project has received funding from the European Research Council                 */
-/*  (ERC) under the European Union’s Horizon 2020 research and innovation                */
-/*  programme (grant agreement 789108, ELVER).                                           */
-/*                                                                                       */
-/*  Redistribution and use in source and binary forms, with or without                   */
-/*  modification, are permitted provided that the following conditions                   */
-/*  are met:                                                                             */
-/*  1. Redistributions of source code must retain the above copyright                    */
-/*     notice, this list of conditions and the following disclaimer.                     */
-/*  2. Redistributions in binary form must reproduce the above copyright                 */
-/*     notice, this list of conditions and the following disclaimer in                   */
-/*     the documentation and/or other materials provided with the                        */
-/*     distribution.                                                                     */
-/*                                                                                       */
-/*  THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS''                   */
-/*  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED                    */
-/*  TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A                      */
-/*  PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR                  */
-/*  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,                         */
-/*  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT                     */
-/*  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF                     */
-/*  USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND                  */
-/*  ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,                   */
-/*  OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT                   */
-/*  OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF                   */
-/*  SUCH DAMAGE.                                                                         */
+/*  SPDX-License-Identifier: BSD-2-Clause                                                */
 /*=======================================================================================*/
 
-/* width of capability in bytes (excluding tag) */
-type cap_size : Int = 16
-let  cap_size = sizeof(cap_size)
 type log2_cap_size : Int = 4
 let  log2_cap_size = sizeof(log2_cap_size)
-type CapBits = bits(8 * cap_size)
-/* width of otype field in bits */
-type cap_hperms_width : Int = 12
-let  cap_hperms_width = sizeof(cap_hperms_width)
-type cap_uperms_width : Int = 4
-let  cap_uperms_width = sizeof(cap_uperms_width)
-type cap_otype_width : Int = 18
-let  cap_otype_width = sizeof(cap_otype_width)
-type cap_reserved_width : Int = 2
-let  cap_reserved_width = sizeof(cap_reserved_width)
-type cap_flags_width : Int = 1
-let  cap_flags_width = sizeof(cap_flags_width)
+
+// Software Defined Permissions
+type cap_sd_perms_width : Int = 4
+let  cap_sd_perms_width = sizeof(cap_sd_perms_width)
+
+// Width of reserved fields. Their values need to be preserved.
+type cap_reserved_1_width : Int = 7
+let  cap_reserved_1_width = sizeof(cap_reserved_1_width)
+type cap_reserved_0_width : Int = 18
+let  cap_reserved_0_width = sizeof(cap_reserved_0_width)
+
+// Width of the decoded B and T fields.
 type cap_mantissa_width : Int = 14
 let  cap_mantissa_width = sizeof(cap_mantissa_width)
-type cap_E_width : Int = 6
+
+// Bits required for maximum exponent.
+// TODO: If Sail had clog2 support we could calculate this from cap_max_E.
+type cap_E_width : Int  = 6
 let  cap_E_width = sizeof(cap_E_width)
-type cap_addr_width : Int = xlen
-let  cap_addr_width = sizeof(cap_addr_width)
-type cap_len_width : Int = cap_addr_width + 1
-let  cap_len_width = sizeof(cap_len_width)
 
-/* For CLoadTags and CClearTags, which operate at cache line granularity */
-type caps_per_cache_line : Int = 4
-let  caps_per_cache_line = sizeof(caps_per_cache_line)
+// Bits required for Architectural Permissions and Mode
+type cap_AP_M_width : Int = 7
+let  cap_AP_M_width = sizeof(cap_AP_M_width)
 
-type internal_E_take_bits : Int = 3
-let  internal_E_take_bits = sizeof(internal_E_take_bits)
+// Whether setbounds can use the L8 bit for extra precision in the implied E=0 case.
+let cap_use_L8 : bool = false
 
-/* Capability format completely compressed. Tag is out of band */
-struct EncCapability = {
-  perms      : bits(cap_uperms_width + cap_hperms_width),
-  otype      : bits(cap_otype_width),
-  reserved   : bits(cap_reserved_width),
-  flags      : bits(cap_flags_width),
-  internal_E : bit,
-  T          : bits(cap_mantissa_width - 2),
-  B          : bits(cap_mantissa_width),
-  address    : bits(cap_addr_width)
+// Capability format metadata completely compressed. Tag is out of band.
+bitfield EncMetadata : bits(64) = {
+  // Upper reserved area (64-bit only).
+  reserved_1 : 63 .. 57,
+  // Software Defined Permissions.
+  SDP        : 56 .. 53,
+  // Architectural Permissions and Mode (encoded together).
+  AP_M       : 52 .. 46,
+  // Lower reserved area.
+  reserved_0 : 45 .. 28,
+  // Capability Type bit.
+  CT         : 27,
+  // Exponent Format.
+  EF         : 26,
+  // Top bits, not including TE.
+  Tm         : 25 .. 17,
+  // Lowest bits of T, that may be part of the exponent depending on EF.
+  TE         : 16 .. 14,
+  // Bottom bits, not including BE.
+  Bm         : 13 .. 3,
+  // Lowest bits of B, that may be part of the exponent depending on EF.
+  BE         : 2 .. 0,
 }
 
-function capBitsToEncCapability(c) : CapBits -> EncCapability = struct {
-  perms      = c[127..112],
-  reserved   = c[111..110],
-  flags      = c[109..109],
-  otype      = c[108..91],
-  internal_E = c[90],
-  T          = c[89..78],
-  B          = c[77..64],
-  address    = c[63..0]
+// 64-bit permission encoding/decoding, converting between the bitvector representation and the
+// encoded bits compressed into the capability.
+// This is the identity mapping (subject to reordering) but detects reserved combinations.
+// Forwards match failures mean bit permissions have been directly changed e.g. with SCHI. These should be
+// checked for outside the function, and the null fields returned.
+// Backwards match failures occur when encoding an unrepresentable combination of fields: this should be
+// prevented by calling legalizeFields when changing the fields.
+mapping ap_m_encdec : bits(cap_AP_M_width) <-> (ArchPerms, ExecutionMode) = {
+  execution_mode_encdec(M) @ bool_bits(LM) @ bool_bits(ASR) @ bool_bits(X) @ bool_bits(R) @ bool_bits(W) @ bool_bits(C)
+    if (not(ASR) | X) & (not(C) | (R | W)) & (M == execution_mode_encdec(0b0) | X) & (not(LM) | C) <->
+  (struct{R, W, C, X, LM, ASR}, M)
+    if (not(ASR) | X) & (not(C) | (R | W)) & (M == execution_mode_encdec(0b0) | X) & (not(LM) | C),
 }
 
-function encCapToBits(cap) : EncCapability -> CapBits =
-  cap.perms @
-  cap.reserved @
-  cap.flags @
-  cap.otype @
-  [cap.internal_E] @
-  cap.T @
-  cap.B @
-  cap.address
+// Ideally ap_m_encdec(({null,infinite}_perms, IntPtrMode)), but spurious incomplete match side-effect at toplevel
+let null_ap_m     = 0b0000000
+let infinite_ap_m = 0b1111111
+
+// Perform the XLEN-specific ACPERMS legalization.
+function legalizePermsAndMode(perms : ArchPerms, mode : ExecutionMode) -> (ArchPerms, ExecutionMode) = {
+  let perms = if perms.X then perms else {perms with ASR=false};
+  let perms = if perms.R | perms.W then perms else {perms with C=false};
+  let mode = if perms.X then mode else execution_mode_encdec(0b0);
+  let perms = if perms.C then perms else {perms with LM=false};
+  (perms, mode)
+}
+
+// Needed because there's no L8 in the RV64 version.
+function getMetadataL8(meta : EncMetadata) -> bits(1) = 0b0
+function setMetadataL8(meta : EncMetadata, L8 : bits(1)) -> EncMetadata = meta
+
+// Get the internal exponent. This is only meaningful if EF is "internal".
+function getMetadataInternalExponent(meta : EncMetadata) -> bits(cap_E_width) =
+  meta[TE] @ meta[BE]

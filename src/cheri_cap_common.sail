@@ -1,312 +1,261 @@
 /*=======================================================================================*/
-/*  CHERI RISCV Sail Model                                                               */
+/*  This Sail RISC-V architecture model, comprising all files and                        */
+/*  directories except where otherwise noted is subject the BSD                          */
+/*  two-clause license in the LICENSE file.                                              */
 /*                                                                                       */
-/*  This CHERI Sail RISC-V architecture model here, comprising all files and             */
-/*  directories except for the snapshots of the Lem and Sail libraries in the            */
-/*  prover_snapshots directory (which include copies of their licenses), is subject      */
-/*  to the BSD two-clause licence below.                                                 */
-/*                                                                                       */
-/*  Copyright (c) 2017-2021                                                              */
-/*    Alasdair Armstrong                                                                 */
-/*    Thomas Bauereiss                                                                   */
-/*    Brian Campbell                                                                     */
-/*    Jessica Clarke                                                                     */
-/*    Nathaniel Wesley Filardo (contributions prior to July 2020, thereafter Microsoft)  */
-/*    Alexandre Joannou                                                                  */
-/*    Microsoft                                                                          */
-/*    Prashanth Mundkur                                                                  */
-/*    Robert Norton-Wright (contributions prior to March 2020, thereafter Microsoft)     */
-/*    Alexander Richardson                                                               */
-/*    Peter Rugg                                                                         */
-/*    Peter Sewell                                                                       */
-/*                                                                                       */
-/*  All rights reserved.                                                                 */
-/*                                                                                       */
-/*  This software was developed by SRI International and the University of               */
-/*  Cambridge Computer Laboratory (Department of Computer Science and                    */
-/*  Technology) under DARPA/AFRL contract FA8650-18-C-7809 ("CIFV"), and                 */
-/*  under DARPA contract HR0011-18-C-0016 ("ECATS") as part of the DARPA                 */
-/*  SSITH research programme.                                                            */
-/*                                                                                       */
-/*  This software was developed within the Rigorous Engineering of                       */
-/*  Mainstream Systems (REMS) project, partly funded by EPSRC grant                      */
-/*  EP/K008528/1, at the Universities of Cambridge and Edinburgh.                        */
-/*                                                                                       */
-/*  This project has received funding from the European Research Council                 */
-/*  (ERC) under the European Union’s Horizon 2020 research and innovation                */
-/*  programme (grant agreement 789108, ELVER).                                           */
-/*                                                                                       */
-/*  Redistribution and use in source and binary forms, with or without                   */
-/*  modification, are permitted provided that the following conditions                   */
-/*  are met:                                                                             */
-/*  1. Redistributions of source code must retain the above copyright                    */
-/*     notice, this list of conditions and the following disclaimer.                     */
-/*  2. Redistributions in binary form must reproduce the above copyright                 */
-/*     notice, this list of conditions and the following disclaimer in                   */
-/*     the documentation and/or other materials provided with the                        */
-/*     distribution.                                                                     */
-/*                                                                                       */
-/*  THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS''                   */
-/*  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED                    */
-/*  TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A                      */
-/*  PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR                  */
-/*  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,                         */
-/*  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT                     */
-/*  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF                     */
-/*  USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND                  */
-/*  ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,                   */
-/*  OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT                   */
-/*  OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF                   */
-/*  SUCH DAMAGE.                                                                         */
+/*  SPDX-License-Identifier: BSD-2-Clause                                                */
 /*=======================================================================================*/
 
+// Width of capability in bytes (excluding tag).
+// TODO: Rename to clen_bytes and clen?
+// TODO: Change root xlen to be in terms of the log2 bytes.
+type cap_size : Int = xlen_bytes * 2
+let  cap_size = sizeof(cap_size)
+
+type cap_addr_width : Int = xlen
+let  cap_addr_width = sizeof(cap_addr_width)
+type cap_len_width : Int = cap_addr_width + 1
+let  cap_len_width = sizeof(cap_len_width)
+
 let cap_max_addr = MAX(cap_addr_width)
-let cap_max_otype = MAX(cap_otype_width) - reserved_otypes
 
-type cap_uperms_shift : Int = 15
-let  cap_uperms_shift = sizeof(cap_uperms_shift)
-type cap_perms_width : Int = cap_uperms_shift + cap_uperms_width
-let  cap_perms_width = sizeof(cap_perms_width)
+// 64 or 128 bits.
+type CapBits = bits(8 * cap_size)
 
+// XLEN (32 or 64).
 type CapAddrBits  = bits(cap_addr_width)
 type CapAddrInt   = range(0, (2 ^ cap_addr_width) - 1)
+
+// XLEN+1 (33 or 65).
 type CapLenBits   = bits(cap_len_width)
-type CapLen       = range(0, (2 ^ cap_len_width))
-type CapPermsBits = bits(cap_perms_width)
-type CapFlagsBits = bits(cap_flags_width)
+type CapLenInt    = range(0, (2 ^ cap_len_width) - 1)
 
-/* Reset E and T calculated to make top 2**xlen. */
-let cap_max_E   = cap_len_width - cap_mantissa_width + 1
-let cap_reset_E = to_bits(cap_E_width, cap_max_E)
-let cap_reset_T = 0b01 @ zeros(cap_mantissa_width - 2)
+// Width of TE and BE fields.
+type cap_xe_width : Int = div(cap_E_width, 2)
+let  cap_xe_width = sizeof(cap_xe_width)
 
-/*! A partially decompressed version of a capability -- E, B, T,
- * lenMSB, sealed and otype fields are not present in all formats and are
- * populated by capBitsToCapability.
- */
+// Maximum exponent (24 or 52).
+// The final exponent is calculated by subtracting a 5 or 6 bit value from
+// this, giving a range of 24 .. 0, or 52 .. 0. If the exponent becomes
+// negative then it is ignored.
+type cap_max_E : Int = cap_addr_width - cap_mantissa_width + 2
+let  cap_max_E = sizeof(cap_max_E)
+
+// Negative exponents can be encoded, though these are malformed. We must
+// store all of the possible values (even malformed ones) so that CSetHigh works.
+type cap_min_E : Int = cap_max_E - (2 ^ cap_E_width - 1)
+let  cap_min_E = sizeof(cap_min_E)
+
+type CapExponent = range(cap_min_E, cap_max_E)
+
+// Encoding of the EF bit to whether or not it's an internal exponent.
+mapping internal_exponent_encdec : bool <-> bits(1) = {
+  // Exponent is zero.
+  false <-> 0b1,
+  // Exponent is internal (stored in L8, TE, BE).
+  true <-> 0b0,
+}
+
+// A partially decompressed version of a capability. Note that this is a
+// losslessly decompressed version. All of the original metadata bits are
+// preserved, including reserved ones. This is necessary so that CSetHigh works.
 struct Capability = {
-  tag                    : bool,
-  uperms                 : bits(cap_uperms_width),
-  permit_set_CID         : bool,
-  access_system_regs     : bool,
-  permit_unseal          : bool,
-  permit_cinvoke         : bool,
-  permit_seal            : bool,
-  permit_store_local_cap : bool,
-  permit_store_cap       : bool,
-  permit_load_cap        : bool,
-  permit_store           : bool,
-  permit_load            : bool,
-  permit_execute         : bool,
-  global                 : bool,
-  reserved               : bits(cap_reserved_width),
-  flag_cap_mode          : bool,
-  internal_E             : bool,
-  E                      : bits(cap_E_width),
-  B                      : bits(cap_mantissa_width),
-  T                      : bits(cap_mantissa_width),
-  otype                  : bits(cap_otype_width),
-  address                : bits(cap_addr_width)
+  // Is the cap valid.
+  tag               : bool,
+  // Software defined permission bits.
+  sd_perms          : bits(cap_sd_perms_width),
+  // Compressed architectural permissions and mode
+  ap_m              : bits(cap_AP_M_width),
+  // Is the cap sealed.
+  sealed            : bool,
+  // Whether the exponent is zero or internal in the top/bottom fields.
+  // This only depends on E and the cap bounds, so it is technically redundant
+  // here, but it is more efficient to keep a copy. It is update by
+  // setCapBounds().
+  internal_exponent : bool,
+  // Exponent
+  E                 : CapExponent,
+  // Bottom
+  B                 : bits(cap_mantissa_width),
+  // Top
+  T                 : bits(cap_mantissa_width),
+  // Reserved bits. These are preserved.
+  reserved_0        : bits(cap_reserved_0_width),
+  reserved_1        : bits(cap_reserved_1_width),
+  // Non-CHERI bits.
+  address           : bits(cap_addr_width),
 }
 
-let null_cap : Capability = struct {
-  tag                    = false,
-  uperms                 = zeros(),
-  permit_set_CID         = false,
-  access_system_regs     = false,
-  permit_unseal          = false,
-  permit_cinvoke         = false,
-  permit_seal            = false,
-  permit_store_local_cap = false,
-  permit_store_cap       = false,
-  permit_load_cap        = false,
-  permit_store           = false,
-  permit_load            = false,
-  permit_execute         = false,
-  global                 = false,
-  reserved               = zeros(),
-  flag_cap_mode          = false,
-  internal_E             = true,
-  E                      = cap_reset_E,
-  B                      = zeros(),
-  T                      = cap_reset_T,
-  otype                  = to_bits(cap_otype_width, otype_unsealed),
-  address                = zeros()
+// Decode compressed capability to a more convenient struct.
+function bitsToCap(tag : bool, cap_bits : CapBits) -> Capability = {
+  // Decode metadata to fields.
+  let meta = Mk_EncMetadata(cap_bits[xlen * 2 - 1 .. xlen]);
+
+  let internal_exponent = internal_exponent_encdec(meta[EF]);
+
+  // For brevity and to match the spec.
+  let 'MW = cap_mantissa_width;
+
+  let E : CapExponent = if internal_exponent then cap_max_E - unsigned(getMetadataInternalExponent(meta)) else 0;
+
+  // When the exponent is non-zero (internal_exponent is true) we implicitly
+  // store the leading 1, just as with normal floating point numbers.
+  // The case when the exponent is zero is equivalent to subnormals.
+  let LMSB = if internal_exponent then 0b01 else 0b0 @ getMetadataL8(meta);
+
+  // `not()` so type infererence for zeros() works.
+  let T_low = if not(internal_exponent) then meta[TE] else zeros();
+  let B_low = if not(internal_exponent) then meta[BE] else zeros();
+
+  // Concatenate all the bits. Type annotations are not require but here for sanity checking.
+  let T : bits('MW - 2) = meta[Tm] @ T_low;
+  let B : bits('MW)     = meta[Bm] @ B_low;
+
+  let LCout = if T <_u B[MW - 3 .. 0] then 0b01 else 0b00;
+
+  // Prepend the reconstructed top two bits of T.
+  let T = (B[MW - 1 .. MW - 2] + LCout + LMSB) @ T;
+
+  struct {
+    tag               = tag,
+    sd_perms          = meta[SDP],
+    ap_m              = meta[AP_M],
+    sealed            = bool_bits(meta[CT]),
+    internal_exponent = internal_exponent,
+    E                 = E,
+    B                 = B,
+    T                 = T,
+    reserved_0        = meta[reserved_0],
+    reserved_1        = meta[reserved_1],
+    address           = cap_bits[xlen - 1 .. 0],
+  }
 }
 
-let default_cap : Capability = struct {
-  tag                    = true,
-  uperms                 = ones(),
-  permit_set_CID         = true,
-  access_system_regs     = true,
-  permit_unseal          = true,
-  permit_cinvoke         = true,
-  permit_seal            = true,
-  permit_store_local_cap = true,
-  permit_store_cap       = true,
-  permit_load_cap        = true,
-  permit_store           = true,
-  permit_load            = true,
-  permit_execute         = true,
-  global                 = true,
-  reserved               = zeros(),
-  flag_cap_mode          = false,
-  internal_E             = true,
-  E                      = cap_reset_E,
-  B                      = zeros(),
-  T                      = cap_reset_T,
-  otype                  = to_bits(cap_otype_width, otype_unsealed),
-  address                = zeros()
-}
+// Encode a capability to compressed form. Only the metadata is returned since
+// the tag and address are directly available in `cap`.
+function capToMetadataBits(cap : Capability) -> EncMetadata = {
+  // Convert the exponent back to encoded form.
+  let E = to_bits(cap_E_width, cap_max_E - cap.E);
 
-function getCapHardPerms(cap) : Capability -> bits(cap_hperms_width) =
-   (bool_to_bits(cap.permit_set_CID)
-  @ bool_to_bits(cap.access_system_regs)
-  @ bool_to_bits(cap.permit_unseal)
-  @ bool_to_bits(cap.permit_cinvoke)
-  @ bool_to_bits(cap.permit_seal)
-  @ bool_to_bits(cap.permit_store_local_cap)
-  @ bool_to_bits(cap.permit_store_cap)
-  @ bool_to_bits(cap.permit_load_cap)
-  @ bool_to_bits(cap.permit_store)
-  @ bool_to_bits(cap.permit_load)
-  @ bool_to_bits(cap.permit_execute)
-  @ bool_to_bits(cap.global))
-
-/* Convert from capability bits (128 bits with tag) to a more convenient struct. */
-function encCapabilityToCapability(t,c) : (bool, EncCapability) -> Capability = {
-  internal_E : bool = bit_to_bool(c.internal_E);
-  E : bits(cap_E_width)  = zeros();
-  Bs : bits(cap_mantissa_width) = zeros();
-  T : bits(cap_mantissa_width - 2) = zeros();
-  lenMSBs : bits(2) = zeros();
-  if internal_E then {
-    E = c.T[internal_E_take_bits - 1..0] @ c.B[internal_E_take_bits - 1..0];
-    /* Exponent chosen so that length MSBs is 01 */
-    lenMSBs = 0b01;
-    T = c.T[cap_mantissa_width - 3..3] @ zeros(internal_E_take_bits);
-    Bs = c.B[cap_mantissa_width - 1..3] @ zeros(internal_E_take_bits);
+  // The L8 value here is ignored on RV64.
+  let (L8, TE, BE) = if cap.internal_exponent then {
+    (
+      E[cap_E_width - 1],
+      E[cap_xe_width * 2 - 1 .. cap_xe_width],
+      E[cap_xe_width - 1 .. 0]
+    )
   } else {
-    /* Exponent zero */
-    lenMSBs = 0b00;
-    T = c.T;
-    Bs = c.B;
+    (
+      (cap.T - cap.B)[8],
+      cap.T[cap_xe_width - 1 .. 0],
+      cap.B[cap_xe_width - 1 .. 0]
+    )
   };
-  /* Reconstruct top two bits of T given T = B + len and:
-   * 1) the top two bits of B
-   * 2) most significant two bits of length derived from format above
-   * 3) carry out of B[20..0] + len[20..0] that is implied if T[20..0] < B[20..0]
-   */
-  carry_out = if T <_u Bs[cap_mantissa_width - 3..0] then 0b01 else 0b00;
-  Ttop2 = Bs[cap_mantissa_width - 1..cap_mantissa_width - 2] + lenMSBs + carry_out;
-  return struct {
-    tag                    = t,
-    uperms                 = if cap_uperms_width > 0 then c.perms[cap_hperms_width + cap_uperms_width - 1..cap_hperms_width] else [],
-    permit_set_CID         = bit_to_bool(c.perms[11]),
-    access_system_regs     = bit_to_bool(c.perms[10]),
-    permit_unseal          = bit_to_bool(c.perms[9]),
-    permit_cinvoke         = bit_to_bool(c.perms[8]),
-    permit_seal            = bit_to_bool(c.perms[7]),
-    permit_store_local_cap = bit_to_bool(c.perms[6]),
-    permit_store_cap       = bit_to_bool(c.perms[5]),
-    permit_load_cap        = bit_to_bool(c.perms[4]),
-    permit_store           = bit_to_bool(c.perms[3]),
-    permit_load            = bit_to_bool(c.perms[2]),
-    permit_execute         = bit_to_bool(c.perms[1]),
-    global                 = bit_to_bool(c.perms[0]),
-    reserved               = c.reserved,
-    flag_cap_mode          = bit_to_bool(c.flags[0]),
-    internal_E             = internal_E,
-    E                      = E,
-    B                      = Bs,
-    T                      = Ttop2 @ T,
-    otype                  = c.otype,
-    address                = c.address
-  }
+
+  let MW = cap_mantissa_width;
+
+  let meta = [
+    Mk_EncMetadata(zeros()) with
+    SDP = cap.sd_perms,
+    AP_M = cap.ap_m,
+    CT = bool_bits(cap.sealed),
+    EF = internal_exponent_encdec(cap.internal_exponent),
+    Tm = cap.T[MW - 3 .. cap_xe_width],
+    Bm = cap.B[MW - 1 .. cap_xe_width],
+    TE = TE,
+    BE = BE,
+    reserved_1 = cap.reserved_1,
+    reserved_0 = cap.reserved_0
+  ];
+  // Set L8 on RV32. Does nothing on RV64.
+  setMetadataL8(meta, [L8])
 }
 
-function capBitsToCapability(t, c) : (bool, CapBits) -> Capability = encCapabilityToCapability(t, capBitsToEncCapability(c))
-
-function capToEncCap(cap) : Capability -> EncCapability = {
-  t_hi : bits(cap_mantissa_width - 2 - internal_E_take_bits) = cap.T[cap_mantissa_width - 3..internal_E_take_bits];
-  t_lo : bits(internal_E_take_bits)  = cap.T[internal_E_take_bits - 1..0];
-  b_hi : bits(cap_mantissa_width - internal_E_take_bits) = cap.B[cap_mantissa_width - 1..internal_E_take_bits];
-  b_lo : bits(internal_E_take_bits)  = cap.B[internal_E_take_bits - 1..0];
-  if cap.internal_E then {
-    t_lo = cap.E[2 * internal_E_take_bits - 1..internal_E_take_bits];
-    b_lo = cap.E[internal_E_take_bits - 1..0];
-  };
-  return struct {
-    perms = cap.uperms @ getCapHardPerms(cap),
-    reserved = cap.reserved,
-    flags = bool_to_bits(cap.flag_cap_mode),
-    otype = cap.otype,
-    internal_E = bool_to_bits(cap.internal_E)[0],
-    T = t_hi @ t_lo,
-    B = b_hi @ b_lo,
-    address = cap.address
-  };
+// Zero permission capability.
+// TODO: We should be able to use bitsToCap(false, zeros()) but there
+// seems to be a bug: https://github.com/rems-project/sail/issues/424
+let null_cap : Capability = struct {
+  tag               = false,
+  sd_perms          = zeros(),
+  ap_m              = null_ap_m,
+  sealed            = false,
+  internal_exponent = true, // Encodes to 0.
+  E                 = cap_max_E, // Encodes to 0.
+  B                 = zeros(),
+  T                 = 0b01 @ zeros(cap_mantissa_width - 2), // Encodes to 0.
+  reserved_0        = zeros(),
+  reserved_1        = zeros(),
+  address           = zeros(),
 }
 
-/* Convert from capability struct to bits (no tag) */
-function capToBits(cap) : Capability -> CapBits = encCapToBits(capToEncCap(cap))
+// Full permission capability.
+let infinite_cap : Capability = {
+  null_cap with
+  tag      = true,
+  sd_perms = ones(),
+  ap_m     = infinite_ap_m,
+}
 
-/* When saving/restoring capabilities xor them with bits of null_cap --
- * this ensures that canonical null_cap is always all-zeros in memory
- * even though it may have bits set logically (e.g. length or exponent
- */
+// A capability is malformed if its encoding does not describe a valid capability
+// because its bounds cannot be correctly decoded.
+function boundsMalformed(cap : Capability) -> bool = {
+  cap.internal_exponent & ({
+    let MW = cap_mantissa_width;
 
-let null_cap_bits : CapBits = capToBits(null_cap)
+    let malformedMSB = (cap.E == cap_max_E     & cap.B         != zeros(MW)) |
+                       (cap.E == cap_max_E - 1 & cap.B[MW - 1] != bitzero);
+    let malformedLSB = cap.E < 0 | (cap_use_L8 & cap.E == 0);
+    malformedMSB | malformedLSB
+  })
+}
 
-function capToMemBits(cap) : Capability -> CapBits =
-  capToBits(cap) ^ null_cap_bits
+// Get the full cap bounds (base and top) as bit vectors.
+function getCapBoundsBits(c : Capability) -> option((CapAddrBits, CapLenBits)) = {
+  if boundsMalformed(c) then return None();
+  let E = c.E;
+  assert(E >= 0, "Cap is malformed if E<0");
 
-function memBitsToCapability(tag, b) : (bool, CapBits) -> Capability =
-  capBitsToCapability(tag, b ^ null_cap_bits)
-
-
-
-function getCapBoundsBits(c) : Capability -> (CapAddrBits, CapLenBits) =
-  let E = min(cap_max_E, unsigned(c.E)) in
-  let a : CapAddrBits = c.address in
+  let a = c.address;
   /* Extract bits we need to make the top correction and calculate representable limit */
-  let a3 = truncate(a >> (E + cap_mantissa_width - 3), 3) in
-  let B3 = truncateLSB(c.B, 3) in
-  let T3 = truncateLSB(c.T, 3) in
-  let R3 = B3 - 0b001 in /* wraps */
+  let a_mid = truncate(a >> E, cap_mantissa_width);
+  let R = c.B - (0b01 @ zeros(cap_mantissa_width - 2)); /* wraps */
   /* Do address, base and top lie in the R aligned region above the one containing R? */
-  let aHi = if a3 <_u R3 then 1 else 0 in
-  let bHi = if B3 <_u R3 then 1 else 0 in
-  let tHi = if T3 <_u R3 then 1 else 0 in
+  let aHi = if a_mid <_u R then 1 else 0;
+  let bHi = if c.B   <_u R then 1 else 0;
+  let tHi = if c.T   <_u R then 1 else 0;
   /* Compute region corrections for top and base relative to a */
-  let correction_base = bHi - aHi in
-  let correction_top  = tHi - aHi in
-  let a_top = (a >> (E + cap_mantissa_width)) in {
-    base : CapLenBits = truncate((a_top + correction_base) @ c.B @ zeros(E), cap_len_width);
-    top  : CapLenBits = truncate((a_top + correction_top)  @ c.T @ zeros(E), cap_len_width);
-    /* If the base and top are more than an address space away from each other,
-       invert the MSB of top.  This corrects for errors that happen when the
-       representable space wraps the address space. */
-    let base2 : bits(2) = 0b0 @ [base[cap_addr_width - 1]];
-    let top2  : bits(2) = top[cap_addr_width .. cap_addr_width - 1];
-    if (E < (cap_max_E - 1)) & (unsigned(top2 - base2) > 1) then {
-      top[cap_addr_width] = ~(top[cap_addr_width]);
-    };
-    /* TODO The following top MSB correction was thought to be equivalent
-       to the one above, but differs at least in some cases where E >= cap_max_E - 1
-    if (base[cap_addr_width] == bitone) then {
-       top[cap_addr_width] = if (aHi == 1) & (tHi == 1) then bitone else bitzero;
-    };
-    */
-    (base[(cap_addr_width - 1)..0], top)
-  }
+  let correction_base = bHi - aHi;
+  let correction_top  = tHi - aHi;
+  let a_top = (a >> (E + cap_mantissa_width));
+  let base : CapLenBits = truncate((a_top + correction_base) @ c.B @ zeros(E), cap_len_width);
+  var top  : CapLenBits = truncate((a_top + correction_top)  @ c.T @ zeros(E), cap_len_width);
+  /* If the base and top are more than an address space away from each other,
+      invert the MSB of top.  This corrects for errors that happen when the
+      representable space wraps the address space. */
+  let base2 : bits(2) = 0b0 @ [base[cap_addr_width - 1]];
+  let top2  : bits(2) = top[cap_addr_width .. cap_addr_width - 1];
+  if (E < (cap_max_E - 1)) & (top2 - base2 >_u 0b01) then {
+    top[cap_addr_width] = ~(top[cap_addr_width]);
+  };
+  /* TODO The following top MSB correction was thought to be equivalent
+      to the one above, but differs at least in some cases where E >= cap_max_E - 1
+  if (base[cap_addr_width] == bitone) then {
+      top[cap_addr_width] = if (aHi == 1) & (tHi == 1) then bitone else bitzero;
+  };
+  */
+  let base = base[(cap_addr_width - 1) .. 0];
+  Some(base, top)
+}
 
-function getCapBounds(cap) : Capability -> (CapAddrInt, CapLen) =
-  let (base, top) = getCapBoundsBits(cap) in
-  (unsigned(base), unsigned(top))
+// Utility to get the cap bounds (base and top) as integers.
+function getCapBounds(cap : Capability) -> option((CapAddrInt, CapLenInt)) =
+  match getCapBoundsBits(cap) {
+    None()          => None(),
+    Some(base, top) => Some(unsigned(base), unsigned(top))
+  }
 
 /* An 'ideal' version of setCapBounds as described in paper. */
-function setCapBounds(cap, base, top) : (Capability, CapAddrBits, CapLenBits) -> (bool, Capability) = {
+function setCapBounds(cap : Capability, base : CapAddrBits, top : CapLenBits) -> (bool, Capability) = {
   /* {cap with base=base; length=(bits(64)) length; offset=0} */
   let ext_base = 0b0 @ base;
   let length = top - ext_base;
@@ -316,29 +265,29 @@ function setCapBounds(cap, base, top) : (Capability, CapAddrBits, CapLenBits) ->
    */
   let e = cap_max_E - count_leading_zeros(length[cap_addr_width..cap_mantissa_width - 1]);
   // Use use internal exponent if e is non-zero or if e is zero but
-  // but the implied bit of length is not zero (denormal vs. normal case)
-  let ie = (e != 0) | length[cap_mantissa_width - 2] == bitone;
+  // the implied bit of length is not zero (denormal vs. normal case)
+  let ie = (e != 0) | (not(cap_use_L8) & length[cap_mantissa_width - 2] == bitone);
 
   /* The non-ie e == 0 case is easy. It is exact so just extract relevant bits. */
-  Bbits = truncate(base, cap_mantissa_width);
-  Tbits = truncate(top, cap_mantissa_width);
-  lostSignificantTop : bool = false;
-  lostSignificantBase : bool = false;
-  incE : bool = false;
+  var Bbits = truncate(base, cap_mantissa_width);
+  var Tbits = truncate(top, cap_mantissa_width);
+  var lostSignificantTop : bool = false;
+  var lostSignificantBase : bool = false;
+  var incE : bool = false;
 
   if ie then {
     /* the internal exponent case is trickier */
 
-    /* Extract B and T bits (we lose 3 bits of each to store the exponent) */
-    B_ie = truncate(base >> (e + 3), cap_mantissa_width - 3);
-    T_ie = truncate(top >> (e + 3), cap_mantissa_width - 3);
+    /* Extract B and T bits (we lose 2 or 3 bits of each to store the exponent) */
+    var B_ie = truncate(base >> (e + cap_xe_width), cap_mantissa_width - cap_xe_width);
+    var T_ie = truncate(top >> (e + cap_xe_width), cap_mantissa_width - cap_xe_width);
 
     /* Find out whether we have lost significant bits of base and top using a
-     * mask of bits that we will lose (including 3 extra for exp).
+     * mask of bits that we will lose (including 2 or 3 extra for exp).
      */
-    maskLo : CapLenBits = zero_extend(ones(e+3));
-    lostSignificantBase = unsigned(ext_base & maskLo) != 0;
-    lostSignificantTop  = unsigned(top & maskLo) != 0;
+    let maskLo : CapLenBits = zero_extend(ones(e + cap_xe_width));
+    lostSignificantBase = (ext_base & maskLo) != zeros();
+    lostSignificantTop  = (top & maskLo) != zeros();
 
     if lostSignificantTop then {
       /* we must increment T to make sure it is still above top even with lost bits.
@@ -348,246 +297,335 @@ function setCapBounds(cap, base, top) : (Capability, CapAddrBits, CapLenBits) ->
 
     /* Has the length overflowed? We chose e so that the top two bits of len would be 0b01,
        but either because of incrementing T or losing bits of base it might have grown. */
-    len_ie = T_ie - B_ie;
-    if len_ie[cap_mantissa_width - 4] == bitone then {
+    let len_ie = T_ie - B_ie;
+    if len_ie[cap_mantissa_width - (cap_xe_width + 1)] == bitone then {
       /* length overflow -- increment E by one and then recalculate
          T, B etc accordingly */
       incE = true;
 
       lostSignificantBase = lostSignificantBase | B_ie[0] == bitone;
-      lostSignificantTop  = lostSignificantTop | T_ie[0] == bitone;
+      lostSignificantTop  = lostSignificantTop  | T_ie[0] == bitone;
 
-      B_ie = truncate(base >> (e + 4), cap_mantissa_width - 3);
+      B_ie = truncate(base >> (e + cap_xe_width + 1), cap_mantissa_width - cap_xe_width);
       let incT : range(0,1) = if lostSignificantTop then 1 else 0;
-      T_ie = truncate(top >> (e + 4), cap_mantissa_width - 3) + incT;
+      T_ie = truncate(top >> (e + cap_xe_width + 1), cap_mantissa_width - cap_xe_width) + incT;
     };
 
-    Bbits = B_ie @ 0b000;
-    Tbits = T_ie @ 0b000;
+    Bbits = B_ie @ zeros(cap_xe_width);
+    Tbits = T_ie @ zeros(cap_xe_width);
   };
-  let newCap = {cap with address=base, E=to_bits(6, if incE then e + 1 else e), B=Bbits, T=Tbits, internal_E=ie};
+
+  let newCap = {
+    cap with
+    address=base,
+    E=if incE then {
+      // TODO: E can overflow here. The previous code silently wrapped so I've
+      // copied that but I'm not sure it's correct.
+      //
+      // An example is: address:0 base:0 top:0b10000000000000000000000000000000000000000000000000000000000000000 length:0x10000000000000000
+      //                new_base:0 new_top:0b01111111111111111111111111111111111011001110000000000000000000000
+      //
+      if e + 1 <= cap_max_E then e + 1 else cap_min_E
+    } else e,
+    B=Bbits,
+    T=Tbits,
+    internal_exponent=ie
+  };
   let exact = not(lostSignificantBase | lostSignificantTop);
   (exact, newCap)
 }
 
-function getCapPerms(cap) : Capability -> CapPermsBits =
-    let perms : bits(cap_uperms_shift) = zero_extend(getCapHardPerms(cap)) in
-    cap.uperms @ perms
+function capIsSealed(cap : Capability) -> bool = cap.sealed
 
-function setCapPerms(cap, perms) : (Capability, CapPermsBits) -> Capability =
-    { cap with
-      uperms                 = truncate(perms >> cap_uperms_shift, cap_uperms_width),
-      /* 14..12 reserved -- ignore */
-      permit_set_CID         = bit_to_bool(perms[11]),
-      access_system_regs     = bit_to_bool(perms[10]),
-      permit_unseal          = bit_to_bool(perms[9]),
-      permit_cinvoke         = bit_to_bool(perms[8]),
-      permit_seal            = bit_to_bool(perms[7]),
-      permit_store_local_cap = bit_to_bool(perms[6]),
-      permit_store_cap       = bit_to_bool(perms[5]),
-      permit_load_cap        = bit_to_bool(perms[4]),
-      permit_store           = bit_to_bool(perms[3]),
-      permit_load            = bit_to_bool(perms[2]),
-      permit_execute         = bit_to_bool(perms[1]),
-      global                 = bit_to_bool(perms[0])
-      }
+function sealCap(cap : Capability) -> Capability =
+  {cap with sealed=true}
 
-/*!
- * Gets the architecture specific capability flags for given capability.
- */
-val getCapFlags : Capability -> CapFlagsBits
-function getCapFlags(cap) = bool_to_bits(cap.flag_cap_mode)
+function unsealCap(cap : Capability) -> Capability =
+  {cap with sealed=false}
 
-/*!
- * THIS`(cap, flags)` sets the architecture specific capability flags on `cap`
- * to `flags` and returns the result as new capability.
- */
-val setCapFlags : (Capability, CapFlagsBits) -> Capability
-function setCapFlags(cap, flags) = {cap with flag_cap_mode = bit_to_bool(flags[0])}
+// A capability is malformed if it has a reserved permission encoding.
+function permsMalformed(cap : Capability) -> bool =
+  not(ap_m_encdec_forwards_matches(cap.ap_m))
 
-val isCapSealed : Capability -> bool
-function isCapSealed(cap) = signed(cap.otype) != otype_unsealed
+// Utility field functions.
 
-/*!
- * Tests whether the capability has a reserved otype (larger than [cap_max_otype]).
- * Note that this includes both sealed (e.g. sentry) and unsealed (all ones)
- * otypes.
- */
-val hasReservedOType : Capability -> bool
-function hasReservedOType(cap) = unsigned(cap.otype) > cap_max_otype
+function getCapPermsAndMode(cap : Capability) -> option((ArchPerms, ExecutionMode)) =
+  if permsMalformed(cap) then None() else Some(ap_m_encdec(cap.ap_m))
 
-function sealCap(cap, otyp) : (Capability, bits(cap_otype_width)) -> Capability =
-    {cap with otype=otyp}
+function setCapPermsAndMode(cap : Capability, (perms, mode): (ArchPerms, ExecutionMode)) -> Capability =
+  {cap with ap_m = ap_m_encdec(legalizePermsAndMode(perms, mode))}
 
-function unsealCap(cap) : Capability -> Capability =
-    {cap with otype=to_bits(cap_otype_width, otype_unsealed)}
+function getArchPerms(cap : Capability) -> option(ArchPerms) =
+  match getCapPermsAndMode(cap) {
+    None() => None(),
+    Some(perms, _) => Some(perms)
+  }
 
-function getCapBaseBits(c) : Capability -> CapAddrBits =
-    let (base, _) = getCapBoundsBits(c) in
-    base
+function getArchPermsLegalized(cap : Capability) -> ArchPerms =
+  match getArchPerms(cap) {
+    None() => null_perms,
+    Some(perms) => perms
+  }
 
-function getCapBase(c) : Capability -> CapAddrInt =
-    unsigned(getCapBaseBits(c))
+// Extract capability mode bit, legalising to integer pointer mode if decoding goes wrong
+function getCapMode(cap : Capability) -> ExecutionMode =
+  match getCapPermsAndMode(cap) {
+    None() => execution_mode_encdec(0b0),
+    Some(_, mode) => mode,
+  }
 
-function getCapTopBits(c) : Capability -> CapLenBits =
-    let (_, top) = getCapBoundsBits(c) in
-    top
+function setArchPerms(cap : Capability, perms : ArchPerms) -> Capability =
+  setCapPermsAndMode(cap, (perms, getCapMode(cap)))
 
-function getCapTop (c) : Capability -> CapLen =
-    unsigned(getCapTopBits(c))
+function setCapMode(cap : Capability, mode : ExecutionMode) -> Capability =
+  setCapPermsAndMode(cap, (getArchPermsLegalized(cap), mode))
 
-function getCapOffsetBits(c) : Capability -> CapAddrBits =
-    let base : CapAddrBits = getCapBaseBits(c) in
-    c.address - base
+function canASR(cap : Capability) -> bool = getArchPermsLegalized(cap).ASR
+function canX(cap : Capability) -> bool = getArchPermsLegalized(cap).X
+function canR(cap : Capability) -> bool = getArchPermsLegalized(cap).R
+function canW(cap : Capability) -> bool = getArchPermsLegalized(cap).W
+function canC(cap : Capability) -> bool = getArchPermsLegalized(cap).C
+function canLM(cap : Capability) -> bool = getArchPermsLegalized(cap).LM
 
-function getCapOffset(c) : Capability -> CapAddrInt =
-    unsigned(getCapOffsetBits(c))
-
-function getCapLength(c) : Capability -> CapLen =
-    let ('base, 'top) = getCapBounds(c) in {
-        /* For valid capabilties we expect top >= base and hence
-         * length >= 0 but representation does allow top < base in some
-         * cases so might encounter on untagged capabilities. Here we just
-         * pretend it is a 65-bit quantitiy and wrap.
-         */
-        assert (not(c.tag) | top >= base);
-        (top - base) % pow2(cap_len_width)
-    }
-
-val inCapBounds  : (Capability, CapAddrBits, CapLen) -> bool
-function inCapBounds (cap, addr, size) = {
-  let (base, top) = getCapBounds(cap);
-  let a = unsigned(addr);
-  (a >= base) & ((a + size) <= top)
+// Format used by GCPERM and ACPERM.
+bitfield BitPerms : xlenbits = {
+  reserved_2  : xlen - 1                   .. 19,
+  R           : 18,
+  X           : 17,
+  ASR         : 16,
+  reserved_1  : 15                         .. 6 + cap_sd_perms_width,
+  SDP         : 6 + cap_sd_perms_width - 1 .. 6,
+  C           : 5,
+  reserved_0  : 4 .. 2,
+  LM          : 1,
+  W           : 0,
 }
 
-function getCapCursor(cap) : Capability -> CapAddrInt = unsigned(cap.address)
+// Convert the capability permissions into the format expected by GCPerm and ACPerm.
+function packPerms(arch_perms : ArchPerms, sd_perms : bits(cap_sd_perms_width)) -> BitPerms =
+  [
+    Mk_BitPerms(zeros()) with
+    SDP = sd_perms,
+    ASR = bool_bits(arch_perms.ASR),
+    X = bool_bits(arch_perms.X),
+    R = bool_bits(arch_perms.R),
+    W = bool_bits(arch_perms.W),
+    C = bool_bits(arch_perms.C),
+    LM = bool_bits(arch_perms.LM),
+  ]
 
-function int_to_cap (offset) : CapAddrBits -> Capability =
-    {null_cap with address = offset}
+function unpackPerms(perms : BitPerms) -> (ArchPerms, bits(cap_sd_perms_width)) = {
+  let arch_perms : ArchPerms =
+    struct {
+      ASR = bool_bits(perms[ASR]),
+      X = bool_bits(perms[X]),
+      R = bool_bits(perms[R]),
+      W = bool_bits(perms[W]),
+      C = bool_bits(perms[C]),
+      LM = bool_bits(perms[LM]),
+    };
+  (arch_perms, perms[SDP])
+}
 
-function clearTagIf(cap, cond) : (Capability, bool) -> Capability =
-    {cap with tag = cap.tag & not(cond)}
+function getCapLength(c : Capability) -> CapLenInt =
+  match getCapBounds(c) {
+    None() => 0,
+    Some(base, top) => {assert(top >= base); top - base},
+  }
 
-function clearTagIfSealed(cap) : Capability -> Capability =
-    clearTagIf(cap, isCapSealed(cap))
+// Return true if the given decoded bounds cover the entire address space.
+// Microarchitecturally, this should be the same as checking if the exponent
+// is max_exp.
+function decodedBoundsInfinite(base : CapAddrInt, top : CapLenInt) -> bool =
+  (base == 0) & (top >= 2 ^ xlen)
 
-function clearTag(cap) : Capability -> Capability =
-    {cap with tag = false}
+// Return true if the given capability has infinite bounds, meaning
+// it can access any byte of the address space.
+function capBoundsInfinite(c: Capability) -> bool =
+  match getCapBounds(c) {
+    None() => false,
+    Some(base, top) => decodedBoundsInfinite(base, top),
+  }
 
-function capBoundsEqual (c1, c2) : (Capability, Capability) -> bool =
-    let (base1, top1) = getCapBounds(c1) in
-    let (base2, top2) = getCapBounds(c2) in
-    (base1 == base2) & (top1 == top2)
+// Return true if the range [addr, addr+size) is in the cap bounds.
+// The upper bound arithmetic is allowed to overflow, wrapping the address space.
+// `top` can be >= 2^xlen, in which case the entire address space is in bounds
+// provided `base == 0`. RISC-V allows accesses to wrap, so for example if
+// `addr` is 2^xlen - 2 and `size` is 4 then it will access the two highest
+// bytes and the two lowest bytes. The only situation in which a wrapped
+// access is in bounds is if the highest and lowest bytes are in bounds of the
+// unwrapped capability bounds, and that can only happen if `base` is 0 and
+// `top` is >=2^xlen (in which case every access is in bounds so we don't need
+// to check `addr` or `size` at all.
+function inCapBounds(cap : Capability, addr : CapAddrBits, size : CapLenInt) -> bool = {
+  let a = unsigned(addr);
+  match getCapBounds(cap) {
+    None() => false,
+    Some(base, top) => ((a >= base) & ((a + size) <= top)) | decodedBoundsInfinite(base, top)
+  }
+}
 
-val setCapAddr : (Capability, CapAddrBits) -> (bool, Capability)
-function setCapAddr(c, addr) =
-    let newCap = { c with address = addr } in
-    let representable = capBoundsEqual(c, newCap) in
-    (representable, newCap)
+// Return true if any byte of the access is within the cap bounds
+// Used for certain CBO instructions
+function anyByteInCapBounds(cap : Capability, addr : CapAddrBits, size : CapLenInt) -> bool = {
+  let a = unsigned(addr);
+  match getCapBounds(cap) {
+    None() => false,
+    Some(base, top) => ((a < top) & ((a + size) > base)) | decodedBoundsInfinite(base, top)
+  }
+}
 
-function setCapAddrChecked(c, addr) : (Capability, CapAddrBits) -> Capability =
-    let (representable, newCap) = setCapAddr(c, addr) in
-    clearTagIf(newCap, not(representable) | isCapSealed(c))
+// Return true if the range [addr, addr+size) is in the cap bounds.
+// The upper bound arithmetic is full-width and isn't wrapped.
+function inCapBoundsNoWrap(cap : Capability, addr : CapAddrBits, size : CapLenInt) -> bool = {
+  let a = unsigned(addr);
+  match getCapBounds(cap) {
+    None() => false,
+    Some(base, top) => (a >= base) & ((a + size) <= top),
+  }
+}
+
+function capReservedValid(cap : Capability) -> bool =
+  (cap.reserved_0 == zeros()) & (cap.reserved_1 == zeros())
+
+function capTaggedAndReservedValid(cap : Capability) -> bool =
+  cap.tag & capReservedValid(cap)
+
+// Return true if c0's bounds and permissions are a subset of c1's.
+function capIsSubset(c0 : Capability, c1 : Capability) -> bool = {
+  let bounds_subset : bool = match (getCapBounds(c0), getCapBounds(c1)) {
+    (None(), _) => false,
+    (_, None()) => false,
+    (Some(c0_base, c0_top), Some(c1_base, c1_top)) =>
+      (c0_base >= c1_base) & (c0_top <= c1_top)
+  };
+  let perms_subset : bool = match (getArchPerms(c0), getArchPerms(c1)) {
+      (None(), _) => false,
+      (_, None()) => false,
+      (Some(c0_arch_perms), Some(c1_arch_perms)) => {
+        let c0_perms_packed = packPerms(c0_arch_perms, c0.sd_perms).bits;
+        let c1_perms_packed = packPerms(c1_arch_perms, c1.sd_perms).bits;
+        (c0_perms_packed & c1_perms_packed) == c0_perms_packed;
+      }
+  };
+  // Not a subset if reserved bits are set in either cap
+  let reserved_valid = capReservedValid(c0) & capReservedValid(c1);
+  bounds_subset & perms_subset & reserved_valid;
+}
+
+function clearTagIf(cap : Capability, cond : bool) -> Capability =
+  {cap with tag = cap.tag & not(cond)}
+
+function clearTag(cap : Capability) -> Capability =
+  {cap with tag = false}
+
+// Implementations are allowed to retain invalid capability permissions loaded from memory
+// instead of following the ACPERM behaviour of reducing them to no permissions.
+let sys_legalize_malformed_permission_on_load = false
+
+function legalizeLM(loaded_cap : Capability, auth_cap : Capability) -> Capability = {
+  // When loading a capability, if the authorizing capability does not grant LM-perm
+  // and the loaded cap has tag set and isn't sealed then clear W-perm and LM-perm,
+  // otherwise return the cap data unmodified. Implementations are allowed to legalize
+  // malformed permissions or retain them.
+  let legalize = loaded_cap.tag &
+                 not(capIsSealed(loaded_cap)) &
+                 not(canLM(auth_cap)) &
+                 (sys_legalize_malformed_permission_on_load | not(permsMalformed(loaded_cap)));
+  if not(legalize) then return loaded_cap;
+  let new_perms = { getArchPermsLegalized(loaded_cap) with LM = false, W = false };
+  setArchPerms(loaded_cap, new_perms)
+}
+
+function capBoundsEqual (c1 : Capability, c2 : Capability) -> bool =
+  match (getCapBounds(c1), getCapBounds(c2)) {
+    (None(), _) => false,
+    (_, None()) => false,
+    (Some(base1, top1), Some(base2, top2)) => (base1 == base2) & (top1 == top2)
+  }
+
+function setCapAddr(c : Capability, addr : CapAddrBits) -> (bool, Capability) = {
+  let newCap = { c with address = addr };
+  // capBoundsEqual returns false if either input has malformed bounds, so the
+  // representability check will fail if the old or new bounds were malformed.
+  let representable = capBoundsEqual(c, newCap);
+  (representable, newCap)
+}
+
+function setCapAddrChecked(c : Capability, addr : CapAddrBits) -> Capability = {
+  let (representable, newCap) = setCapAddr(c, addr);
+  clearTagIf(newCap, not(representable) | capIsSealed(c) | not(capReservedValid(c)))
+}
 
 infix 1 >>_s
 overload operator >> = {sail_shiftright}
 overload operator << = {sail_shiftleft}
 overload operator >>_s = {sail_arith_shiftright}
 
-function fastRepCheck(c, i) : (Capability, CapAddrBits) -> bool=
-    let E = unsigned(c.E) in
-    if (E >= cap_max_E - 2) then
-        true /* in this case representable region is whole address space */
-    else
-        let i_top    = signed(i >>_s (E + cap_mantissa_width)) in
-        let i_mid    = truncate(i >> E, cap_mantissa_width)in
-        let a_mid    = truncate(c.address >> E, cap_mantissa_width) in
-        let B3 = truncateLSB(c.B, 3) in
-        let R3 = B3 - 0b001 in
-        let R  = R3 @ zeros(cap_mantissa_width - 3) in
-        let diff  = R - a_mid in
-        let diff1 = diff - 1 in
-        /* i_top determines 1. whether the increment is inRange
-           i.e. less than the size of the representable region
-           (2**(E+MW)) and 2. whether it is positive or negative. To
-           satisfy 1. all top bits must be the same so we are
-           interested in the cases i_top is 0 or -1 */
-        if (i_top == 0) then
-          i_mid <_u diff1
-        else if (i_top == -1) then
-          (i_mid >=_u diff) & (R != a_mid)
-        else
-          false
+function incCapAddrChecked(c : Capability, delta : CapAddrBits) -> Capability =
+  setCapAddrChecked(c, c.address + delta)
 
-function setCapOffset(c, offset) : (Capability, CapAddrBits) -> (bool, Capability) =
-    let base = getCapBaseBits(c) in
-    let newAddress = base + offset in
-    let newCap     = { c with address = newAddress } in
-    /* let representable = capBoundsEqual(c, newCap) in */
-    let representable = fastRepCheck(c, (newAddress - c.address)) in
-    (representable, newCap)
+function capToString(cap : Capability) -> string = {
+  let (base_str, top_str, bounds_malformed) : (string, string, bool) = match getCapBoundsBits(cap) {
+    None() => ("0 (malformed)", "0 (malformed)", true),
+    Some(base, top) => (bits_str(base), bits_str(zero_extend(cap_len_width + 3, top)), false)
+  };
 
-function setCapOffsetChecked (cap, offset) : (Capability, CapAddrBits) -> Capability =
-    let (representable, newCap) = setCapOffset(cap, offset) in
-    clearTagIf(newCap, not(representable) | isCapSealed(cap))
+  let len_str = bits_str(to_bits(cap_len_width + 3, getCapLength(cap)));
 
-function incCapOffset(c, delta) : (Capability, CapAddrBits) -> (bool, Capability) =
-    let newAddress : CapAddrBits = c.address + delta in
-    let newCap     = { c with address = newAddress } in
-    /* let representable = capBoundsEqual(c, newCap) in */
-    let representable = fastRepCheck(c, delta) in
-    (representable, newCap)
+  let (arch_perms_str, perms_malformed) : (string, bool) = match getArchPerms(cap) {
+    None() => ("(malformed)", true),
+    Some(perms) => (
+      (if perms.R then "R" else "") ^
+      (if perms.W then "W" else "") ^
+      (if perms.C then "C" else "") ^
+      (if perms.X then "X" else "") ^
+      (if perms.LM then "Lm" else "") ^
+      (if perms.ASR then "Asr" else ""),
+      false
+    )
+  };
 
+  // Warn if non-zero reserved bits encountered
+  let (res_str, reserved_malformed) : (string, bool) = if not(capReservedValid(cap)) then
+    (" (has non-zero reserved bits)", true)
+  else
+    ("", false);
 
-val capToString : (Capability) -> string effect {escape}
-function capToString (cap) = {
-  let len = getCapLength(cap);
-  let len_str = BitStr(to_bits(cap_len_width + 3, len));
-  /* Print architectural type which is -1 for unsealed caps */
-  let otype64 : CapAddrBits = if hasReservedOType(cap) then sign_extend(cap.otype) else zero_extend(cap.otype);
-  concat_str(" t:",
-  concat_str(if cap.tag then "1" else "0",
-  concat_str(" s:",
-  concat_str(if isCapSealed(cap) then "1" else "0",
-  concat_str(" perms:",
-  concat_str(BitStr(0b0 @ getCapPerms(cap)),
-  concat_str(" type:",
-  concat_str(BitStr(otype64),
-  concat_str(" address:",
-  concat_str(BitStr(cap.address),
-  concat_str(" base:",
-  concat_str(BitStr(getCapBaseBits(cap)),
-  concat_str(" length:", len_str)))))))))))))
-}
-function getRepresentableAlignmentMask(len) : xlenbits -> xlenbits = {
-  let (exact, c) = setCapBounds(default_cap, to_bits(sizeof(xlen), 0), 0b0 @ len);
-  let e = min(unsigned(c.E), cap_max_E);
-  let e' = if c.internal_E then e + internal_E_take_bits else 0;
-  ones(sizeof(xlen)-e') @ zeros(e')
+  // Print the raw metadata bits if they didn't decode to help debugging
+  let raw_str = if bounds_malformed | perms_malformed | reserved_malformed then
+    " raw:" ^ bits_str(capToMetadataBits(cap).bits)
+  else
+    "";
+
+  let cheri_mode : string = match getCapMode(cap) {
+    CapPtrMode => "CapPtrMode",
+    IntPtrMode  => "Integer",
+  };
+
+  "t:" ^ (if cap.tag then "1" else "0") ^
+  " address:" ^ bits_str(cap.address) ^
+  " base:" ^ base_str ^
+  " top:" ^ top_str ^
+  " length:" ^ len_str ^
+  " sealed:" ^ (if cap.sealed then "1" else "0") ^
+  " perms:" ^ arch_perms_str ^
+  " sdperms:" ^ bits_str(cap.sd_perms) ^
+  " mode:" ^ cheri_mode ^
+  raw_str ^ res_str
 }
 
-function getRepresentableLength(len) : xlenbits -> xlenbits = {
+function getRepresentableAlignmentMask(len : xlenbits) -> xlenbits = {
+  let (_exact, c) = setCapBounds(infinite_cap, zeros(), 0b0 @ len);
+  if c.internal_exponent then {
+    // setCapBounds will never make a malformed cap with E < 0.
+    let e = c.E;
+    assert(e >= 0);
+    ~(zero_extend(ones(e + cap_xe_width)))
+  } else ones()
+}
+
+function getRepresentableLength(len : xlenbits) -> xlenbits = {
   let m = getRepresentableAlignmentMask(len);
   (len + ~(m)) & m
-}
-
-/**
- * Returns an integer program counter from a given capability.
- * By default this is equivalent to reading the address field of the capability,
- * but if PCC relocation is enabled (not part of standardized CHERI-RISC-V) it
- * returns the capability offset instead.
- */
-function cap_to_integer_pc (cap: Capability) -> xlenbits = {
-  if (have_pcc_relocation()) then getCapOffsetBits(cap) else cap.address
-}
-
-/**
- * Updates a capability to reference an integer program counter.
- * By default this is equivalent to updating the address field of the capability,
- * but if PCC relocation is enabled (not part of standardized CHERI-RISC-V) it
- * updates the capability offset instead.
- */
-function update_cap_with_integer_pc (cap: Capability, pc: xlenbits) -> Capability = {
-  if (have_pcc_relocation()) then setCapOffsetChecked(cap, pc) else setCapAddrChecked(cap, pc)
 }

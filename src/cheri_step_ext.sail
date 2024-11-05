@@ -1,77 +1,95 @@
 /*=======================================================================================*/
-/*  CHERI RISCV Sail Model                                                               */
+/*  This Sail RISC-V architecture model, comprising all files and                        */
+/*  directories except where otherwise noted is subject the BSD                          */
+/*  two-clause license in the LICENSE file.                                              */
 /*                                                                                       */
-/*  This CHERI Sail RISC-V architecture model here, comprising all files and             */
-/*  directories except for the snapshots of the Lem and Sail libraries in the            */
-/*  prover_snapshots directory (which include copies of their licenses), is subject      */
-/*  to the BSD two-clause licence below.                                                 */
-/*                                                                                       */
-/*  Copyright (c) 2017-2021                                                              */
-/*    Alasdair Armstrong                                                                 */
-/*    Thomas Bauereiss                                                                   */
-/*    Brian Campbell                                                                     */
-/*    Jessica Clarke                                                                     */
-/*    Nathaniel Wesley Filardo (contributions prior to July 2020, thereafter Microsoft)  */
-/*    Alexandre Joannou                                                                  */
-/*    Microsoft                                                                          */
-/*    Prashanth Mundkur                                                                  */
-/*    Robert Norton-Wright (contributions prior to March 2020, thereafter Microsoft)     */
-/*    Alexander Richardson                                                               */
-/*    Peter Rugg                                                                         */
-/*    Peter Sewell                                                                       */
-/*                                                                                       */
-/*  All rights reserved.                                                                 */
-/*                                                                                       */
-/*  This software was developed by SRI International and the University of               */
-/*  Cambridge Computer Laboratory (Department of Computer Science and                    */
-/*  Technology) under DARPA/AFRL contract FA8650-18-C-7809 ("CIFV"), and                 */
-/*  under DARPA contract HR0011-18-C-0016 ("ECATS") as part of the DARPA                 */
-/*  SSITH research programme.                                                            */
-/*                                                                                       */
-/*  This software was developed within the Rigorous Engineering of                       */
-/*  Mainstream Systems (REMS) project, partly funded by EPSRC grant                      */
-/*  EP/K008528/1, at the Universities of Cambridge and Edinburgh.                        */
-/*                                                                                       */
-/*  This project has received funding from the European Research Council                 */
-/*  (ERC) under the European Union’s Horizon 2020 research and innovation                */
-/*  programme (grant agreement 789108, ELVER).                                           */
-/*                                                                                       */
-/*  Redistribution and use in source and binary forms, with or without                   */
-/*  modification, are permitted provided that the following conditions                   */
-/*  are met:                                                                             */
-/*  1. Redistributions of source code must retain the above copyright                    */
-/*     notice, this list of conditions and the following disclaimer.                     */
-/*  2. Redistributions in binary form must reproduce the above copyright                 */
-/*     notice, this list of conditions and the following disclaimer in                   */
-/*     the documentation and/or other materials provided with the                        */
-/*     distribution.                                                                     */
-/*                                                                                       */
-/*  THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS''                   */
-/*  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED                    */
-/*  TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A                      */
-/*  PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR                  */
-/*  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,                         */
-/*  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT                     */
-/*  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF                     */
-/*  USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND                  */
-/*  ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,                   */
-/*  OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT                   */
-/*  OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF                   */
-/*  SUCH DAMAGE.                                                                         */
+/*  SPDX-License-Identifier: BSD-2-Clause                                                */
 /*=======================================================================================*/
 
-/* set misa.X to indicate the presence of a non-standard extension. */
+function ext_reset() -> unit = {
+  PCC = infinite_cap;
+  nextPCC = infinite_cap;
+  ddc = infinite_cap;
 
-val ext_init : unit -> unit effect {wreg}
-function ext_init () = {
-  misa->X() = 0b1;
-  mccsr = legalize_ccsr(mccsr, zeros());
-  sccsr = legalize_ccsr(sccsr, zeros());
-  uccsr = legalize_ccsr(uccsr, zeros());
+  // The address bits may have been initialised by the non-CHERI reset to a non-zero value.
+  stvecc = {infinite_cap with address = stvec.bits};
+  stdc = {stdc with tag = false, address = zeros()} ;
+  sscratchc = {sscratchc with tag = false, address = sscratch} ;
+  sepcc = infinite_cap;
+  mtidc = {mtidc with tag = false};
+  stidc = {stidc with tag = false};
+  utidc = {utidc with tag = false};
+
+  mtvecc = {infinite_cap with address = mtvec.bits};
+  mtdc = {mtdc with tag = false, address = zeros()} ;
+  mscratchc = {mscratchc with tag = false, address = mscratch} ;
+  mepcc = infinite_cap;
+
+  dpcc = {dpcc with tag = false} ;
+  dscratch0c = {dscratch0c with tag = false};
+  dscratch1c = {dscratch1c with tag = false};
+  dddc = {dddc with tag = false};
+  dinfc = infinite_cap;
+
+  x1 = {x1 with tag = false};
+  x2 = {x2 with tag = false};
+  x3 = {x3 with tag = false};
+  x4 = {x4 with tag = false};
+  x5 = {x5 with tag = false};
+  x6 = {x6 with tag = false};
+  x7 = {x7 with tag = false};
+  x8 = {x8 with tag = false};
+  x9 = {x9 with tag = false};
+  x10 = {x10 with tag = false};
+  x11 = {x11 with tag = false};
+  x12 = {x12 with tag = false};
+  x13 = {x13 with tag = false};
+  x14 = {x14 with tag = false};
+  x15 = {x15 with tag = false};
+  x16 = {x16 with tag = false};
+  x17 = {x17 with tag = false};
+  x18 = {x18 with tag = false};
+  x19 = {x19 with tag = false};
+  x20 = {x20 with tag = false};
+  x21 = {x21 with tag = false};
+  x22 = {x22 with tag = false};
+  x23 = {x23 with tag = false};
+  x24 = {x24 with tag = false};
+  x25 = {x25 with tag = false};
+  x26 = {x26 with tag = false};
+  x27 = {x27 with tag = false};
+  x28 = {x28 with tag = false};
+  x29 = {x29 with tag = false};
+  x30 = {x30 with tag = false};
+  x31 = {x31 with tag = false};
 }
 
-/* other hooks are not currently used. */
+function ext_reset_misa() -> unit = {
+  // set misa.X to indicate the presence of a non-standard extension.
+  misa[X] = 0b1;
+}
+
 function ext_fetch_hook(f : FetchResult) -> FetchResult = f
+
+function ext_fetch_mem_read_hi(paddr : xlenbits, pbmt : PBMT) -> MemoryOpResult(half) = mem_read(Execute(), pbmt, paddr, 2, false, false, false)
+function ext_fetch_mem_read_lo(paddr : xlenbits, pbmt : PBMT) -> MemoryOpResult(half) = mem_read(Execute(), pbmt, paddr, 2, false, false, false)
 
 function ext_pre_step_hook()  -> unit = ()
 function ext_post_step_hook() -> unit = ()
+
+// Print an instruction we are executing. For CHERI we print the mode too.
+function ext_print_instr forall 'n, 'n in {16, 32} . (
+  step_no : int, ast : ast, opcode : bits('n)
+) -> unit = {
+  if get_config_print_instr()
+  then {
+    let cheri_mode : string = match effective_cheri_mode() {
+      CapPtrMode => "CapPtrMode",
+      IntPtrMode  => "Integer",
+    };
+    print_instr(
+      "[" ^ dec_str(step_no) ^ "] [" ^ to_str(cur_privilege()) ^ "," ^ cheri_mode ^ "]: " ^
+      BitStr(PC) ^ " (" ^ BitStr(opcode) ^ ") " ^ to_str(ast)
+    );
+  };
+}
