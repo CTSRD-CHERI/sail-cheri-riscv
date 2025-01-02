@@ -26,7 +26,7 @@ mapping clause assembly = ZBA_RTYPEUW_capmode(cs2, rs1, cd, op)
  * Shift by _n_ and add unsigned word for address generation (SH1ADD.UW,
  * SH2ADD.UW, SH3ADD.UW)
  *
- * sh[1|2|3]add.uw cd, rs1, cs2
+ *     sh[1|2|3]add.uw cd, rs1, cs2
  *
  * Increment the address field of cs2 by the unsigned word in rs1 shifted
  * left by _n_ bit positions and write the result to cd. The tag bit of
@@ -38,7 +38,7 @@ mapping clause assembly = ZBA_RTYPEUW_capmode(cs2, rs1, cd, op)
  * insnref: adduw_32bit capmode
  * Add unsigned word for address generation
  *
- * add.uw cd, rs1, cs2
+ *     add.uw cd, rs1, cs2
  *
  * Increment the address field of cs2 by the unsigned word in rs1. Clear
  * the tag if the resulting capability is unrepresentable or cs2 is
@@ -128,7 +128,7 @@ mapping clause assembly = ZBA_RTYPE(cs2, rs1, cd, op)
  * insnref: sh123add_32bit capmode
  * Shift by _n_ and add for address generation (SH1ADD, SH2ADD, SH3ADD)
  *
- * sh[1|2|3]add cd, rs1, cs2
+ *     sh[1|2|3]add cd, rs1, cs2
  *
  * Increment the address field of cs2 by rs1 shifted left by _n_ bit
  * positions and write the result to cd. The tag bit of the output
