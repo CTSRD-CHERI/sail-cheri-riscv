@@ -6,7 +6,7 @@
 /*  SPDX-License-Identifier: BSD-2-Clause                                                */
 /*=======================================================================================*/
 
-function ext_reset() -> unit = {
+function ext_cheri_reset() -> unit = {
   PCC = infinite_cap;
   nextPCC = infinite_cap;
   ddc = infinite_cap;
@@ -66,13 +66,13 @@ function ext_reset() -> unit = {
 
 function ext_reset_misa() -> unit = ()
 
-function ext_fetch_hook(f : FetchResult) -> FetchResult = f
+//function ext_fetch_hook(f : FetchResult) -> FetchResult = f
 
 function ext_fetch_mem_read_hi(paddr : physaddr, pbmt : PBMT) -> MemoryOpResult(half) = mem_read(Execute(), pbmt, paddr, 2, false, false, false)
 function ext_fetch_mem_read_lo(paddr : physaddr, pbmt : PBMT) -> MemoryOpResult(half) = mem_read(Execute(), pbmt, paddr, 2, false, false, false)
 
-function ext_pre_step_hook()  -> unit = ()
-function ext_post_step_hook() -> unit = ()
+//function ext_pre_step_hook()  -> unit = ()
+//function ext_post_step_hook() -> unit = ()
 
 // Print an instruction we are executing. For CHERI we print the mode too.
 function ext_print_instr forall 'n, 'n in {16, 32} . (
