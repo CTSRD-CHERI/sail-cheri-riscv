@@ -41,6 +41,8 @@ val feature_enabled_for_priv : (Privilege, bit, bit) -> bool
 
 /* Checking whether the Xcheri extension is enabled */
 function cheri_registers_enabled () -> bool = {
+  // Hardwire to true for now in TestRIG
+  /*if platform_get_rvfi_dii() then*/ return true;
   // CHERI is not part of this architecture
   if misa[X] == 0b0 then return false;
   // CRE is always 1 in debug mode
