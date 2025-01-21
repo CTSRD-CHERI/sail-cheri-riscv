@@ -1121,14 +1121,10 @@ mapping clause assembly = AMOSwapCap(cd, cs2, rs1, aq, rl)   <-> "amoswap.c" ^ m
   widths but refuses to decode them we can implement them for CHERI simply by
   adding the decodings here.
 */
-mapping clause encdec = LOADRES(aq, rl, rs1, size, rd)
-      if extensionEnabled(Ext_Zalrsc) & ((size == BYTE) | (size == HALF))
-  <-> 0b00010 @ bool_bits(aq) @ bool_bits(rl) @ 0b00000 @ encdec_reg(rs1) @ 0b0 @ size_enc(size) @ encdec_reg(rd) @ 0b0101111
-      if extensionEnabled(Ext_Zalrsc) & ((size == BYTE) | (size == HALF))
-mapping clause encdec = STORECON(aq, rl, rs2, rs1, size, rd)
-      if extensionEnabled(Ext_Zalrsc) & ((size == BYTE) | (size == HALF))
-  <-> 0b00011 @ bool_bits(aq) @ bool_bits(rl) @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b0 @ size_enc(size) @ encdec_reg(rd) @ 0b0101111
-      if extensionEnabled(Ext_Zalrsc) & ((size == BYTE) | (size == HALF))
+mapping clause encdec = LOADRES(aq, rl, rs1, size, rd)                                                                                if extensionEnabled(Ext_Zalrsc) & ((size == BYTE) | (size == HALF))
+  <-> 0b00010 @ bool_bits(aq) @ bool_bits(rl) @ 0b00000 @ encdec_reg(rs1) @ 0b0 @ size_enc(size) @ encdec_reg(rd) @ 0b0101111         if extensionEnabled(Ext_Zalrsc) & ((size == BYTE) | (size == HALF))
+mapping clause encdec = STORECON(aq, rl, rs2, rs1, size, rd)                                                                          if extensionEnabled(Ext_Zalrsc) & ((size == BYTE) | (size == HALF))
+  <-> 0b00011 @ bool_bits(aq) @ bool_bits(rl) @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b0 @ size_enc(size) @ encdec_reg(rd) @ 0b0101111 if extensionEnabled(Ext_Zalrsc) & ((size == BYTE) | (size == HALF))
 
 /*
  * Encoding/assembly mappings for capmode specific instructions. This does not
