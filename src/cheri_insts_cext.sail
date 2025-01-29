@@ -292,15 +292,15 @@ mapping clause assembly = C_MV_capmode(cd, cs2)
     <-> "c.mv" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs2)
   if cd != zreg & cs2 != zreg
 
-union clause ast = C_MODESW : unit
+//union clause ast = C_MODESW : unit
+//
+//// C.MODESW is valid in capability and integer pointer modes.
+//mapping clause encdec_compressed = C_MODESW()     if cheri_registers_enabled()
+//  <-> 0b100 @ 0b111 @ 0b000 @ 0b11 @ 0b111 @ 0b01 if cheri_registers_enabled()
+//
+//mapping clause assembly = C_MODESW() <-> "c.modesw"
 
-// C.MODESW is valid in capability and integer pointer modes.
-mapping clause encdec_compressed = C_MODESW()     if cheri_registers_enabled()
-  <-> 0b100 @ 0b111 @ 0b000 @ 0b11 @ 0b111 @ 0b01 if cheri_registers_enabled()
-
-mapping clause assembly = C_MODESW() <-> "c.modesw"
-
-/*!
+/*
  * insnref: modesw_16bit
  * Capability/_Integer Pointer Mode_ switching (C.MODESW), 16-bit
  * encoding
@@ -317,4 +317,4 @@ mapping clause assembly = C_MODESW() <-> "c.modesw"
  * * If the current mode is _Capability Pointer Mode_ (0), then the M-bit
  * in pcc is set to _Integer Pointer Mode_ (1).
  */
-function clause execute(C_MODESW()) = execute(MODESW())
+//function clause execute(C_MODESW()) = execute(MODESW())

@@ -309,19 +309,16 @@ function clause execute(SCMODE(cd, cs1, rs2)) = {
   RETIRE_SUCCESS
 }
 
-union clause ast = MODESW : unit
+union clause ast = MODESWCAP : unit
 /*!
- * insnref: modesw_32bit
- * Switch CHERI execution mode
+ * insnref: modeswcap_32bit
+ * Switch to CHERI capability execution mode
  *
- * modesw
+ * modeswcap
  *
- * Toggle the hart's current CHERI execution mode in pcc.
+ * Set the hart's current CHERI execution mode in pcc to capmode.
  *
- * * If the current mode in pcc is _Integer Pointer Mode_ (1), then the
- * M-bit in pcc is set to _Capability Pointer Mode_ (0).
- * * If the current mode is _Capability Pointer Mode_ (0), then the M-bit
- * in pcc is set to _Integer Pointer Mode_ (1).
+ * The M-bit in pcc is set to _Capability Pointer Mode_ (0).
  *
  * Executing MODESW from the program buffer in debug mode updates the M-bit
  * of dinfc. The M-bit of dinfc sets the CHERI execution mode for the
@@ -329,11 +326,32 @@ union clause ast = MODESW : unit
  * to control which CHERI execution mode to enter next time debug mode is entered.
  * The CHERI execution mode is only controlled by the M-bit of dinfc in debug mode.
  */
-function clause execute(MODESW()) = {
-  let mode : ExecutionMode = match effective_cheri_mode() {
-    IntPtrMode => CapPtrMode,
-    CapPtrMode => IntPtrMode,
-  };
+function clause execute(MODESWCAP()) = {
+  let mode : ExecutionMode = CapPtrMode;
+  if debug_mode_active then dinfc = setCapMode(infinite_cap, mode);
+  set_next_pcc(setCapMode(PCC, mode));
+  RETIRE_SUCCESS
+}
+
+union clause ast = MODESWINT : unit
+/*!
+ * insnref: modeswint_32bit
+ * Switch to CHERI integer execution mode
+ *
+ * modeswint
+ *
+ * Set the hart's current CHERI execution mode in pcc to intmode.
+ *
+ * The M-bit in pcc is set to _Integer Pointer Mode_ (1).
+ *
+ * Executing MODESW from the program buffer in debug mode updates the M-bit
+ * of dinfc. The M-bit of dinfc sets the CHERI execution mode for the
+ * execution of the next instruction from the program buffer, and is used
+ * to control which CHERI execution mode to enter next time debug mode is entered.
+ * The CHERI execution mode is only controlled by the M-bit of dinfc in debug mode.
+ */
+function clause execute(MODESWINT()) = {
+  let mode : ExecutionMode = IntPtrMode;
   if debug_mode_active then dinfc = setCapMode(infinite_cap, mode);
   set_next_pcc(setCapMode(PCC, mode));
   RETIRE_SUCCESS
@@ -1027,10 +1045,13 @@ function clause execute AMOSwapCap(cd, cs2, rs1_cs1, aq, rl) = {
 
 /* Zero arg */
 
-mapping clause encdec = MODESW()                                  if cheri_registers_enabled()
+mapping clause encdec = MODESWCAP()                               if cheri_registers_enabled()
   <-> 0b0001001 @ 0b00000 @ 0b00000 @ 0b001 @ 0b00000 @ 0b0110011 if cheri_registers_enabled()
+mapping clause encdec = MODESWINT()                               if cheri_registers_enabled()
+  <-> 0b0001010 @ 0b00000 @ 0b00000 @ 0b001 @ 0b00000 @ 0b0110011 if cheri_registers_enabled()
 
-mapping clause assembly = MODESW() <-> "modesw"
+mapping clause assembly = MODESWCAP() <-> "modeswcap"
+mapping clause assembly = MODESWINT() <-> "modeswint"
 
 /* Two arg */
 
