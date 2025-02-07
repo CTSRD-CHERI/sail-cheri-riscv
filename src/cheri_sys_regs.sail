@@ -157,8 +157,7 @@ function legalize_tcc(o : Capability, v : Capability) -> Capability = {
 
 /*
  * Used during readout (but not assignment!) of ?EPCC registers (CSpecialRW,
- * handle_trap_extension) and not during control transfer
- * (prepare_xret_target).
+ * handle_trap_extension) and during control transfer (prepare_xret_target).
  *
  * The result is that it is only possible to faithfully read out ?EPCC if
  * either
