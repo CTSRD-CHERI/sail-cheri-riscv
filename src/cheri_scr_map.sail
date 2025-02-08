@@ -69,16 +69,19 @@ scattered mapping scr_name_map
 mapping clause scr_name_map = 0b00000 <-> "pcc"
 mapping clause scr_name_map = 0b00001 <-> "ddc"
 
+mapping clause scr_name_map = 0b00011 <-> "utidc"
 mapping clause scr_name_map = 0b00100 <-> "utcc"
 mapping clause scr_name_map = 0b00101 <-> "utdc"
 mapping clause scr_name_map = 0b00110 <-> "uscratchc"
 mapping clause scr_name_map = 0b00111 <-> "uepcc"
 
+mapping clause scr_name_map = 0b01011 <-> "stidc"
 mapping clause scr_name_map = 0b01100 <-> "stcc"
 mapping clause scr_name_map = 0b01101 <-> "stdc"
 mapping clause scr_name_map = 0b01110 <-> "sscratchc"
 mapping clause scr_name_map = 0b01111 <-> "sepcc"
 
+mapping clause scr_name_map = 0b11011 <-> "mtidc"
 mapping clause scr_name_map = 0b11100 <-> "mtcc"
 mapping clause scr_name_map = 0b11101 <-> "mtdc"
 mapping clause scr_name_map = 0b11110 <-> "mscratchc"
