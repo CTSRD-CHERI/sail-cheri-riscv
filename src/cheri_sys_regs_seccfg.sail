@@ -7,6 +7,6 @@ function legalize_mseccfg(o : Seccfg, v : bits(64)) -> Seccfg = {
     o with
     SSEED = if sys_enable_zkr() then v[SSEED] else 0b0,
     USEED = if sys_enable_zkr() then v[USEED] else 0b0,
-    CRE = v[CRE],
+    CRE = 0b1,
   ]
 }
