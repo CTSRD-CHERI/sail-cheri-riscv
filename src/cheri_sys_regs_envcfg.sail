@@ -17,13 +17,13 @@ function clause extensionEnabled(Ext_Sstc) = sys_enable_sstc()
 function legalize_menvcfg(o : MEnvcfg, m : Seccfg, v : bits(64)) -> MEnvcfg = {
   let v = Mk_MEnvcfg(v);
   [o with
-    FIOM = if sys_enable_writable_fiom() then v[FIOM] else 0b0,
+    /* FIOM = if sys_enable_writable_fiom() then v[FIOM] else 0b0,
     STCE = if extensionEnabled(Ext_Sstc) then v[STCE] else 0b0,
     CBZE = v[CBZE],
     CBCFE = v[CBCFE],
     CBIE = if v[CBIE]!= 0b10 then v[CBIE] else 0b00,
-    PBMTE = if sys_enable_pbmt() then v[PBMTE] else 0b0,
-    CRE = v[CRE],
+    PBMTE = if sys_enable_pbmt() then v[PBMTE] else 0b0, */
+    CRE = 0b1,
     // Other extensions are not implemented yet so all other fields are read only zero.
   ]
 }
@@ -31,11 +31,13 @@ function legalize_menvcfg(o : MEnvcfg, m : Seccfg, v : bits(64)) -> MEnvcfg = {
 function legalize_senvcfg(o : SEnvcfg, m : MEnvcfg, v : xlenbits) -> SEnvcfg = {
   let v = Mk_SEnvcfg(v);
   [o with
+    /*
     FIOM = if sys_enable_writable_fiom() then v[FIOM] else 0b0,
     CBZE = v[CBZE],
     CBCFE = v[CBCFE],
     CBIE = if v[CBIE]!= 0b10 then v[CBIE] else 0b00,
-    CRE = v[CRE],
+    */
+    CRE = 0b1,
     // Other extensions are not implemented yet so all other fields are read only zero.
   ]
 }
