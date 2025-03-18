@@ -44,13 +44,13 @@ function clause execute(JAL_capmode(imm, cd)) = {
   let off : xlenbits = sign_extend(imm);
   let newPC = PC + off;
   if not(validAddr(newPC) | capBoundsInfinite(PCC)) then {
-    handle_cheri_exception(CapCheckType_JBr, CapEx_InvalidAddressViolation);
+    handle_cheri_exception(CapCheckType_JBr, CapEx_InvalidAddressViolation, virtaddr(zeros()));
     RETIRE_FAIL
   } else if not(inCapBounds(PCC, newPC, min_instruction_bytes())) then {
-    handle_cheri_exception(CapCheckType_JBr, CapEx_LengthViolation);
+    handle_cheri_exception(CapCheckType_JBr, CapEx_LengthViolation, virtaddr(zeros()));
     RETIRE_FAIL
   } else if newPC[1] == bitone & not(extensionEnabled(Ext_Zca)) then {
-    handle_mem_exception(newPC, E_Fetch_Addr_Align());
+    handle_mem_exception(virtaddr(newPC), E_Fetch_Addr_Align());
     RETIRE_FAIL
   } else {
     let (success, linkCap) = setCapAddr(PCC, nextPC); /* Note that nextPC accounts for compressed instructions */
@@ -85,22 +85,22 @@ function clause execute(JALR_capmode(imm, cs1, cd)) = {
   let newPC = [cs1_val.address + off with 0 = bitzero]; /* clear bit zero as for RISCV JALR */
 
   if not(capTaggedAndReservedValid(cs1_val)) then {
-    handle_cheri_exception(CapCheckType_JBr, CapEx_TagViolation);
+    handle_cheri_exception(CapCheckType_JBr, CapEx_TagViolation, virtaddr(zeros()));
     RETIRE_FAIL
   } else if capIsSealed(cs1_val) & imm != zeros() then {
-    handle_cheri_exception(CapCheckType_JBr, CapEx_SealViolation);
+    handle_cheri_exception(CapCheckType_JBr, CapEx_SealViolation, virtaddr(zeros()));
     RETIRE_FAIL
   } else if not(canX(cs1_val)) then {
-    handle_cheri_exception(CapCheckType_JBr, CapEx_PermissionViolation);
+    handle_cheri_exception(CapCheckType_JBr, CapEx_PermissionViolation, virtaddr(zeros()));
     RETIRE_FAIL
   } else if not(validAddr(newPC) | capBoundsInfinite(cs1_val)) then {
-    handle_cheri_exception(CapCheckType_JBr, CapEx_InvalidAddressViolation);
+    handle_cheri_exception(CapCheckType_JBr, CapEx_InvalidAddressViolation, virtaddr(zeros()));
     RETIRE_FAIL
   } else if not(inCapBounds(cs1_val, newPC, min_instruction_bytes())) then {
-    handle_cheri_exception(CapCheckType_JBr, CapEx_LengthViolation);
+    handle_cheri_exception(CapCheckType_JBr, CapEx_LengthViolation, virtaddr(zeros()));
     RETIRE_FAIL
   } else if newPC[1] == bitone & not(extensionEnabled(Ext_Zca)) then {
-    handle_mem_exception(newPC, E_Fetch_Addr_Align());
+    handle_mem_exception(virtaddr(newPC), E_Fetch_Addr_Align());
     RETIRE_FAIL
   } else {
     let (success, linkCap) = setCapAddr(PCC, nextPC); /* Note that nextPC accounts for compressed instructions */
@@ -166,7 +166,7 @@ function clause execute (GCTYPE(rd, cs1)) = {
  */
 function clause execute (GCPERM(rd, cs1)) = {
   let capVal = C(cs1);
-  X(rd) = packPerms(getArchPermsLegalized(capVal), capVal.sd_perms).bits;
+  X(rd) = packPerms(getArchPermsLegalized(capVal), capVal.cl, capVal.sd_perms).bits;
   RETIRE_SUCCESS
 }
 
@@ -196,7 +196,7 @@ function clause execute (GCBASE(rd, cs1)) = {
  *
  * gchi rd, cs1
  *
- * Copy the metadata (bits `[CLEN-1:MXLEN]`) of capability cs1 into rd.
+ * Copy the metadata (bits [CLEN-1:MXLEN]) of capability cs1 into rd.
  */
 function clause execute (GCHI(rd, cs1)) = {
   let capVal = C(cs1);
@@ -212,7 +212,7 @@ union clause ast = SCHI : (regidx, regidx, regidx)
  * schi cd, cs1, rs2
  *
  * Copy cs1  to cd , replace the capability metadata (i.e. bits
- * `[CLEN-1:MXLEN]`) with rs2  and set cd.tag to 0.
+ * [CLEN-1:MXLEN]) with rs2  and set cd.tag to 0.
  */
 function clause execute (SCHI(cd, cs1, rs2)) = {
   let capVal = C(cs1);
@@ -273,12 +273,12 @@ function clause execute(ACPERM(cd, cs1, rs2)) = {
   let cond = capIsSealed(cs1_val) | not(capReservedValid(cs1_val));
   let inCap = clearTagIf(cs1_val, cond);
 
-  let old_perms = packPerms(getArchPermsLegalized(inCap), inCap.sd_perms).bits;
+  let old_perms = packPerms(getArchPermsLegalized(inCap), inCap.cl, inCap.sd_perms).bits;
 
   let new_perms = old_perms & rs2_val;
 
-  let (new_arch_perms, new_sd_perms) = unpackPerms(struct {bits = new_perms});
-  let newCap = { setArchPerms(inCap, new_arch_perms) with sd_perms = new_sd_perms };
+  let (new_arch_perms, new_cl, new_sd_perms) = unpackPerms(struct {bits = new_perms});
+  let newCap = { setArchPerms(inCap, new_arch_perms) with cl = new_cl, sd_perms = new_sd_perms };
 
   C(cd) = newCap;
   RETIRE_SUCCESS
@@ -309,33 +309,32 @@ function clause execute(SCMODE(cd, cs1, rs2)) = {
   RETIRE_SUCCESS
 }
 
-union clause ast = MODESW : unit
+union clause ast = MODESW : (ExecutionMode)
 /*!
  * insnref: modesw_32bit
  * Switch CHERI execution mode
  *
- * modesw
+ * modesw.cap
+ * modesw.int
  *
- * Toggle the hart's current CHERI execution mode in pcc.
+ * Set the hart's current CHERI execution mode in <<pcc>>.
  *
- * * If the current mode in pcc is _Integer Pointer Mode_ (1), then the
- * M-bit in pcc is set to _Capability Pointer Mode_ (0).
- * * If the current mode is _Capability Pointer Mode_ (0), then the M-bit
- * in pcc is set to _Integer Pointer Mode_ (1).
+ * * MODESW.CAP: If the current mode in pcc is _Integer Pointer Mode_ (1), then the
+ *   M-bit in pcc is set to _Capability Pointer Mode_ (0). Otherwise no effect.
+ * * MODESW.INT: If the current mode in pcc is _Capability Pointer Mode_ (0), then the M-bit
+ *   in pcc is set to _Integer Pointer Mode_ (1). Otherwise no effect.
  *
- * Executing MODESW from the program buffer in debug mode updates the M-bit
- * of dinfc. The M-bit of dinfc sets the CHERI execution mode for the
- * execution of the next instruction from the program buffer, and is used
- * to control which CHERI execution mode to enter next time debug mode is entered.
- * The CHERI execution mode is only controlled by the M-bit of dinfc in debug mode.
+ * Executing MODESW.CAP or MODESW.INT from the program buffer in debug mode updates
+ * the M-bit of dinfc. The M-bit of dinfc sets the CHERI execution mode for the execution
+ * of the next instruction from the program buffer, and is used to control which CHERI
+ * execution mode to enter next time debug mode is entered. The CHERI execution mode
+ * is only controlled by the M-bit of dinfc in debug mode.
  */
-function clause execute(MODESW()) = {
-  let mode : ExecutionMode = match effective_cheri_mode() {
-    IntPtrMode => CapPtrMode,
-    CapPtrMode => IntPtrMode,
+function clause execute(MODESW(mode)) = {
+  if getCapMode(PCC) != mode then {
+    set_next_pcc(setCapMode(PCC, mode));
   };
-  if debug_mode_active then dinfc = setCapMode(infinite_cap, mode);
-  set_next_pcc(setCapMode(PCC, mode));
+  // if debug_mode_active then dinfc = setCapMode(infinite_cap, mode);
   RETIRE_SUCCESS
 }
 
@@ -637,6 +636,50 @@ function clause execute (SENTRY(cd, cs1)) = {
   RETIRE_SUCCESS
 }
 
+enum CapAccessType = { Cap_Read, Cap_Write, Cap_ReadWrite }
+
+function cap_mem_access_exception(auth_val : Capability, virtaddr(vaddr) : virtaddr, acc_type : CapAccessType) -> option(CapEx) = {
+  if not(capTaggedAndReservedValid(auth_val)) then {
+    Some(CapEx_TagViolation)
+  } else if capIsSealed(auth_val) then {
+    Some(CapEx_SealViolation)
+  } else if not((match acc_type {
+    Cap_Read => canR(auth_val),
+    Cap_Write => canW(auth_val),
+    Cap_ReadWrite => canR(auth_val) & canW(auth_val),
+  }) : bool) then {
+    Some(CapEx_PermissionViolation)
+  } else if not(validAddrRange(vaddr, cap_size) | capBoundsInfinite(auth_val)) then {
+    Some(CapEx_InvalidAddressViolation)
+  } else if not(inCapBounds(auth_val, vaddr, cap_size)) then {
+    Some(CapEx_LengthViolation)
+  } else {
+    None()
+  }
+}
+
+function cap_mem_standard_errors(auth_val : Capability, vaddr : virtaddr, acc_type : CapAccessType) -> option(Retired) = {
+  match cap_mem_access_exception(auth_val, vaddr, acc_type) {
+    Some(e) => {
+      handle_cheri_exception(CapCheckType_Data, e, vaddr);
+      Some(RETIRE_FAIL)
+    },
+    None() => {
+      // All loads and stores of capabilities must be aligned.
+      if not(is_aligned_addr(vaddr, cap_size)) then {
+        handle_mem_exception(vaddr, match acc_type {
+          Cap_Read => E_Load_Addr_Align(),
+          Cap_Write => E_SAMO_Addr_Align(),
+          Cap_ReadWrite => E_SAMO_Addr_Align(),
+        });
+        Some(RETIRE_FAIL)
+      } else {
+        None()
+      }
+    },
+  }
+}
+
 union clause ast = LoadResCap : (regidx, regidx, bool, bool)
 /*
  * insnref: load_res_cap_32bit modedep
@@ -661,48 +704,35 @@ union clause ast = LoadResCap : (regidx, regidx, bool, bool)
 function clause execute (LoadResCap(cd, rs1_cs1, aq, rl)) = {
   let (auth_val, vaddr) = get_cheri_mode_cap_addr(rs1_cs1, zeros());
 
-  match check_and_handle_load_vaddr_for_triggers(vaddr, get_arch_pc()) {
-    Some (ret) => return ret,
-    None () => ()
-  };
-  if not(capTaggedAndReservedValid(auth_val)) then {
-    handle_cheri_exception(CapCheckType_Data, CapEx_TagViolation);
-    RETIRE_FAIL
-  } else if capIsSealed(auth_val) then {
-    handle_cheri_exception(CapCheckType_Data, CapEx_SealViolation);
-    RETIRE_FAIL
-  } else if not(canR(auth_val)) then {
-    handle_cheri_exception(CapCheckType_Data, CapEx_PermissionViolation);
-    RETIRE_FAIL
-  } else if not(validAddrRange(vaddr, cap_size) | capBoundsInfinite(auth_val)) then {
-    handle_cheri_exception(CapCheckType_Data, CapEx_InvalidAddressViolation);
-    RETIRE_FAIL
-  } else if not(inCapBounds(auth_val, vaddr, cap_size)) then {
-    handle_cheri_exception(CapCheckType_Data, CapEx_LengthViolation);
-    RETIRE_FAIL
-  } else if not(is_aligned_addr(vaddr, cap_size)) then {
-    handle_mem_exception(vaddr, E_Load_Addr_Align());
-    RETIRE_FAIL
-  } else match translateAddr(vaddr, Read(Cap)) {
-    TR_Failure(E_Extension(_)) => { internal_error(__FILE__, __LINE__, "unexpected cheri exception for cap load") },
-    TR_Failure(e) => { handle_mem_exception(vaddr, e); RETIRE_FAIL },
-    TR_Address(addr, pbmt, ptw_info) => {
-      let c = mem_read_cap(addr, pbmt, aq, aq & rl, false);
-      match c {
-        MemValue(v) => {
-          let cr = if ptw_info.ptw_lc == PTW_LC_CLEAR
-                   then clearTag(v) /* strip the tag */
-                   else {
-                     /* the Sail model currently reserves physical addresses */
-                     load_reservation(addr);
-                     clearTagIf(v, not(canC(auth_val)))
-                   };
-          C(cd) = legalizeLM(cr, auth_val);
-          RETIRE_SUCCESS
-        },
-        MemException(e) => {handle_mem_exception(vaddr, e); RETIRE_FAIL }
+  match cap_mem_standard_errors(auth_val, vaddr, Cap_Read) {
+    Some(r) => r,
+    None() => {
+      // If we don't have C capability then the tag will always be cleared and
+      // it is treated as an untagged load.
+      match translateAddr(vaddr, Read(if canC(auth_val) then Data else Tagged)) {
+        TR_Failure(e, ext_ptw) => { handle_translate_exception(vaddr, e, ext_ptw); RETIRE_FAIL },
+        TR_Address(addr, pbmt, ext_ptw) => {
+          let c = mem_read_cap(addr, pbmt, aq, aq & rl, false);
+          match c {
+            Ok(v) => {
+              if v.tag & ext_ptw.tagged_load_behaviour == TaggedLoadTrap then {
+                handle_translate_exception(vaddr, E_Load_Page_Fault(), { ext_ptw with cheri_page_fault = PageFault_Cheri });
+                RETIRE_FAIL
+              } else {
+                load_reservation(physaddr_bits(addr));
+                let cr = clearTagIf(v, ext_ptw.tagged_load_behaviour == TaggedLoadClear | not(canC(auth_val)));
+                C(cd) = legalizeLoadedPermissions(cr, auth_val);
+                RETIRE_SUCCESS
+              }
+            },
+            Err(e) => {
+              handle_mem_exception(vaddr, e);
+              RETIRE_FAIL
+            },
+          }
+        }
       }
-    }
+    },
   }
 }
 
@@ -735,45 +765,36 @@ union clause ast = LoadCapImm : (regidx, regidx, bits(12))
 function clause execute LoadCapImm(cd, rs1_cs1, imm) = {
   let offset : xlenbits = sign_extend(imm);
   let (auth_val, vaddr) = get_cheri_mode_cap_addr(rs1_cs1, offset);
-  let aq : bool = false;
-  let rl : bool = false;
 
-  match check_and_handle_load_vaddr_for_triggers(vaddr, get_arch_pc()) {
-    Some (ret) => return ret,
-    None () => ()
-  };
-  if not(capTaggedAndReservedValid(auth_val)) then {
-    handle_cheri_exception(CapCheckType_Data, CapEx_TagViolation);
-    RETIRE_FAIL
-  } else if capIsSealed(auth_val) then {
-    handle_cheri_exception(CapCheckType_Data, CapEx_SealViolation);
-    RETIRE_FAIL
-  } else if not(canR(auth_val)) then {
-    handle_cheri_exception(CapCheckType_Data, CapEx_PermissionViolation);
-    RETIRE_FAIL
-  } else if not(validAddrRange(vaddr, cap_size) | capBoundsInfinite(auth_val)) then {
-    handle_cheri_exception(CapCheckType_Data, CapEx_InvalidAddressViolation);
-    RETIRE_FAIL
-  } else if not(inCapBounds(auth_val, vaddr, cap_size)) then {
-    handle_cheri_exception(CapCheckType_Data, CapEx_LengthViolation);
-    RETIRE_FAIL
-  } else if not(is_aligned_addr(vaddr, cap_size)) then {
-    handle_mem_exception(vaddr, E_Load_Addr_Align());
-    RETIRE_FAIL
-  } else match translateAddr(vaddr, Read(Cap)) {
-    TR_Failure(E_Extension(_)) => { internal_error(__FILE__, __LINE__, "unexpected cheri exception for cap load") },
-    TR_Failure(e) => { handle_mem_exception(vaddr, e); RETIRE_FAIL },
-    TR_Address(addr, pbmt, ptw_info) => {
-      let c = mem_read_cap(addr, pbmt, aq, aq & rl, false);
-      match c {
-        MemValue(v) => {
-          let cr = clearTagIf(v, ptw_info.ptw_lc == PTW_LC_CLEAR | not(canC(auth_val)));
-          C(cd) = legalizeLM(cr, auth_val);
-          RETIRE_SUCCESS
-        },
-        MemException(e) => {handle_mem_exception(vaddr, e); RETIRE_FAIL }
+  match cap_mem_standard_errors(auth_val, vaddr, Cap_Read) {
+    Some(r) => r,
+    None() => {
+      // If we don't have C capability then the tag will always be cleared and
+      // it is treated as an untagged load.
+      match translateAddr(vaddr, Read(if canC(auth_val) then Data else Tagged)) {
+        TR_Failure(e, ext_ptw) => { handle_translate_exception(vaddr, e, ext_ptw); RETIRE_FAIL },
+        TR_Address(addr, pbmt, ext_ptw) => {
+          let aq = false;
+          let rl = false;
+          match mem_read_cap(addr, pbmt, aq, aq & rl, false) {
+            Ok(v) => {
+              if v.tag & ext_ptw.tagged_load_behaviour == TaggedLoadTrap then {
+                handle_translate_exception(vaddr, E_Load_Page_Fault(), { ext_ptw with cheri_page_fault = PageFault_Cheri });
+                RETIRE_FAIL
+              } else {
+                let cr = clearTagIf(v, ext_ptw.tagged_load_behaviour == TaggedLoadClear | not(canC(auth_val)));
+                C(cd) = legalizeLoadedPermissions(cr, auth_val);
+                RETIRE_SUCCESS
+              }
+            },
+            Err(e) => {
+              handle_mem_exception(vaddr, e);
+              RETIRE_FAIL
+            },
+          }
+        }
       }
-    }
+    },
   }
 }
 
@@ -805,49 +826,32 @@ union clause ast = StoreCapImm : (regidx, regidx, bits(12))
 function clause execute StoreCapImm(cs2, rs1_cs1, imm) = {
   let offset : xlenbits = sign_extend(imm);
   let (auth_val, vaddr) = get_cheri_mode_cap_addr(rs1_cs1, offset);
-  let cs2_val = C(cs2);
-  let aq : bool = false;
-  let rl : bool = false;
-  let cs2_val = clearTagIf(cs2_val, not(canC(auth_val)));
 
-  match check_and_handle_store_vaddr_for_triggers(vaddr, get_arch_pc()) {
-    Some (ret) => return ret,
-    None () => ()
-  };
-  if not(capTaggedAndReservedValid(auth_val)) then {
-    handle_cheri_exception(CapCheckType_Data, CapEx_TagViolation);
-    RETIRE_FAIL
-  } else if capIsSealed(auth_val) then {
-    handle_cheri_exception(CapCheckType_Data, CapEx_SealViolation);
-    RETIRE_FAIL
-  } else if not(canW(auth_val)) then {
-    handle_cheri_exception(CapCheckType_Data, CapEx_PermissionViolation);
-    RETIRE_FAIL
-  } else if not(validAddrRange(vaddr, cap_size) | capBoundsInfinite(auth_val)) then {
-    handle_cheri_exception(CapCheckType_Data, CapEx_InvalidAddressViolation);
-    RETIRE_FAIL
-  } else if not(inCapBounds(auth_val, vaddr, cap_size)) then {
-    handle_cheri_exception(CapCheckType_Data, CapEx_LengthViolation);
-    RETIRE_FAIL
-  } else if not(is_aligned_addr(vaddr, cap_size)) then {
-    handle_mem_exception(vaddr, E_SAMO_Addr_Align());
-    RETIRE_FAIL
-  } else match translateAddr(vaddr, Write(if cs2_val.tag then Cap else Data)) {
-    TR_Failure(e) => { handle_mem_exception(vaddr, e); RETIRE_FAIL },
-    TR_Address(addr, pbmt, _) => {
-      let eares : MemoryOpResult(unit) = mem_write_ea_cap(addr, aq & rl, rl, false);
-      match (eares) {
-        MemException(e) => { handle_mem_exception(vaddr, e); RETIRE_FAIL },
-        MemValue(_) => {
-          let res : MemoryOpResult(bool) = mem_write_cap(addr, pbmt, cs2_val, aq & rl, rl, false);
-          match (res) {
-            MemValue(true)  => RETIRE_SUCCESS,
-            MemValue(false) => internal_error(__FILE__, __LINE__, "store got false from mem_write_value"),
-            MemException(e) => { handle_mem_exception(vaddr, e); RETIRE_FAIL }
+  match cap_mem_standard_errors(auth_val, vaddr, Cap_Write) {
+    Some(r) => r,
+    None() => {
+      let cs2_val = C(cs2);
+      let cs2_val = clearTagIf(cs2_val, not(canC(auth_val)));
+      let cs2_val = legalizeStoredPermissions(cs2_val, auth_val);
+
+      match translateAddr(vaddr, Write(if cs2_val.tag then Tagged else Data)) {
+        TR_Failure(e, ext_ptw) => { handle_translate_exception(vaddr, e, ext_ptw); RETIRE_FAIL },
+        TR_Address(addr, pbmt, _) => {
+          let aq = false;
+          let rl = false;
+          match mem_write_ea_cap(addr, aq & rl, rl, false) {
+            Err(e) => { handle_mem_exception(vaddr, e); RETIRE_FAIL },
+            Ok(_)  => {
+              match mem_write_cap(addr, pbmt, cs2_val, aq & rl, rl, false) {
+                Ok(true)  => RETIRE_SUCCESS,
+                Ok(false) => internal_error(__FILE__, __LINE__, "store got false from mem_write_value"),
+                Err(e)    => { handle_mem_exception(vaddr, e); RETIRE_FAIL }
+              }
+            }
           }
         }
       }
-    }
+    },
   }
 }
 
@@ -874,74 +878,48 @@ union clause ast = StoreCondCap : (regidx, regidx, regidx, bool, bool)
  */
 function clause execute StoreCondCap(rd, cs2, rs1_cs1, aq, rl) = {
   let (auth_val, vaddr) = get_cheri_mode_cap_addr(rs1_cs1, zeros());
-  let cs2_val = C(cs2);
-  let cs2_val = clearTagIf(cs2_val, not(canC(auth_val)));
 
-  match check_and_handle_store_vaddr_for_triggers(vaddr, get_arch_pc()) {
-    Some (ret) => return ret,
-    None () => ()
-  };
-  if speculate_conditional () == false then {
-    /* should only happen in rmem
-     * rmem: allow SC to fail very early
-     */
-    X(rd) = zero_extend(0b1);
-    return RETIRE_SUCCESS
-  };
-  if not(capTaggedAndReservedValid(auth_val)) then {
-    handle_cheri_exception(CapCheckType_Data, CapEx_TagViolation);
-    RETIRE_FAIL
-  } else if capIsSealed(auth_val) then {
-    handle_cheri_exception(CapCheckType_Data, CapEx_SealViolation);
-    RETIRE_FAIL
-  } else if not(canW(auth_val)) then {
-    handle_cheri_exception(CapCheckType_Data, CapEx_PermissionViolation);
-    RETIRE_FAIL
-  } else if not(validAddrRange(vaddr, cap_size) | capBoundsInfinite(auth_val)) then {
-    handle_cheri_exception(CapCheckType_Data, CapEx_InvalidAddressViolation);
-    RETIRE_FAIL
-  } else if not(inCapBounds(auth_val, vaddr, cap_size)) then {
-    handle_cheri_exception(CapCheckType_Data, CapEx_LengthViolation);
-    RETIRE_FAIL
-  } else if not(is_aligned_addr(vaddr, cap_size)) then {
-    handle_mem_exception(vaddr, E_SAMO_Addr_Align());
-    RETIRE_FAIL
-  } else {
-    match translateAddr(vaddr, Write(if cs2_val.tag then Cap else Data)) {
-      TR_Failure(e) => { handle_mem_exception(vaddr, e); RETIRE_FAIL },
-      TR_Address(addr, pbmt, _) => {
-        if not(match_reservation(addr)) then {
-          /* cannot happen in rmem */
-          X(rd) = zero_extend(0b1);
-          cancel_reservation();
-          RETIRE_SUCCESS
-        } else {
-          let eares : MemoryOpResult(unit) = mem_write_ea_cap(addr, aq & rl, rl, false);
-          match (eares) {
-            MemException(e) => { handle_mem_exception(vaddr, e); RETIRE_FAIL },
-            MemValue(_) => {
-              let res : MemoryOpResult(bool) = mem_write_cap(addr, pbmt, cs2_val, aq & rl, rl, false);
-              match (res) {
-                MemValue(true)  => {
-                  X(rd) = zero_extend(0b0);
-                  cancel_reservation();
-                  RETIRE_SUCCESS
-                },
-                MemValue(false) => {
-                  X(rd) = zero_extend(0b1);
-                  cancel_reservation();
-                  RETIRE_SUCCESS
-                },
-                MemException(e) => {
-                  handle_mem_exception(vaddr, e);
-                  RETIRE_FAIL
+  match cap_mem_standard_errors(auth_val, vaddr, Cap_Write) {
+    Some(r) => r,
+    None() => {
+      let cs2_val = C(cs2);
+      let cs2_val = clearTagIf(cs2_val, not(canC(auth_val)));
+      let cs2_val = legalizeStoredPermissions(cs2_val, auth_val);
+
+      match translateAddr(vaddr, Write(if cs2_val.tag then Tagged else Data)) {
+        TR_Failure(e, ext_ptw) => { handle_translate_exception(vaddr, e, ext_ptw); RETIRE_FAIL },
+        TR_Address(addr, pbmt, _) => {
+          if not(match_reservation(physaddr_bits(addr))) then {
+            /* cannot happen in rmem */
+            X(rd) = zero_extend(0b1);
+            cancel_reservation();
+            RETIRE_SUCCESS
+          } else {
+            match mem_write_ea_cap(addr, aq & rl, rl, false) {
+              Err(e) => { handle_mem_exception(vaddr, e); RETIRE_FAIL },
+              Ok(_)  => {
+                match mem_write_cap(addr, pbmt, cs2_val, aq & rl, rl, false) {
+                  Ok(true) => {
+                    X(rd) = zero_extend(0b0);
+                    cancel_reservation();
+                    RETIRE_SUCCESS
+                  },
+                  Ok(false) => {
+                    X(rd) = zero_extend(0b1);
+                    cancel_reservation();
+                    RETIRE_SUCCESS
+                  },
+                  Err(e) => {
+                    handle_mem_exception(vaddr, e);
+                    RETIRE_FAIL
+                  }
                 }
               }
             }
           }
         }
       }
-    }
+    },
   }
 }
 
@@ -964,98 +942,90 @@ union clause ast = AMOSwapCap : (regidx, regidx, regidx, bool, bool)
  */
 function clause execute AMOSwapCap(cd, cs2, rs1_cs1, aq, rl) = {
   let (auth_val, vaddr) = get_cheri_mode_cap_addr(rs1_cs1, zeros());
-  let cs2_val = C(cs2);
-  let cs2_val = clearTagIf(cs2_val, not(canC(auth_val)));
 
-  match check_and_handle_amo_vaddr_for_triggers(vaddr, get_arch_pc()) {
-    Some (ret) => return ret,
-    None () => ()
-  };
-  if not(capTaggedAndReservedValid(auth_val)) then {
-    handle_cheri_exception(CapCheckType_Data, CapEx_TagViolation);
-    RETIRE_FAIL
-  } else if capIsSealed(auth_val) then {
-    handle_cheri_exception(CapCheckType_Data, CapEx_SealViolation);
-    RETIRE_FAIL
-  } else if not(canR(auth_val)) then {
-    handle_cheri_exception(CapCheckType_Data, CapEx_PermissionViolation);
-    RETIRE_FAIL
-  } else if not(canW(auth_val)) then {
-    handle_cheri_exception(CapCheckType_Data, CapEx_PermissionViolation);
-    RETIRE_FAIL
-  } else if not(validAddrRange(vaddr, cap_size) | capBoundsInfinite(auth_val)) then {
-    handle_cheri_exception(CapCheckType_Data, CapEx_InvalidAddressViolation);
-    RETIRE_FAIL
-  } else if not(inCapBounds(auth_val, vaddr, cap_size)) then {
-    handle_cheri_exception(CapCheckType_Data, CapEx_LengthViolation);
-    RETIRE_FAIL
-  } else if not(is_aligned_addr(vaddr, cap_size)) then {
-    handle_mem_exception(vaddr, E_SAMO_Addr_Align());
-    RETIRE_FAIL
-  } else {
-    match translateAddr(vaddr, ReadWrite(Cap, if cs2_val.tag then Cap else Data)) {
-      TR_Failure(e) => { handle_mem_exception(vaddr, e); RETIRE_FAIL },
-      TR_Address(addr, pbmt, ptw_info) => {
-        let eares : MemoryOpResult(unit) = mem_write_ea_cap(addr, aq & rl, rl, false);
-        match (eares) {
-          MemException(e) => { handle_mem_exception(vaddr, e); RETIRE_FAIL },
-          MemValue(_) => {
-            let c = mem_read_cap(addr, pbmt, aq, aq & rl, false);
-            match c {
-              MemValue(v) => {
-                let wres : MemoryOpResult(bool) = mem_write_cap(addr, pbmt, cs2_val, aq & rl, rl, false);
-                match wres {
-                  MemValue(_) => {
-                    let cr = clearTagIf(v, ptw_info.ptw_lc == PTW_LC_CLEAR | not(canC(auth_val)));
-                    C(cd) = legalizeLM(cr, auth_val);
-                    RETIRE_SUCCESS
-                  },
-                  MemException(e) => {
-                    handle_mem_exception(vaddr, e);
-                    RETIRE_FAIL
+  match cap_mem_standard_errors(auth_val, vaddr, Cap_ReadWrite) {
+    Some(r) => r,
+    None() => {
+      let cs2_val = C(cs2);
+      let cs2_val = clearTagIf(cs2_val, not(canC(auth_val)));
+      let cs2_val = legalizeStoredPermissions(cs2_val, auth_val);
+
+      match translateAddr(vaddr, ReadWrite(if canC(auth_val) then Data else Tagged, if cs2_val.tag then Tagged else Data)) {
+        TR_Failure(e, ext_ptw) => { handle_translate_exception(vaddr, e, ext_ptw); RETIRE_FAIL },
+        TR_Address(addr, pbmt, ext_ptw) => {
+          match mem_write_ea_cap(addr, aq & rl, rl, false) {
+            Err(e) => { handle_mem_exception(vaddr, e); RETIRE_FAIL },
+            Ok(_)  => {
+              match mem_read_cap(addr, pbmt, aq, aq & rl, false) {
+                Ok(v) => {
+                  match mem_write_cap(addr, pbmt, cs2_val, aq & rl, rl, false) {
+                    Ok(_) => {
+                      if v.tag & ext_ptw.tagged_load_behaviour == TaggedLoadTrap then {
+                        handle_translate_exception(vaddr, E_Load_Page_Fault(), { ext_ptw with cheri_page_fault = PageFault_Cheri });
+                        RETIRE_FAIL
+                      } else {
+                        let cr = clearTagIf(v, ext_ptw.tagged_load_behaviour == TaggedLoadClear | not(canC(auth_val)));
+                        C(cd) = legalizeLoadedPermissions(cr, auth_val);
+                        RETIRE_SUCCESS
+                      }
+                    },
+                    Err(e) => {
+                      handle_mem_exception(vaddr, e);
+                      RETIRE_FAIL
+                    },
                   }
-                }
-              },
-              MemException(e) => { handle_mem_exception(vaddr, e); RETIRE_FAIL }
+                },
+                Err(e) => { handle_mem_exception(vaddr, e); RETIRE_FAIL }
+              }
             }
           }
         }
       }
-    }
+    },
   }
 }
 
 /* Zero arg */
 
-mapping clause encdec = MODESW()                                  if cheri_registers_enabled()
-  <-> 0b0001001 @ 0b00000 @ 0b00000 @ 0b001 @ 0b00000 @ 0b0110011 if cheri_registers_enabled()
+mapping execution_mode_funct7 : ExecutionMode <-> bits(7) = {
+  CapPtrMode <-> 0b0001001,
+  IntPtrMode <-> 0b0001010,
+}
 
-mapping clause assembly = MODESW() <-> "modesw"
+mapping clause encdec = MODESW(mode)                                                if cheri_registers_enabled()
+  <-> execution_mode_funct7(mode) @ 0b00000 @ 0b00000 @ 0b001 @ 0b00000 @ 0b0110011 if cheri_registers_enabled()
+
+mapping execution_mode_mnemonic : ExecutionMode <-> string = {
+  CapPtrMode <-> "cap",
+  IntPtrMode <-> "int",
+}
+
+mapping clause assembly = MODESW(mode) <-> "modesw." ^ execution_mode_mnemonic(mode)
 
 /* Two arg */
 
-mapping clause encdec = GCMODE(rd, cs1)                  if cheri_registers_enabled()
-  <-> 0b0001000 @ 0b00011 @ cs1 @ 0b000 @ rd @ 0b0110011 if cheri_registers_enabled()
-mapping clause encdec = GCTYPE(rd, cs1)                  if cheri_registers_enabled()
-  <-> 0b0001000 @ 0b00010 @ cs1 @ 0b000 @ rd @ 0b0110011 if cheri_registers_enabled()
-mapping clause encdec = GCPERM(rd, cs1)                  if cheri_registers_enabled()
-  <-> 0b0001000 @ 0b00001 @ cs1 @ 0b000 @ rd @ 0b0110011 if cheri_registers_enabled()
-mapping clause encdec = GCBASE(rd, cs1)                  if cheri_registers_enabled()
-  <-> 0b0001000 @ 0b00101 @ cs1 @ 0b000 @ rd @ 0b0110011 if cheri_registers_enabled()
-mapping clause encdec = GCLEN(rd, cs1)                   if cheri_registers_enabled()
-  <-> 0b0001000 @ 0b00110 @ cs1 @ 0b000 @ rd @ 0b0110011 if cheri_registers_enabled()
-mapping clause encdec = GCTAG(rd, cs1)                   if cheri_registers_enabled()
-  <-> 0b0001000 @ 0b00000 @ cs1 @ 0b000 @ rd @ 0b0110011 if cheri_registers_enabled()
-mapping clause encdec = GCHI(rd, cs1)                    if cheri_registers_enabled()
-  <-> 0b0001000 @ 0b00100 @ cs1 @ 0b000 @ rd @ 0b0110011 if cheri_registers_enabled()
+mapping clause encdec = GCMODE(rd, cs1)                                          if cheri_registers_enabled()
+  <-> 0b0001000 @ 0b00011 @ encdec_reg(cs1) @ 0b000 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
+mapping clause encdec = GCTYPE(rd, cs1)                                          if cheri_registers_enabled()
+  <-> 0b0001000 @ 0b00010 @ encdec_reg(cs1) @ 0b000 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
+mapping clause encdec = GCPERM(rd, cs1)                                          if cheri_registers_enabled()
+  <-> 0b0001000 @ 0b00001 @ encdec_reg(cs1) @ 0b000 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
+mapping clause encdec = GCBASE(rd, cs1)                                          if cheri_registers_enabled()
+  <-> 0b0001000 @ 0b00101 @ encdec_reg(cs1) @ 0b000 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
+mapping clause encdec = GCLEN(rd, cs1)                                           if cheri_registers_enabled()
+  <-> 0b0001000 @ 0b00110 @ encdec_reg(cs1) @ 0b000 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
+mapping clause encdec = GCTAG(rd, cs1)                                           if cheri_registers_enabled()
+  <-> 0b0001000 @ 0b00000 @ encdec_reg(cs1) @ 0b000 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
+mapping clause encdec = GCHI(rd, cs1)                                            if cheri_registers_enabled()
+  <-> 0b0001000 @ 0b00100 @ encdec_reg(cs1) @ 0b000 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
 
-mapping clause encdec = CMV(cd, cs1)                     if cheri_registers_enabled()
-  <-> 0b0000110 @ 0b00000 @ cs1 @ 0b000 @ cd @ 0b0110011 if cheri_registers_enabled()
-mapping clause encdec = SENTRY(cd, cs1)                  if cheri_registers_enabled()
-  <-> 0b0001000 @ 0b01000 @ cs1 @ 0b000 @ cd @ 0b0110011 if cheri_registers_enabled()
+mapping clause encdec = CMV(cd, cs1)                                             if cheri_registers_enabled()
+  <-> 0b0000110 @ 0b00000 @ encdec_reg(cs1) @ 0b000 @ encdec_reg(cd) @ 0b0110011 if cheri_registers_enabled()
+mapping clause encdec = SENTRY(cd, cs1)                                          if cheri_registers_enabled()
+  <-> 0b0001000 @ 0b01000 @ encdec_reg(cs1) @ 0b000 @ encdec_reg(cd) @ 0b0110011 if cheri_registers_enabled()
 
-mapping clause encdec = CRAM(rd, rs1)                    if cheri_registers_enabled()
-  <-> 0b0001000 @ 0b00111 @ rs1 @ 0b000 @ rd @ 0b0110011 if cheri_registers_enabled()
+mapping clause encdec = CRAM(rd, rs1)                                            if cheri_registers_enabled()
+  <-> 0b0001000 @ 0b00111 @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
 
 mapping clause assembly = GCMODE(rd, cs1) <-> "gcmode" ^ spc() ^ reg_name(rd)     ^ sep() ^ cap_reg_name(cs1)
 mapping clause assembly = GCTYPE(rd, cs1) <-> "gctype" ^ spc() ^ reg_name(rd)     ^ sep() ^ cap_reg_name(cs1)
@@ -1072,32 +1042,32 @@ mapping clause assembly = CRAM(rd, rs1)   <-> "cram"   ^ spc() ^ reg_name(rd)   
 
 /* Three arg */
 
-mapping clause encdec = ACPERM(cd, cs1, rs2)         if cheri_registers_enabled()
-  <-> 0b0000110 @ rs2 @ cs1 @ 0b010 @ cd @ 0b0110011 if cheri_registers_enabled()
-mapping clause encdec = SCMODE(cd, cs1, rs2)         if cheri_registers_enabled()
-  <-> 0b0000110 @ rs2 @ cs1 @ 0b111 @ cd @ 0b0110011 if cheri_registers_enabled()
-mapping clause encdec = SCADDR(cd, cs1, rs2)         if cheri_registers_enabled()
-  <-> 0b0000110 @ rs2 @ cs1 @ 0b001 @ cd @ 0b0110011 if cheri_registers_enabled()
-mapping clause encdec = SCHI(cd, cs1, rs2)           if cheri_registers_enabled()
-  <-> 0b0000110 @ rs2 @ cs1 @ 0b011 @ cd @ 0b0110011 if cheri_registers_enabled()
-mapping clause encdec = CADD(cd, cs1, rs2)           if cheri_registers_enabled() & (rs2 != zreg)
-  <-> 0b0000110 @ rs2 @ cs1 @ 0b000 @ cd @ 0b0110011 if cheri_registers_enabled() & (rs2 != zreg)
-mapping clause encdec = SCBNDSR(cd, cs1, rs2)        if cheri_registers_enabled()
-  <-> 0b0000111 @ rs2 @ cs1 @ 0b001 @ cd @ 0b0110011 if cheri_registers_enabled()
-mapping clause encdec = SCBNDS(cd, cs1, rs2)         if cheri_registers_enabled()
-  <-> 0b0000111 @ rs2 @ cs1 @ 0b000 @ cd @ 0b0110011 if cheri_registers_enabled()
-mapping clause encdec = CBLD(cd, cs1, cs2)           if cheri_registers_enabled()
-  <-> 0b0000110 @ cs2 @ cs1 @ 0b101 @ cd @ 0b0110011 if cheri_registers_enabled()
+mapping clause encdec = ACPERM(cd, cs1, rs2)                                             if cheri_registers_enabled()
+  <-> 0b0000110 @ encdec_reg(rs2) @ encdec_reg(cs1) @ 0b010 @ encdec_reg(cd) @ 0b0110011 if cheri_registers_enabled()
+mapping clause encdec = SCMODE(cd, cs1, rs2)                                             if cheri_registers_enabled()
+  <-> 0b0000110 @ encdec_reg(rs2) @ encdec_reg(cs1) @ 0b111 @ encdec_reg(cd) @ 0b0110011 if cheri_registers_enabled()
+mapping clause encdec = SCADDR(cd, cs1, rs2)                                             if cheri_registers_enabled()
+  <-> 0b0000110 @ encdec_reg(rs2) @ encdec_reg(cs1) @ 0b001 @ encdec_reg(cd) @ 0b0110011 if cheri_registers_enabled()
+mapping clause encdec = SCHI(cd, cs1, rs2)                                               if cheri_registers_enabled()
+  <-> 0b0000110 @ encdec_reg(rs2) @ encdec_reg(cs1) @ 0b011 @ encdec_reg(cd) @ 0b0110011 if cheri_registers_enabled()
+mapping clause encdec = CADD(cd, cs1, rs2)                                               if cheri_registers_enabled() & (rs2 != zreg)
+  <-> 0b0000110 @ encdec_reg(rs2) @ encdec_reg(cs1) @ 0b000 @ encdec_reg(cd) @ 0b0110011 if cheri_registers_enabled() & (rs2 != zreg)
+mapping clause encdec = SCBNDSR(cd, cs1, rs2)                                            if cheri_registers_enabled()
+  <-> 0b0000111 @ encdec_reg(rs2) @ encdec_reg(cs1) @ 0b001 @ encdec_reg(cd) @ 0b0110011 if cheri_registers_enabled()
+mapping clause encdec = SCBNDS(cd, cs1, rs2)                                             if cheri_registers_enabled()
+  <-> 0b0000111 @ encdec_reg(rs2) @ encdec_reg(cs1) @ 0b000 @ encdec_reg(cd) @ 0b0110011 if cheri_registers_enabled()
+mapping clause encdec = CBLD(cd, cs1, cs2)                                               if cheri_registers_enabled()
+  <-> 0b0000110 @ encdec_reg(cs2) @ encdec_reg(cs1) @ 0b101 @ encdec_reg(cd) @ 0b0110011 if cheri_registers_enabled()
 
-mapping clause encdec = SCEQ(rd, cs1, cs2)           if cheri_registers_enabled()
-  <-> 0b0000110 @ cs2 @ cs1 @ 0b100 @ rd @ 0b0110011 if cheri_registers_enabled()
-mapping clause encdec = SCSS(rd, cs1, cs2)           if cheri_registers_enabled()
-  <-> 0b0000110 @ cs2 @ cs1 @ 0b110 @ rd @ 0b0110011 if cheri_registers_enabled()
+mapping clause encdec = SCEQ(rd, cs1, cs2)                                               if cheri_registers_enabled()
+  <-> 0b0000110 @ encdec_reg(cs2) @ encdec_reg(cs1) @ 0b100 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
+mapping clause encdec = SCSS(rd, cs1, cs2)                                               if cheri_registers_enabled()
+  <-> 0b0000110 @ encdec_reg(cs2) @ encdec_reg(cs1) @ 0b110 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
 
-mapping clause encdec = CADDI(cd, cs1, imm12)         if cheri_registers_enabled()
-  <-> imm12 : bits(12) @ cs1 @ 0b010 @ cd @ 0b0011011 if cheri_registers_enabled()
-mapping clause encdec = SCBNDSI(cd, cs1, s, uimm5)                            if cheri_registers_enabled()
-  <-> 0b000001 @ s : bits(1) @ uimm5 : bits(5) @ cs1 @ 0b101 @ cd @ 0b0010011 if cheri_registers_enabled()
+mapping clause encdec = CADDI(cd, cs1, imm12)                                 if cheri_registers_enabled()
+  <-> imm12 : bits(12) @ encdec_reg(cs1) @ 0b010 @ encdec_reg(cd) @ 0b0011011 if cheri_registers_enabled()
+mapping clause encdec = SCBNDSI(cd, cs1, s, uimm5)                                                    if cheri_registers_enabled() & not(s == 0b1 & uimm5 <=_u 0b00001)
+  <-> 0b000001 @ s : bits(1) @ uimm5 : bits(5) @ encdec_reg(cs1) @ 0b101 @ encdec_reg(cd) @ 0b0010011 if cheri_registers_enabled() & not(s == 0b1 & uimm5 <=_u 0b00001)
 
 mapping clause assembly = ACPERM(cd, cs1, rs2)  <-> "acperm"  ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ reg_name(rs2)
 mapping clause assembly = SCMODE(cd, cs1, rs2)  <-> "scmode"  ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ reg_name(rs2)
@@ -1121,33 +1091,23 @@ mapping clause assembly = SCBNDSI(cd, cs1, 0b1, uimm5) <-> "scbndsi" ^ spc() ^ c
 let haveRV128 = xlen >= 128
 let haveRV64  = xlen >= 64
 
-mapping clause encdec = LoadCapImm(cd, rs1, offset) if cheri_registers_enabled() & xlen == 64  /* lc */
-  <-> offset @ rs1 @ 0b100 @ cd @ 0b0001111         if cheri_registers_enabled() & xlen == 64
-mapping clause encdec = LoadCapImm(cd, rs1, offset) if cheri_registers_enabled() & xlen == 32  /* lc */
-  <-> offset @ rs1 @ 0b011 @ cd @ 0b0000011         if cheri_registers_enabled() & xlen == 32
+mapping clause encdec = LoadCapImm(cd, rs1, offset)                 if cheri_registers_enabled()  /* lc */
+  <-> offset @ encdec_reg(rs1) @ 0b100 @ encdec_reg(cd) @ 0b0001111 if cheri_registers_enabled()
 
-mapping clause encdec = StoreCapImm(cs2, rs1, off7 @ off5)            if cheri_registers_enabled() & xlen == 64
-  <-> off7 : bits(7) @ cs2 @ rs1 @ 0b100 @ off5 : bits(5) @ 0b0100011 if cheri_registers_enabled() & xlen == 64 /* sc */
-mapping clause encdec = StoreCapImm(cs2, rs1, off7 @ off5)            if cheri_registers_enabled() & xlen == 32
-  <-> off7 : bits(7) @ cs2 @ rs1 @ 0b011 @ off5 : bits(5) @ 0b0100011 if cheri_registers_enabled() & xlen == 32 /* sc */
+mapping clause encdec = StoreCapImm(cs2, rs1, off7 @ off5)                                    if cheri_registers_enabled()
+  <-> off7 : bits(7) @ encdec_reg(cs2) @ encdec_reg(rs1) @ 0b100 @ off5 : bits(5) @ 0b0100011 if cheri_registers_enabled() /* sc */
 
 mapping clause assembly = LoadCapImm(cd, rs1, offset)   <-> "lc" ^ spc() ^ cap_reg_name(cd)  ^ sep() ^ hex_bits_12(offset) ^ opt_spc() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
 mapping clause assembly = StoreCapImm(cs2, rs1, offset) <-> "sc" ^ spc() ^ cap_reg_name(cs2) ^ sep() ^ hex_bits_12(offset) ^ opt_spc() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
 
-mapping clause encdec = LoadResCap(cd, rs1, aq, rl)                                    if cheri_registers_enabled() & extensionEnabled(Ext_Zalrsc) & xlen == 32
-  <-> 0b00010 @ bool_bits(aq) @ bool_bits(rl) @ 0b00000 @ rs1 @ 0b011 @ cd @ 0b0101111 if cheri_registers_enabled() & extensionEnabled(Ext_Zalrsc) & xlen == 32 /* lr.c (RV32) */
-mapping clause encdec = LoadResCap(cd, rs1, aq, rl)                                    if cheri_registers_enabled() & extensionEnabled(Ext_Zalrsc) & xlen == 64
-  <-> 0b00010 @ bool_bits(aq) @ bool_bits(rl) @ 0b00000 @ rs1 @ 0b100 @ cd @ 0b0101111 if cheri_registers_enabled() & extensionEnabled(Ext_Zalrsc) & xlen == 64 /* lr.c (RV64) */
+mapping clause encdec = LoadResCap(cd, rs1, aq, rl)                                                            if cheri_registers_enabled() & extensionEnabled(Ext_Zalrsc)
+  <-> 0b00010 @ bool_bits(aq) @ bool_bits(rl) @ 0b00000 @ encdec_reg(rs1) @ 0b100 @ encdec_reg(cd) @ 0b0101111 if cheri_registers_enabled() & extensionEnabled(Ext_Zalrsc) /* lr.c */
 
-mapping clause encdec = StoreCondCap(rd, cs2, rs1, aq, rl)                         if cheri_registers_enabled() & extensionEnabled(Ext_Zalrsc) & xlen == 32
-  <-> 0b00011 @ bool_bits(aq) @ bool_bits(rl) @ cs2 @ rs1 @ 0b011 @ rd @ 0b0101111 if cheri_registers_enabled() & extensionEnabled(Ext_Zalrsc) & xlen == 32 /* sc.c (RV32) */
-mapping clause encdec = StoreCondCap(rd, cs2, rs1, aq, rl)                         if cheri_registers_enabled() & extensionEnabled(Ext_Zalrsc) & xlen == 64
-  <-> 0b00011 @ bool_bits(aq) @ bool_bits(rl) @ cs2 @ rs1 @ 0b100 @ rd @ 0b0101111 if cheri_registers_enabled() & extensionEnabled(Ext_Zalrsc) & xlen == 64 /* sc.c (RV64) */
+mapping clause encdec = StoreCondCap(rd, cs2, rs1, aq, rl)                                                             if cheri_registers_enabled() & extensionEnabled(Ext_Zalrsc)
+  <-> 0b00011 @ bool_bits(aq) @ bool_bits(rl) @ encdec_reg(cs2) @ encdec_reg(rs1) @ 0b100 @ encdec_reg(rd) @ 0b0101111 if cheri_registers_enabled() & extensionEnabled(Ext_Zalrsc) /* sc.c */
 
-mapping clause encdec = AMOSwapCap(cd, cs2, rs1, aq, rl)                           if cheri_registers_enabled() & extensionEnabled(Ext_Zaamo) & xlen == 32
-  <-> 0b00001 @ bool_bits(aq) @ bool_bits(rl) @ cs2 @ rs1 @ 0b011 @ cd @ 0b0101111 if cheri_registers_enabled() & extensionEnabled(Ext_Zaamo) & xlen == 32 /* amoswap.c (RV64) */
-mapping clause encdec = AMOSwapCap(cd, cs2, rs1, aq, rl)                           if cheri_registers_enabled() & extensionEnabled(Ext_Zaamo) & xlen == 64
-  <-> 0b00001 @ bool_bits(aq) @ bool_bits(rl) @ cs2 @ rs1 @ 0b100 @ cd @ 0b0101111 if cheri_registers_enabled() & extensionEnabled(Ext_Zaamo) & xlen == 64 /* amoswap.c (RV64) */
+mapping clause encdec = AMOSwapCap(cd, cs2, rs1, aq, rl)                                                               if cheri_registers_enabled() & extensionEnabled(Ext_Zaamo)
+  <-> 0b00001 @ bool_bits(aq) @ bool_bits(rl) @ encdec_reg(cs2) @ encdec_reg(rs1) @ 0b100 @ encdec_reg(cd) @ 0b0101111 if cheri_registers_enabled() & extensionEnabled(Ext_Zaamo) /* amoswap.c */
 
 mapping clause assembly = LoadResCap(cd, rs1, aq, rl)        <-> "lr.c"      ^ maybe_aq(aq) ^ maybe_rl(rl) ^ spc() ^ cap_reg_name(cd) ^ sep() ^ reg_name(rs1)
 mapping clause assembly = StoreCondCap(rd, cs2, rs1, aq, rl) <-> "sc.c"      ^ maybe_aq(aq) ^ maybe_rl(rl) ^ spc() ^ reg_name(rd)     ^ sep() ^ cap_reg_name(cs2) ^ sep() ^ reg_name(rs1)
@@ -1163,11 +1123,11 @@ mapping clause assembly = AMOSwapCap(cd, cs2, rs1, aq, rl)   <-> "amoswap.c" ^ m
 */
 mapping clause encdec = LOADRES(aq, rl, rs1, size, rd)
       if extensionEnabled(Ext_Zalrsc) & ((size == BYTE) | (size == HALF))
-  <-> 0b00010 @ bool_bits(aq) @ bool_bits(rl) @ 0b00000 @ rs1 @ 0b0 @ size_enc(size) @ rd @ 0b0101111
+  <-> 0b00010 @ bool_bits(aq) @ bool_bits(rl) @ 0b00000 @ encdec_reg(rs1) @ 0b0 @ size_enc(size) @ encdec_reg(rd) @ 0b0101111
       if extensionEnabled(Ext_Zalrsc) & ((size == BYTE) | (size == HALF))
 mapping clause encdec = STORECON(aq, rl, rs2, rs1, size, rd)
       if extensionEnabled(Ext_Zalrsc) & ((size == BYTE) | (size == HALF))
-  <-> 0b00011 @ bool_bits(aq) @ bool_bits(rl) @ rs2 @ rs1 @ 0b0 @ size_enc(size) @ rd @ 0b0101111
+  <-> 0b00011 @ bool_bits(aq) @ bool_bits(rl) @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b0 @ size_enc(size) @ encdec_reg(rd) @ 0b0101111
       if extensionEnabled(Ext_Zalrsc) & ((size == BYTE) | (size == HALF))
 
 /*
@@ -1176,15 +1136,15 @@ mapping clause encdec = STORECON(aq, rl, rs2, rs1, size, rd)
  * use hooks for semantic differences.
  */
 mapping clause encdec_capmode = AUIPC_capmode(imm, cd)
-  <-> imm @ cd @ 0b0010111
+  <-> imm @ encdec_reg(cd) @ 0b0010111
 mapping clause assembly = AUIPC_capmode(imm, cd)
   <-> "auipc" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ hex_bits_20(imm)
 mapping clause encdec_capmode = JALR_capmode(imm, cs1, cd)
-  <-> imm @ cs1 @ 0b000 @ cd @ 0b1100111
+  <-> imm @ encdec_reg(cs1) @ 0b000 @ encdec_reg(cd) @ 0b1100111
 mapping clause assembly = JALR_capmode(imm, cs1, cd)
   <-> "jalr" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ hex_bits_12(imm)
 /* See `mapping clause encdec = RISCV_JAL` for why we have to use this syntax */
 mapping clause encdec_capmode = JAL_capmode(imm_19 @ imm_7_0 @ imm_8 @ imm_18_13 @ imm_12_9 @ 0b0, cd)
-  <-> imm_19 : bits(1) @ imm_18_13 : bits(6) @ imm_12_9 : bits(4) @ imm_8 : bits(1) @ imm_7_0 : bits(8) @ cd @ 0b1101111
+  <-> imm_19 : bits(1) @ imm_18_13 : bits(6) @ imm_12_9 : bits(4) @ imm_8 : bits(1) @ imm_7_0 : bits(8) @ encdec_reg(cd) @ 0b1101111
 mapping clause assembly = JAL_capmode(imm, cd)
   <-> "jal" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ hex_bits_21(imm)

@@ -16,7 +16,7 @@ let  cap_sd_perms_width = sizeof(cap_sd_perms_width)
 // Width of reserved fields. Their values need to be preserved.
 type cap_reserved_1_width : Int = 7
 let  cap_reserved_1_width = sizeof(cap_reserved_1_width)
-type cap_reserved_0_width : Int = 18
+type cap_reserved_0_width : Int = 15
 let  cap_reserved_0_width = sizeof(cap_reserved_0_width)
 
 // Width of the decoded B and T fields.
@@ -29,7 +29,7 @@ type cap_E_width : Int  = 6
 let  cap_E_width = sizeof(cap_E_width)
 
 // Bits required for Architectural Permissions and Mode
-type cap_AP_M_width : Int = 7
+type cap_AP_M_width : Int = 9
 let  cap_AP_M_width = sizeof(cap_AP_M_width)
 
 // Whether setbounds can use the L8 bit for extra precision in the implied E=0 case.
@@ -42,9 +42,11 @@ bitfield EncMetadata : bits(64) = {
   // Software Defined Permissions.
   SDP        : 56 .. 53,
   // Architectural Permissions and Mode (encoded together).
-  AP_M       : 52 .. 46,
+  AP_M       : 52 .. 44,
+  // Capability Level
+  CL         : 43,
   // Lower reserved area.
-  reserved_0 : 45 .. 28,
+  reserved_0 : 42 .. 28,
   // Capability Type bit.
   CT         : 27,
   // Exponent Format.
@@ -67,22 +69,25 @@ bitfield EncMetadata : bits(64) = {
 // Backwards match failures occur when encoding an unrepresentable combination of fields: this should be
 // prevented by calling legalizeFields when changing the fields.
 mapping ap_m_encdec : bits(cap_AP_M_width) <-> (ArchPerms, ExecutionMode) = {
-  execution_mode_encdec(M) @ bool_bits(LM) @ bool_bits(ASR) @ bool_bits(X) @ bool_bits(R) @ bool_bits(W) @ bool_bits(C)
-    if (not(ASR) | X) & (not(C) | (R | W)) & (M == execution_mode_encdec(0b0) | X) & (not(LM) | C) <->
-  (struct{R, W, C, X, LM, ASR}, M)
-    if (not(ASR) | X) & (not(C) | (R | W)) & (M == execution_mode_encdec(0b0) | X) & (not(LM) | C),
+  execution_mode_encdec(M) @ bool_bits(SL) @ bool_bits(EL) @ bool_bits(LM) @
+  bool_bits(ASR) @ bool_bits(X) @ bool_bits(R) @ bool_bits(W) @ bool_bits(C)
+    if (not(ASR) | X) & (not(C) | (R | W)) & (M == execution_mode_encdec(0b0) | X) & (not(SL) | C) & (not(EL | LM) | (C & R)) <->
+  (struct{R, W, C, X, LM, SL, EL, ASR}, M)
+    if (not(ASR) | X) & (not(C) | (R | W)) & (M == execution_mode_encdec(0b0) | X) & (not(SL) | C) & (not(EL | LM) | (C & R)),
 }
 
 // Ideally ap_m_encdec(({null,infinite}_perms, IntPtrMode)), but spurious incomplete match side-effect at toplevel
-let null_ap_m     = 0b0000000
-let infinite_ap_m = 0b1111111
+let null_ap_m     = 0b000000000
+let infinite_ap_m = 0b111111111
 
 // Perform the XLEN-specific ACPERMS legalization.
 function legalizePermsAndMode(perms : ArchPerms, mode : ExecutionMode) -> (ArchPerms, ExecutionMode) = {
-  let perms = if perms.X then perms else {perms with ASR=false};
   let perms = if perms.R | perms.W then perms else {perms with C=false};
-  let mode = if perms.X then mode else execution_mode_encdec(0b0);
-  let perms = if perms.C then perms else {perms with LM=false};
+  let perms = if perms.C & perms.R then perms else {perms with EL=false};
+  let perms = if perms.C & perms.R then perms else {perms with LM=false};
+  let perms = if perms.C then perms else {perms with SL=false};
+  let perms = if perms.X then perms else {perms with ASR=false};
+  let mode  = if perms.X then mode else execution_mode_encdec(0b0);
   (perms, mode)
 }
 

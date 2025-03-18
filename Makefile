@@ -19,7 +19,7 @@ SAIL_RV64_XLEN := $(SAIL_RISCV_MODEL_DIR)/riscv_xlen64.sail
 CHERI_CAP_RV64_IMPL := cheri_prelude_128.sail
 
 SAIL_XLEN = $(SAIL_$(ARCH)_XLEN) $(SAIL_RISCV_MODEL_DIR)/riscv_xlen.sail
-SAIL_FLEN = $(SAIL_RISCV_MODEL_DIR)/riscv_flen_D.sail
+SAIL_FLEN = $(SAIL_RISCV_MODEL_DIR)/riscv_flen_D.sail $(SAIL_RISCV_MODEL_DIR)/riscv_flen.sail
 SAIL_VLEN = $(SAIL_RISCV_MODEL_DIR)/riscv_vlen.sail
 CHERI_CAP_IMPL = $(CHERI_CAP_$(ARCH)_IMPL)
 
@@ -57,30 +57,31 @@ SAIL_SEQ_INST_SRCS  = $(SAIL_RISCV_MODEL_DIR)/riscv_insts_begin.sail $(SAIL_SEQ_
 SAIL_RMEM_INST_SRCS = $(SAIL_RISCV_MODEL_DIR)/riscv_insts_begin.sail $(SAIL_RMEM_INST) $(SAIL_RISCV_MODEL_DIR)/riscv_insts_end.sail $(SAIL_RISCV_MODEL_DIR)/riscv_csr_end.sail
 
 # System and platform sources
-SAIL_SYS_SRCS += ${SAIL_RISCV_MODEL_DIR}/riscv_clic_regs.sail
 SAIL_SYS_SRCS += ${SAIL_CHERI_MODEL_DIR}/cheri_sys_regs_access.sail
 SAIL_SYS_SRCS += ${SAIL_RISCV_MODEL_DIR}/riscv_sys_regs_access_common.sail
-SAIL_SYS_SRCS += ${SAIL_RISCV_MODEL_DIR}/riscv_sdext_control_defaults.sail
-SAIL_SYS_SRCS += ${SAIL_CHERI_MODEL_DIR}/cheri_sdext_control.sail
 SAIL_SYS_SRCS += $(SAIL_CHERI_MODEL_DIR)/cheri_sys_exceptions.sail
 SAIL_SYS_SRCS += $(SAIL_RISCV_MODEL_DIR)/riscv_sync_exception.sail
+SAIL_SYS_SRCS += $(SAIL_RISCV_MODEL_DIR)/riscv_zihpm.sail
+SAIL_SYS_SRCS += $(SAIL_RISCV_MODEL_DIR)/riscv_smcntrpmf.sail
+SAIL_SYS_SRCS += $(SAIL_RISCV_MODEL_DIR)/riscv_sscofpmf.sail
+SAIL_SYS_SRCS += $(SAIL_RISCV_MODEL_DIR)/riscv_zkr_control.sail
+SAIL_SYS_SRCS += $(SAIL_RISCV_MODEL_DIR)/riscv_zicntr_control.sail
 SAIL_SYS_SRCS += $(SAIL_RISCV_MODEL_DIR)/riscv_softfloat_interface.sail
 SAIL_SYS_SRCS += $(SAIL_RISCV_MODEL_DIR)/riscv_fdext_regs.sail
 SAIL_SYS_SRCS += $(SAIL_RISCV_MODEL_DIR)/riscv_fdext_control.sail
 SAIL_SYS_SRCS += $(SAIL_RISCV_MODEL_DIR)/riscv_pma.sail
 SAIL_SYS_SRCS += $(SAIL_RISCV_MODEL_DIR)/riscv_svpbmt.sail
-SAIL_SYS_SRCS += $(SAIL_RISCV_MODEL_DIR)/riscv_clic_control.sail
 SAIL_SYS_SRCS += $(SAIL_RISCV_MODEL_DIR)/riscv_sys_control.sail
-SAIL_SYS_SRCS += $(SAIL_CHECK_SRCS)
 
-SAIL_VM_SRCS += $(SAIL_RISCV_MODEL_DIR)/riscv_vmem_common.sail
-SAIL_VM_SRCS += $(SAIL_CHERI_MODEL_DIR)/cheri_vmem_pte.sail
 SAIL_VM_SRCS += $(SAIL_CHERI_MODEL_DIR)/cheri_vmem_ptw.sail
+SAIL_VM_SRCS += $(SAIL_RISCV_MODEL_DIR)/riscv_vmem_pte_types.sail
+SAIL_VM_SRCS += $(SAIL_CHERI_MODEL_DIR)/cheri_vmem_pte_types_ext.sail
+SAIL_VM_SRCS += $(SAIL_CHERI_MODEL_DIR)/cheri_vmem_pte_validity_ext.sail
+SAIL_VM_SRCS += $(SAIL_RISCV_MODEL_DIR)/riscv_vmem_pte.sail
+SAIL_VM_SRCS += $(SAIL_CHERI_MODEL_DIR)/cheri_vmem_pte_ext.sail
 SAIL_VM_SRCS += $(SAIL_RISCV_MODEL_DIR)/riscv_vmem_tlb.sail
 SAIL_VM_SRCS += $(SAIL_RISCV_MODEL_DIR)/riscv_vmem.sail
 SAIL_VM_SRCS += $(SAIL_RISCV_MODEL_DIR)/riscv_vmem_access.sail
-SAIL_VM_SRCS += $(SAIL_RISCV_MODEL_DIR)/riscv_clic_mem.sail
-
 
 # Non-instruction sources
 PRELUDE = $(SAIL_RISCV_MODEL_DIR)/prelude.sail \
@@ -92,6 +93,7 @@ PRELUDE = $(SAIL_RISCV_MODEL_DIR)/prelude.sail \
           $(SAIL_CHERI_MODEL_DIR)/cheri_prelude.sail \
           $(SAIL_CHERI_MODEL_DIR)/cheri_types.sail \
           $(SAIL_CHERI_MODEL_DIR)/$(CHERI_CAP_IMPL) \
+          $(SAIL_RISCV_MODEL_DIR)/prelude_mem_addrtype.sail \
           $(SAIL_CHERI_MODEL_DIR)/cheri_mem_metadata.sail \
           $(SAIL_RISCV_MODEL_DIR)/prelude_mem.sail \
           $(SAIL_CHERI_MODEL_DIR)/cheri_cap_common.sail
@@ -99,21 +101,18 @@ PRELUDE = $(SAIL_RISCV_MODEL_DIR)/prelude.sail \
 SAIL_REGS_SRCS = $(SAIL_CHERI_MODEL_DIR)/cheri_reg_type.sail \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_freg_type.sail \
                  $(SAIL_CHERI_MODEL_DIR)/cheri_vmem_types.sail \
-                 ${SAIL_RISCV_MODEL_DIR}/riscv_clic_type.sail \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_regs.sail \
+                 $(SAIL_RISCV_MODEL_DIR)/riscv_sstc.sail \
                  $(SAIL_CHERI_MODEL_DIR)/cheri_sys_regs_types.sail \
                  ${SAIL_CHERI_MODEL_DIR}/cheri_sys_regs_envcfg.sail \
                  ${SAIL_CHERI_MODEL_DIR}/cheri_sys_regs_seccfg.sail \
+                 ${SAIL_CHERI_MODEL_DIR}/cheri_sys_regs_xstatus.sail \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_sys_regs.sail \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_pmp_regs.sail \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_pmp_control.sail \
                  $(SAIL_CHERI_MODEL_DIR)/cheri_sys_regs.sail \
                  $(SAIL_CHERI_MODEL_DIR)/cheri_regs.sail \
-                 $(SAIL_CHERI_MODEL_DIR)/cheri_pc_access.sail \
-                 ${SAIL_RISCV_MODEL_DIR}/riscv_sdext_dcsr.sail \
-                 ${SAIL_CHERI_MODEL_DIR}/cheri_sdext_regs.sail \
-                 ${SAIL_RISCV_MODEL_DIR}/riscv_sdtrig_regs.sail \
-                 ${SAIL_RISCV_MODEL_DIR}/riscv_sdtrig_control.sail
+                 $(SAIL_CHERI_MODEL_DIR)/cheri_pc_access.sail
 
 SAIL_REGS_SRCS += $(SAIL_RISCV_MODEL_DIR)/riscv_vreg_type.sail \
                   $(SAIL_RISCV_MODEL_DIR)/riscv_vext_regs.sail
@@ -121,13 +120,14 @@ SAIL_REGS_SRCS += $(SAIL_RISCV_MODEL_DIR)/riscv_vreg_type.sail \
 SAIL_ARCH_SRCS = $(PRELUDE) \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_types_common.sail \
                  $(SAIL_CHERI_MODEL_DIR)/cheri_riscv_types.sail \
+                 $(SAIL_RISCV_MODEL_DIR)/riscv_extensions.sail \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_types.sail \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_csr_begin.sail \
-                 $(SAIL_RISCV_MODEL_DIR)/riscv_clic_prelude.sail \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_convert_invalid_addr.sail \
                  $(SAIL_REGS_SRCS) \
                  $(SAIL_SYS_SRCS) \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_platform.sail \
+                 $(SAIL_CHECK_SRCS) \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_mem.sail \
                  $(SAIL_CHERI_MODEL_DIR)/cheri_mem.sail \
                  $(SAIL_VM_SRCS)
@@ -141,12 +141,12 @@ SAIL_ARCH_RVFI_SRCS = \
                  $(SAIL_REGS_SRCS) \
                  $(SAIL_SYS_SRCS) \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_platform.sail \
+                 $(SAIL_CHECK_SRCS) \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_mem.sail \
                  $(SAIL_CHERI_MODEL_DIR)/cheri_mem.sail \
                  $(SAIL_VM_SRCS)
 
 SAIL_STEP_SRCS = $(SAIL_RISCV_MODEL_DIR)/riscv_step_common.sail \
-                 $(SAIL_CHERI_MODEL_DIR)/cheri_execute.sail \
                  $(SAIL_CHERI_MODEL_DIR)/cheri_step_ext.sail \
                  $(SAIL_CHERI_MODEL_DIR)/cheri_decode_ext.sail \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_fetch.sail \
@@ -196,9 +196,9 @@ export LEM_DIR
 C_WARNINGS ?=
 #-Wall -Wextra -Wno-unused-label -Wno-unused-parameter -Wno-unused-but-set-variable -Wno-unused-function
 C_INCS = $(addprefix $(SAIL_RISCV_DIR)/c_emulator/,riscv_prelude.h riscv_platform_impl.h riscv_platform.h riscv_softfloat.h)
-C_SRCS = $(addprefix $(SAIL_RISCV_DIR)/c_emulator/,riscv_prelude.c riscv_platform_impl.c riscv_platform.c riscv_softfloat.c riscv_sim.c) handwritten_support/c_emulator_fix.c
+C_SRCS = $(addprefix $(SAIL_RISCV_DIR)/c_emulator/,riscv_prelude.cpp riscv_platform_impl.cpp riscv_platform.cpp riscv_softfloat.c riscv_sim.cpp) handwritten_support/c_emulator_fix.c
 
-SOFTFLOAT_DIR    = $(SAIL_RISCV_DIR)/c_emulator/SoftFloat-3e
+SOFTFLOAT_DIR    = $(SAIL_RISCV_DIR)/dependencies/softfloat/berkeley-softfloat-3
 SOFTFLOAT_INCDIR = $(SOFTFLOAT_DIR)/source/include
 SOFTFLOAT_LIBDIR = $(SOFTFLOAT_DIR)/build/Linux-RISCV-GCC
 SOFTFLOAT_FLAGS  = -I $(SOFTFLOAT_INCDIR)
@@ -278,7 +278,7 @@ generated_definitions/c/riscv_model_%.c: $(SAIL_SRCS) $(SAIL_RISCV_MODEL_DIR)/ma
 $(SOFTFLOAT_LIBS):
 	$(MAKE) SPECIALIZE_TYPE=$(SOFTFLOAT_SPECIALIZE_TYPE) -C $(SOFTFLOAT_LIBDIR)
 
-c_emulator/cheri_riscv_sim_%: generated_definitions/c/riscv_model_%.c $(C_INCS) $(C_SRCS) $(SOFTFLOAT_LIBS) Makefile
+c_emulator/cheri_riscv_sim_RV64: generated_definitions/c/riscv_model_%.c $(C_INCS) $(C_SRCS) $(SOFTFLOAT_LIBS) Makefile
 	mkdir -p c_emulator
 	gcc -g $(C_WARNINGS) $(C_FLAGS) $< $(C_SRCS) $(SAIL_LIB_DIR)/*.c $(C_LIBS) -o $@
 

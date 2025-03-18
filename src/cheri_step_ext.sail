@@ -25,11 +25,11 @@ function ext_reset() -> unit = {
   mscratchc = {mscratchc with tag = false, address = mscratch} ;
   mepcc = infinite_cap;
 
-  dpcc = {dpcc with tag = false} ;
-  dscratch0c = {dscratch0c with tag = false};
-  dscratch1c = {dscratch1c with tag = false};
-  dddc = {dddc with tag = false};
-  dinfc = infinite_cap;
+  // dpcc = {dpcc with tag = false} ;
+  // dscratch0c = {dscratch0c with tag = false};
+  // dscratch1c = {dscratch1c with tag = false};
+  // dddc = {dddc with tag = false};
+  // dinfc = infinite_cap;
 
   x1 = {x1 with tag = false};
   x2 = {x2 with tag = false};
@@ -64,15 +64,12 @@ function ext_reset() -> unit = {
   x31 = {x31 with tag = false};
 }
 
-function ext_reset_misa() -> unit = {
-  // set misa.X to indicate the presence of a non-standard extension.
-  misa[X] = 0b1;
-}
+function ext_reset_misa() -> unit = ()
 
 function ext_fetch_hook(f : FetchResult) -> FetchResult = f
 
-function ext_fetch_mem_read_hi(paddr : xlenbits, pbmt : PBMT) -> MemoryOpResult(half) = mem_read(Execute(), pbmt, paddr, 2, false, false, false)
-function ext_fetch_mem_read_lo(paddr : xlenbits, pbmt : PBMT) -> MemoryOpResult(half) = mem_read(Execute(), pbmt, paddr, 2, false, false, false)
+function ext_fetch_mem_read_hi(paddr : physaddr, pbmt : PBMT) -> MemoryOpResult(half) = mem_read(Execute(), pbmt, paddr, 2, false, false, false)
+function ext_fetch_mem_read_lo(paddr : physaddr, pbmt : PBMT) -> MemoryOpResult(half) = mem_read(Execute(), pbmt, paddr, 2, false, false, false)
 
 function ext_pre_step_hook()  -> unit = ()
 function ext_post_step_hook() -> unit = ()

@@ -6,10 +6,14 @@
 /*  SPDX-License-Identifier: BSD-2-Clause                                                */
 /*=======================================================================================*/
 
-/* CHERI specific helpers */
-
-val MEMr_tag = pure "read_tag_bool"  : bits(64) -> bool
-val MEMw_tag = impure "write_tag_bool" : (bits(64) , bool) -> unit
-
-val MAX : forall 'n, 'n >= 0 . atom('n) -> atom(2 ^ 'n - 1)
-function MAX(n) = pow2(n) - 1
+bitfield PTE_Ext : pte_ext_bits = {
+  // NAPOT page table entry.
+  N        : 9,
+  // Page based memory types.
+  PBMT     : 8 .. 7,
+  // CHERI Capability Write.
+  CW       : 6,
+  // CHERI Capability Read Generation.
+  CRG      : 5,
+  reserved : 4 .. 0,
+}

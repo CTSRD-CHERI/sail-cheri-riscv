@@ -9,7 +9,7 @@
 /* accessors for capability representation */
 
 /* reads a given capability register, or the null capability if the argument is zero. */
-function rC(r : regno) -> regtype = {
+function rC(Regno(r) : regno) -> regtype = {
   match r {
     0  => zero_reg,
     1  => x1,
@@ -48,7 +48,7 @@ function rC(r : regno) -> regtype = {
 }
 
 /* writes a register with a capability value */
-function wC (r : regno, v : regtype) -> unit = {
+function wC (Regno(r) : regno, v : regtype) -> unit = {
   match r {
     0  => (),
     1  => x1 = v,
@@ -85,15 +85,15 @@ function wC (r : regno, v : regtype) -> unit = {
     _  => internal_error(__FILE__, __LINE__, "Invalid capability register")
   };
   if (r != 0) then {
-     rvfi_wX(r, v.address);
+     rvfi_wX(Regno(r), v.address);
      if get_config_print_reg() then
        print_reg("x" ^ dec_str(r) ^ " <- " ^ RegStr(v));
   }
 }
 
-function rC_bits(r: regidx) -> regtype = rC(unsigned(r))
+function rC_bits(r: regidx) -> regtype = rC(regidx_to_regno(r))
 
-function wC_bits(r: regidx, v: regtype) -> unit = wC(unsigned(r), v)
+function wC_bits(r: regidx, v: regtype) -> unit = wC(regidx_to_regno(r), v)
 
 overload C = {rC_bits, wC_bits, rC, wC}
 
@@ -139,15 +139,18 @@ function ext_rvfi_reset () = {
 
 /* mappings for assembly */
 
-val cap_reg_name : regidx <-> string
-mapping cap_reg_name = {
-    0b00000 <-> "cnull",
-    r       <-> "c" ^ reg_name(r)
+mapping cap_reg_name : regidx <-> string = {
+    Regidx(0b00000) <-> "cnull",
+    r               <-> "c" ^ reg_name(r)
 }
 
-mapping cap_creg_name : bits(3) <-> string = {
+mapping cap_creg_name : cregidx <-> string = {
   r <-> "c" ^ creg_name(r)
 }
+
+// Implementations are allowed to choose whether to clear the tag
+// when invalid address legalisation does not modify the address
+let sys_cheri_accurate_tag_clearing = false
 
 // Modify a capability when storing in a register that cannot store all invalid
 // addresses. The address may need to be changed, and if that happens the
@@ -155,11 +158,31 @@ mapping cap_creg_name : bits(3) <-> string = {
 function convertInvalidAddrCap(cap : Capability) -> Capability = {
   // Convert invalid addresses that can't be stored to invalid addresses that can.
   let reducedAddr = convertInvalidAddr(cap.address);
-  // If conversion was required, then use scaddr semantics which clears the tag if it's sealed or was not representable.
-  let cap = if reducedAddr != cap.address then setCapAddrChecked(cap, reducedAddr) else cap;
-  // Clear the tag if the address is invalid without infinite bounds, even if it didn't change from conversion
-  clearTagIf(cap, not(validAddr(cap.address) | capBoundsInfinite(cap)))
+  let addrModified = reducedAddr != cap.address;
+  let retainTag =
+    // Always clear the tag if the address was modified for a sealed cap;
+    not(addrModified & capIsSealed(cap)) &
+    // Otherwise...
+    (
+      // Tag always retained for infinite bounds,
+      capBoundsInfinite(cap) |
+      // and valid addresses,
+      validAddr(cap.address) |
+      // and *optionally* invalid addresses that were not modified
+      // by the invalid address conversion.
+      sys_cheri_accurate_tag_clearing & not(addrModified)
+    );
+  let cap = {cap with address=reducedAddr};
+
+  clearTagIf(cap, not(retainTag))
 }
 
 // Add illegal address conversion for capabilities to the overload.
 overload convertInvalidAddr = {convertInvalidAddrCap}
+
+function setCapCSRAddr(c : Capability, addr : CapAddrBits) -> Capability = {
+  let c = setCapAddrChecked(c, addr);
+  // For CSRs that do not hold all invalid addresses,
+  // clear the tag if the address is invalid without infinite bounds
+  clearTagIf(c, not(validAddr(c.address) | capBoundsInfinite(c)))
+}

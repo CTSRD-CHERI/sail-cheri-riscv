@@ -17,13 +17,15 @@ function get_next_pc() = nextPC
 val set_next_pc : xlenbits -> unit
 function set_next_pc(pc) = {
   /* could check for internal errors here on invalid pc */
-  nextPC = convertInvalidAddr(pc)
+  let pc = convertInvalidAddr(pc);
+  sail_branch_announce(xlen, pc);
+  nextPC = pc;
 }
 
 val tick_pc : unit -> unit
 function tick_pc() = {
   PCC = nextPCC;
-  PC = nextPC
+  PC = nextPC;
 }
 
 // Note that although the Sail model ignores the address part of PCC (it uses

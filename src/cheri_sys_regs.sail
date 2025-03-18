@@ -29,6 +29,9 @@ register mtdc      : Capability = null_cap
 register mscratchc : Capability = null_cap
 register mepcc     : Capability
 
+register mtval2    : Tval2
+register stval2    : Tval2
+
 /* Cheri pcc helpers */
 
 // Return the minimum number of bytes in an instruction supported
@@ -41,8 +44,6 @@ val feature_enabled_for_priv : (Privilege, bit, bit) -> bool
 
 /* Checking whether the Xcheri extension is enabled */
 function cheri_registers_enabled () -> bool = {
-  // CHERI is not part of this architecture
-  if misa[X] == 0b0 then return false;
   // CRE is always 1 in debug mode
   if debug_mode_active then return true;
   // CRE logic described in CHERI spec

@@ -8,20 +8,42 @@
 
 /* CHERI exception model */
 
-type ext_exception = unit
+// Extra exception info passed to handle_trap_extension. We use this
+// to store the mtval2 value.
+type ext_exception = Tval2
 
-/*
- * On traps, EPCC comes to hold PCC verbatim.
- */
-function handle_trap_extension(p : Privilege, pc : xlenbits, u : option(unit)) -> unit = {
+mapping cheri_page_fault_code : CheriPageFault <-> bits(4) = {
+  PageFault_NonCheri <-> 0x0,
+  PageFault_Cheri <-> 0x1,
+  PageFault_Both <-> 0x2,
+}
+
+// Translate PTW extra information into extra exception information (passed
+// to handle_trap_extension()).
+function ext_ptw_exception_info(ext_ptw : ext_ptw) -> ext_exception =
+  Mk_Tval2(zero_extend(cheri_page_fault_code(ext_ptw.cheri_page_fault)))
+
+// * When a trap is taken into X-mode, Xepcc is written with the pcc including the virtual
+//   address of the instruction that was interrupted or that encountered an exception.
+// * When a CHERI fault, or CHERI PTE page fault, is taken, Xtval2 is written
+//   with additional CHERI-specific exception information; Xtval2 is written
+//   to zero for all other exceptions (except hypervisor which isn't supported yet).
+//
+function handle_trap_extension(p : Privilege, pc : xlenbits, ext : option(Tval2)) -> unit = {
   if not(debug_mode_active) then {
     let (_, newXepcc) = setCapAddr(PCC, pc);
+    let xtval2 : Tval2 = match ext {
+      Some(value) => value,
+      None() => Mk_Tval2(zeros()),
+    };
     match p {
       Machine => {
-        mepcc = newXepcc;
+        set_mepcc(newXepcc);
+        mtval2 = xtval2;
       },
       Supervisor => {
-        sepcc = newXepcc;
+        set_sepcc(newXepcc);
+        stval2 = xtval2;
       },
       User => internal_error(__FILE__, __LINE__, "N extension not supported"),
     }
@@ -36,7 +58,7 @@ function handle_nmi_extension(pc : xlenbits, handler_pc : xlenbits) -> unit = {
   // Set MEPCC to PCC as for other traps
   // NMIs always trap into M-mode
   let (_, newXepcc) = setCapAddr(PCC, pc);
-  mepcc = newXepcc;
+  set_mepcc(newXepcc);
 }
 
 /* used for traps and ECALL */
@@ -63,21 +85,36 @@ function prepare_trap_vector(p : Privilege, c : Mcause) -> xlenbits = {
 val prepare_clic_xret_vectored_target : (Privilege) -> xlenbits
 
 function prepare_xret_target(p : Privilege) -> xlenbits = {
-  if inSmclicMode() & get_xcause(p)[Xinhv] == 0b1
-  // TODO (CLIC): CHERI integration.
-  then prepare_clic_xret_vectored_target(p)
-  else {
-    /* Similar to prepare_trap_vector above we need to return the absolute address
-      destined for PC, rather than the offset (architecutral PC) */
-    let epcc : Capability = match p {
-                              Machine    => mepcc,
-                              Supervisor => sepcc,
-                              User       => internal_error(__FILE__, __LINE__, "N extension not supported"),
-                            };
+  let epcc : Capability = match p {
+                            Machine    => mepcc,
+                            Supervisor => sepcc,
+                            User       => internal_error(__FILE__, __LINE__, "N extension not supported"),
+                          };
 
-    let epcc = legalize_epcc(epcc);
-
-    set_next_pcc(unsealCap(epcc));
-    epcc.address
-  }
+  set_next_pcc(unsealCap(epcc));
+  /* Similar to prepare_trap_vector above we need to return the absolute address
+    destined for PC, rather than the offset (architecutral PC) */
+  epcc.address
 }
+
+// TODO: This is duplicated in `riscv_sys_exceptions.sail` which is unfortunate.
+
+mapping clause csr_name_map = 0x105  <-> "stvec"
+mapping clause csr_name_map = 0x141  <-> "sepc"
+mapping clause csr_name_map = 0x305  <-> "mtvec"
+mapping clause csr_name_map = 0x341  <-> "mepc"
+
+function clause is_CSR_defined(0x105) = extensionEnabled(Ext_S) // stvec
+function clause is_CSR_defined(0x141) = extensionEnabled(Ext_S) // sepc
+function clause is_CSR_defined(0x305) = true // mtvec
+function clause is_CSR_defined(0x341) = true // mepc
+
+function clause read_CSR(0x105, _) = get_stvec()
+function clause read_CSR(0x141, _) = get_sepc()
+function clause read_CSR(0x305, _) = get_mtvec()
+function clause read_CSR(0x341, _) = get_mepc()
+
+function clause write_CSR(0x105, value) = { set_stvec(value); get_stvec() }
+function clause write_CSR(0x141, value) = { set_sepc(value); get_sepc() }
+function clause write_CSR(0x305, value) = { set_mtvec(value); get_mtvec() }
+function clause write_CSR(0x341, value) = { set_mepc(value); get_mepc() }

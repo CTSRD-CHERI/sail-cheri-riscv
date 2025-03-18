@@ -6,10 +6,9 @@
 /*  SPDX-License-Identifier: BSD-2-Clause                                                */
 /*=======================================================================================*/
 
-/* CHERI specific helpers */
-
-val MEMr_tag = pure "read_tag_bool"  : bits(64) -> bool
-val MEMw_tag = impure "write_tag_bool" : (bits(64) , bool) -> unit
-
-val MAX : forall 'n, 'n >= 0 . atom('n) -> atom(2 ^ 'n - 1)
-function MAX(n) = pow2(n) - 1
+function ext_pte_is_invalid(pte_flags : PTE_Flags, pte_ext : option(PTE_Ext)) -> bool =
+  match pte_ext {
+    // The CRG/CW bits must be 0 unless this is a leaf node.
+    Some(pte_ext) => (pte_ext[CW] != 0b0 | pte_ext[CRG] != 0b0) & not(pte_is_ptr(pte_flags)),
+    None() => false,
+  }

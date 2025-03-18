@@ -19,11 +19,23 @@
 /******************************* xTVEC[C] *******************************/
 
 function tvecc_vector_range_check(tvecc: Capability) -> Capability = {
-  // TODO (CLIC): This likely needs updating for CLIC (when specified)
+  // Check representability of base address with mode bits zeroed
+  let (representable, _) = setCapAddr(tvecc, tvec_base_addr(Mk_Mtvec(tvecc.address)));
+  let tvecc = clearTagIf(tvecc, not(representable));
   if Mk_Mtvec(tvecc.address)[Mode] != trapVectorMode_bits(TV_Vector) then return tvecc;
-  let max_cause_addr = tvecc.address + zero_extend(interruptType_to_bits(I_M_External));
-  let (representable, _) = setCapAddr(tvecc, max_cause_addr);
-  clearTagIf(tvecc, not(representable))
+
+  // If in vectored mode, also check maximum vector address
+  let max_interrupt = if extensionEnabled(Ext_Sscofpmf) then Local_Counter_Overflow else I_M_External;
+  let max_mcause = [ Mk_Mcause(zeros()) with
+    Cause = zero_extend(interruptType_to_bits(max_interrupt)),
+    IsInterrupt = 0b1,
+  ];
+  let max_cause_addr : xlenbits = match tvec_addr(Mk_Mtvec(tvecc.address), max_mcause) {
+    Some(addr) => addr,
+    None() => internal_error(__FILE__, __LINE__, "tvec_addr should return an address"),
+  };
+  let (representable, c) = setCapAddr(tvecc, max_cause_addr);
+  clearTagIf(tvecc, not(representable) | not(convertInvalidAddr(c).tag))
 }
 
 function legalize_tvecc(o : Capability, v : Capability) -> Capability = {
@@ -33,18 +45,16 @@ function legalize_tvecc(o : Capability, v : Capability) -> Capability = {
 }
 
 function get_mtvec() -> xlenbits = mtvecc.address
-function get_stvec() -> xlenbits = read_stvec_utvec(stvecc.address)
+function get_stvec() -> xlenbits = stvecc.address
 
 function set_mtvec(value : xlenbits) -> unit = {
   let mtv = legalize_tvec(Mk_Mtvec(mtvecc.address), convertInvalidAddr(value));
-  mtvecc = tvecc_vector_range_check(setCapAddrChecked(mtvecc, mtv.bits));
-  // TODO (CLIC): Need to set mpil etc.
+  mtvecc = tvecc_vector_range_check(setCapCSRAddr(mtvecc, mtv.bits));
 }
 
 function set_stvec(value : xlenbits) -> unit = {
   let stv = legalize_tvec(Mk_Mtvec(stvecc.address), convertInvalidAddr(value));
-  stvecc = tvecc_vector_range_check(setCapAddrChecked(stvecc, stv.bits));
-  // TODO (CLIC): Need to set mpil etc.
+  stvecc = tvecc_vector_range_check(setCapCSRAddr(stvecc, stv.bits));
 }
 
 function set_mtvecc(value : Capability) -> unit = {
@@ -82,11 +92,11 @@ function get_mepc() -> xlenbits = align_pc(mepcc.address)
 function get_sepc() -> xlenbits = align_pc(sepcc.address)
 
 function set_mepc(value : xlenbits) -> unit = {
-  mepcc = setCapAddrChecked(mepcc, legalize_xepc(convertInvalidAddr(value)));
+  mepcc = setCapCSRAddr(mepcc, legalize_xepc(convertInvalidAddr(value)));
 }
 
 function set_sepc(value : xlenbits) -> unit = {
-  sepcc = setCapAddrChecked(sepcc, legalize_xepc(convertInvalidAddr(value)));
+  sepcc = setCapCSRAddr(sepcc, legalize_xepc(convertInvalidAddr(value)));
 }
 
 function set_mepcc(value : Capability) -> unit = {
@@ -106,7 +116,7 @@ function set_ddc(value : Capability) -> unit = {
 }
 
 function set_ddc_xlen(value : xlenbits) -> unit = {
-  ddc = setCapAddrChecked(ddc, convertInvalidAddr(value));
+  ddc = setCapCSRAddr(ddc, convertInvalidAddr(value));
 }
 
 /******************************* xTDC *******************************/
@@ -133,7 +143,7 @@ function set_stdc_xlen(value : xlenbits) -> unit = {
 /******************************* xTID[C] *******************************/
 
 function is_zstid_csr (csrno : bits(12)) -> bool =
-  csr_name_map(csrno) == "mtidc" | csr_name_map(csrno) == "stidc" | csr_name_map(csrno) == "utidc"
+  csr_name_map(csrno) == "mtid" | csr_name_map(csrno) == "stid" | csr_name_map(csrno) == "utid"
 
 function get_mtid() -> xlenbits = mtidc.address
 function get_stid() -> xlenbits = stidc.address
@@ -177,4 +187,15 @@ function set_senvcfg(v : xlenbits) -> unit = {
 
 function set_mseccfg(v : bits(64)) -> unit = {
   mseccfg = legalize_mseccfg(mseccfg, v);
+}
+
+/******************************* xtval2 ********************************/
+
+function legalize_tval2(o: Tval2, v: xlenbits) -> Tval2 = {
+  let v = Mk_Tval2(v);
+  [
+    o with
+    TYPE = v[TYPE],
+    CAUSE = v[CAUSE],
+  ]
 }

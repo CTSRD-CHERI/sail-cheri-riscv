@@ -48,6 +48,10 @@ let  cap_min_E = sizeof(cap_min_E)
 
 type CapExponent = range(cap_min_E, cap_max_E)
 
+// Capability level bits (> 1 is experimental)
+type lvlbits : Int = 1
+let lvlbits = sizeof(lvlbits)
+
 // Encoding of the EF bit to whether or not it's an internal exponent.
 mapping internal_exponent_encdec : bool <-> bits(1) = {
   // Exponent is zero.
@@ -66,6 +70,8 @@ struct Capability = {
   sd_perms          : bits(cap_sd_perms_width),
   // Compressed architectural permissions and mode
   ap_m              : bits(cap_AP_M_width),
+  // Capability level
+  cl                : bits(lvlbits),
   // Is the cap sealed.
   sealed            : bool,
   // Whether the exponent is zero or internal in the top/bottom fields.
@@ -120,6 +126,7 @@ function bitsToCap(tag : bool, cap_bits : CapBits) -> Capability = {
     tag               = tag,
     sd_perms          = meta[SDP],
     ap_m              = meta[AP_M],
+    cl                = meta[CL],
     sealed            = bool_bits(meta[CT]),
     internal_exponent = internal_exponent,
     E                 = E,
@@ -158,6 +165,7 @@ function capToMetadataBits(cap : Capability) -> EncMetadata = {
     Mk_EncMetadata(zeros()) with
     SDP = cap.sd_perms,
     AP_M = cap.ap_m,
+    CL = cap.cl,
     CT = bool_bits(cap.sealed),
     EF = internal_exponent_encdec(cap.internal_exponent),
     Tm = cap.T[MW - 3 .. cap_xe_width],
@@ -178,6 +186,7 @@ let null_cap : Capability = struct {
   tag               = false,
   sd_perms          = zeros(),
   ap_m              = null_ap_m,
+  cl                = zeros(),
   sealed            = false,
   internal_exponent = true, // Encodes to 0.
   E                 = cap_max_E, // Encodes to 0.
@@ -193,6 +202,7 @@ let infinite_cap : Capability = {
   null_cap with
   tag      = true,
   sd_perms = ones(),
+  cl       = ones(),
   ap_m     = infinite_ap_m,
 }
 
@@ -321,10 +331,6 @@ function setCapBounds(cap : Capability, base : CapAddrBits, top : CapLenBits) ->
     E=if incE then {
       // TODO: E can overflow here. The previous code silently wrapped so I've
       // copied that but I'm not sure it's correct.
-      //
-      // An example is: address:0 base:0 top:0b10000000000000000000000000000000000000000000000000000000000000000 length:0x10000000000000000
-      //                new_base:0 new_top:0b01111111111111111111111111111111111011001110000000000000000000000
-      //
       if e + 1 <= cap_max_E then e + 1 else cap_min_E
     } else e,
     B=Bbits,
@@ -386,23 +392,27 @@ function canR(cap : Capability) -> bool = getArchPermsLegalized(cap).R
 function canW(cap : Capability) -> bool = getArchPermsLegalized(cap).W
 function canC(cap : Capability) -> bool = getArchPermsLegalized(cap).C
 function canLM(cap : Capability) -> bool = getArchPermsLegalized(cap).LM
+function canEL(cap : Capability) -> bool = getArchPermsLegalized(cap).EL
+function canSL(cap : Capability) -> bool = getArchPermsLegalized(cap).SL
 
 // Format used by GCPERM and ACPERM.
 bitfield BitPerms : xlenbits = {
-  reserved_2  : xlen - 1                   .. 19,
+  reserved_1  : xlen - 1                   .. 19,
   R           : 18,
   X           : 17,
   ASR         : 16,
-  reserved_1  : 15                         .. 6 + cap_sd_perms_width,
+  reserved_0  : 15                         .. 6 + cap_sd_perms_width,
   SDP         : 6 + cap_sd_perms_width - 1 .. 6,
   C           : 5,
-  reserved_0  : 4 .. 2,
+  CL          : 4,
+  SL          : 3,
+  EL          : 2,
   LM          : 1,
   W           : 0,
 }
 
 // Convert the capability permissions into the format expected by GCPerm and ACPerm.
-function packPerms(arch_perms : ArchPerms, sd_perms : bits(cap_sd_perms_width)) -> BitPerms =
+function packPerms(arch_perms : ArchPerms, cap_level : bits(lvlbits), sd_perms : bits(cap_sd_perms_width)) -> BitPerms =
   [
     Mk_BitPerms(zeros()) with
     SDP = sd_perms,
@@ -412,9 +422,12 @@ function packPerms(arch_perms : ArchPerms, sd_perms : bits(cap_sd_perms_width)) 
     W = bool_bits(arch_perms.W),
     C = bool_bits(arch_perms.C),
     LM = bool_bits(arch_perms.LM),
+    SL = bool_bits(arch_perms.SL),
+    EL = bool_bits(arch_perms.EL),
+    CL = cap_level,
   ]
 
-function unpackPerms(perms : BitPerms) -> (ArchPerms, bits(cap_sd_perms_width)) = {
+function unpackPerms(perms : BitPerms) -> (ArchPerms, bits(lvlbits), bits(cap_sd_perms_width)) = {
   let arch_perms : ArchPerms =
     struct {
       ASR = bool_bits(perms[ASR]),
@@ -423,8 +436,10 @@ function unpackPerms(perms : BitPerms) -> (ArchPerms, bits(cap_sd_perms_width)) 
       W = bool_bits(perms[W]),
       C = bool_bits(perms[C]),
       LM = bool_bits(perms[LM]),
+      SL = bool_bits(perms[SL]),
+      EL = bool_bits(perms[EL]),
     };
-  (arch_perms, perms[SDP])
+  (arch_perms, perms[CL], perms[SDP])
 }
 
 function getCapLength(c : Capability) -> CapLenInt =
@@ -459,9 +474,10 @@ function capBoundsInfinite(c: Capability) -> bool =
 // to check `addr` or `size` at all.
 function inCapBounds(cap : Capability, addr : CapAddrBits, size : CapLenInt) -> bool = {
   let a = unsigned(addr);
+  let max_top = 2 ^ xlen;
   match getCapBounds(cap) {
     None() => false,
-    Some(base, top) => ((a >= base) & ((a + size) <= top)) | decodedBoundsInfinite(base, top)
+    Some(base, top) => ((a >= base) & ((a + size) <= min(top,max_top))) | decodedBoundsInfinite(base, top)
   }
 }
 
@@ -503,14 +519,15 @@ function capIsSubset(c0 : Capability, c1 : Capability) -> bool = {
       (None(), _) => false,
       (_, None()) => false,
       (Some(c0_arch_perms), Some(c1_arch_perms)) => {
-        let c0_perms_packed = packPerms(c0_arch_perms, c0.sd_perms).bits;
-        let c1_perms_packed = packPerms(c1_arch_perms, c1.sd_perms).bits;
+        let c0_perms_packed = packPerms(c0_arch_perms, c0.cl, c0.sd_perms).bits;
+        let c1_perms_packed = packPerms(c1_arch_perms, c1.cl, c1.sd_perms).bits;
         (c0_perms_packed & c1_perms_packed) == c0_perms_packed;
       }
   };
+  let level_subset = c0.cl <=_u c1.cl;
   // Not a subset if reserved bits are set in either cap
   let reserved_valid = capReservedValid(c0) & capReservedValid(c1);
-  bounds_subset & perms_subset & reserved_valid;
+  bounds_subset & perms_subset & level_subset & reserved_valid;
 }
 
 function clearTagIf(cap : Capability, cond : bool) -> Capability =
@@ -519,22 +536,67 @@ function clearTagIf(cap : Capability, cond : bool) -> Capability =
 function clearTag(cap : Capability) -> Capability =
   {cap with tag = false}
 
+function legalizeLoadedArchPerms(loaded_cap : Capability, auth_cap : Capability) -> Capability = {
+  // If a capability grants R-permission and C-permission, but no LM-permission, then
+  // a capability loaded via this authorizing capability will have W-permission and
+  // LM-permission removed provided that the loaded capability has its tag set and
+  // is not sealed; loaded capabilities that are sealed or untagged do not have
+  // their permissions changed.
+
+  // Any unsealed capability with its tag set to 1 that is loaded from memory has
+  // its EL-permission cleared ... if the authorizing capability does not grant EL-permission.
+
+  let tagged_and_unsealed = loaded_cap.tag & not(capIsSealed(loaded_cap));
+  let clearWLM = tagged_and_unsealed & not(canLM(auth_cap));
+  let clearEL = tagged_and_unsealed & not(canEL(auth_cap));
+
+  if clearWLM | clearEL then {
+    let perms = getArchPermsLegalized(loaded_cap);
+    let perms = { perms with
+      W = perms.W & not(clearWLM),
+      LM = perms.LM & not(clearWLM),
+      EL = perms.EL & not(clearEL),
+    };
+    setArchPerms(loaded_cap, perms)
+  } else loaded_cap
+}
+
+function restrictLoadedCL(loaded_cap : Capability, auth_cap : Capability) -> Capability = {
+  // Any unsealed capability with its tag set to 1 that is loaded from memory has
+  // ... its Capability Level (CL) restricted to the
+  // authorizing capability’s Capability Level (CL) if the authorizing capability
+  // does not grant EL-permission. If sealed, then only CL is modified ...
+
+  let restrictCL = loaded_cap.tag & not(canEL(auth_cap));
+  if restrictCL then {loaded_cap with cl = auth_cap.cl & loaded_cap.cl} else loaded_cap
+}
+
+function legalizeSL(stored_cap : Capability, auth_cap : Capability) -> Capability = {
+  // When storing a capability, if the authorizing capability does not grant SL-perm
+  // and the stored cap has CL == 0 clear the tag of the stored capability,
+  // otherwise store the cap data unmodified.
+  let cond = not(canSL(auth_cap)) & stored_cap.cl == zeros();
+  clearTagIf(stored_cap, cond)
+}
+
 // Implementations are allowed to retain invalid capability permissions loaded from memory
 // instead of following the ACPERM behaviour of reducing them to no permissions.
 let sys_legalize_malformed_permission_on_load = false
 
-function legalizeLM(loaded_cap : Capability, auth_cap : Capability) -> Capability = {
-  // When loading a capability, if the authorizing capability does not grant LM-perm
-  // and the loaded cap has tag set and isn't sealed then clear W-perm and LM-perm,
-  // otherwise return the cap data unmodified. Implementations are allowed to legalize
-  // malformed permissions or retain them.
-  let legalize = loaded_cap.tag &
-                 not(capIsSealed(loaded_cap)) &
-                 not(canLM(auth_cap)) &
-                 (sys_legalize_malformed_permission_on_load | not(permsMalformed(loaded_cap)));
-  if not(legalize) then return loaded_cap;
-  let new_perms = { getArchPermsLegalized(loaded_cap) with LM = false, W = false };
-  setArchPerms(loaded_cap, new_perms)
+function legalizeLoadedPermissions(loaded_cap : Capability, auth_cap : Capability) -> Capability = {
+  // CL is not a permission so it is always legalized.
+  let loaded_cap = restrictLoadedCL(loaded_cap, auth_cap);
+
+  // Malformed permissions are optionally legalized.
+  if not(permsMalformed(loaded_cap)) | sys_legalize_malformed_permission_on_load then {
+    legalizeLoadedArchPerms(loaded_cap, auth_cap)
+  } else {
+    loaded_cap
+  }
+}
+
+function legalizeStoredPermissions(stored_cap : Capability, auth_cap : Capability) -> Capability = {
+  legalizeSL(stored_cap, auth_cap)
 }
 
 function capBoundsEqual (c1 : Capability, c2 : Capability) -> bool =
@@ -581,7 +643,9 @@ function capToString(cap : Capability) -> string = {
       (if perms.C then "C" else "") ^
       (if perms.X then "X" else "") ^
       (if perms.LM then "Lm" else "") ^
-      (if perms.ASR then "Asr" else ""),
+      (if perms.ASR then "Asr" else "") ^
+      (if perms.SL then "Sl" else "") ^
+      (if perms.EL then "El" else ""),
       false
     )
   };
@@ -611,6 +675,7 @@ function capToString(cap : Capability) -> string = {
   " sealed:" ^ (if cap.sealed then "1" else "0") ^
   " perms:" ^ arch_perms_str ^
   " sdperms:" ^ bits_str(cap.sd_perms) ^
+  " level:" ^ bits_str(cap.cl) ^
   " mode:" ^ cheri_mode ^
   raw_str ^ res_str
 }

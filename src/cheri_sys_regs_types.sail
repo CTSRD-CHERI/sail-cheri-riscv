@@ -56,3 +56,15 @@ bitfield Seccfg : bits(64) = {
   // Reserved WPRI bits
   wpri_0 : 2 .. 0,
 }
+
+// Zcheripurecap requires xtval2
+bitfield Tval2 : xlenbits = {
+  // Reserved WPRI bits
+  wpri_1 : xlen - 1 .. 20,
+  // Trap type
+  TYPE   : 19 .. 16,
+  // Reserved WPRI bits
+  wpri_0 : 15 .. 4,
+  // Trap cause
+  CAUSE  : 3 .. 0,
+}
