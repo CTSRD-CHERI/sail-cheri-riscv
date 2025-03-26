@@ -43,6 +43,7 @@ SAIL_DEFAULT_INST = $(SAIL_RISCV_MODEL_DIR)/riscv_insts_base.sail \
                     $(SAIL_RISCV_MODEL_DIR)/riscv_insts_zbb.sail \
                     $(SAIL_RISCV_MODEL_DIR)/riscv_insts_zbc.sail \
                     $(SAIL_RISCV_MODEL_DIR)/riscv_insts_zbs.sail \
+                    $(SAIL_RISCV_MODEL_DIR)/riscv_insts_svinval.sail \
                     $(SAIL_CHERI_MODEL_DIR)/cheri_insts_begin.sail \
                     $(SAIL_CHERI_MODEL_DIR)/cheri_insts.sail \
                     $(SAIL_CHERI_MODEL_DIR)/cheri_insts_cext.sail \
@@ -137,9 +138,9 @@ SAIL_ARCH_RVFI_SRCS = \
                  $(SAIL_RISCV_MODEL_DIR)/rvfi_dii.sail \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_types_common.sail \
                  $(SAIL_CHERI_MODEL_DIR)/cheri_riscv_types.sail \
+                 $(SAIL_RISCV_MODEL_DIR)/riscv_extensions.sail \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_types.sail \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_csr_begin.sail \
-                 $(SAIL_RISCV_MODEL_DIR)/riscv_clic_prelude.sail \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_convert_invalid_addr.sail \
                  $(SAIL_REGS_SRCS) \
                  $(SAIL_SYS_SRCS) \
@@ -158,7 +159,6 @@ SAIL_STEP_SRCS = $(SAIL_RISCV_MODEL_DIR)/riscv_step_common.sail \
 RVFI_STEP_SRCS = $(SAIL_RISCV_MODEL_DIR)/riscv_step_common.sail \
                  $(SAIL_CHERI_MODEL_DIR)/cheri_step_ext.sail \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_step_rvfi.sail \
-                 $(SAIL_CHERI_MODEL_DIR)/cheri_execute.sail \
                  $(SAIL_CHERI_MODEL_DIR)/cheri_decode_ext.sail \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_fetch_rvfi.sail \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_step.sail
@@ -311,9 +311,9 @@ generated_definitions/c/riscv_rvfi_model_%.c: $(SAIL_RVFI_SRCS) $(SAIL_RISCV_MOD
 	mkdir -p generated_definitions/c
 	$(SAIL) $(preserve_fns) $(rvfi_preserve_fns) $(SAIL_FLAGS) -O -Oconstant_fold -memo_z3 -c -c_include riscv_prelude.h -c_include riscv_platform.h -c_no_main $(SAIL_RVFI_SRCS) $(SAIL_RISCV_MODEL_DIR)/main.sail -o $(basename $@)
 
-c_emulator/cheri_riscv_rvfi_%: generated_definitions/c/riscv_rvfi_model_%.c $(SAIL_RISCV_DIR)/c_emulator/riscv_sim.c $(C_INCS) $(C_SRCS) $(SOFTFLOAT_LIBS) Makefile
+c_emulator/cheri_riscv_rvfi_%: generated_definitions/c/riscv_rvfi_model_%.c $(C_INCS) $(C_SRCS) $(SOFTFLOAT_LIBS) Makefile
 	mkdir -p c_emulator
-	gcc -g $(C_WARNINGS) $(C_FLAGS) $< -DRVFI_DII $(SAIL_RISCV_DIR)/c_emulator/riscv_sim.c $(C_SRCS) $(SAIL_LIB_DIR)/*.c $(C_LIBS) -o $@
+	gcc -g $(C_WARNINGS) $(C_FLAGS) $< -DRVFI_DII $(C_SRCS) $(SAIL_LIB_DIR)/*.c $(C_LIBS) -o $@
 
 latex: $(SAIL_SRCS) Makefile
 	$(SAIL) -latex -latex_prefix sailRISCV -o sail_latex_riscv $(SAIL_SRCS)
