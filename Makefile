@@ -149,6 +149,7 @@ SAIL_ARCH_RVFI_SRCS = \
                  $(SAIL_CHECK_SRCS) \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_mem.sail \
                  $(SAIL_CHERI_MODEL_DIR)/cheri_mem.sail \
+                 $(SAIL_CHERI_MODEL_DIR)/cheri_csr_ext.sail \
                  $(SAIL_VM_SRCS)
 
 SAIL_STEP_SRCS = $(SAIL_RISCV_MODEL_DIR)/riscv_step_common.sail \
