@@ -9,6 +9,6 @@
 function ext_pte_is_invalid(pte_flags : PTE_Flags, pte_ext : option(PTE_Ext)) -> bool =
   match pte_ext {
     // The CRG/CW bits must be 0 unless this is a leaf node.
-    Some(pte_ext) => (pte_ext[CW] != 0b0 | pte_ext[CRG] != 0b0) & not(pte_is_ptr(pte_flags)),
+    Some(pte_ext) => (pte_ext[CW] != 0b0 | pte_ext[CRG] != 0b0) & pte_is_ptr(pte_flags),
     None() => false,
   }
