@@ -144,6 +144,13 @@ function num_of_ext_exc_type(e) =
     EXC_SAMO_CAP_PAGE_FAULT => 27,
     EXC_CHERI               => 28
   }
+val ext_exc_type_of_num : {'n, (0 <= 'n < xlen). int('n)} -> ext_exc_type
+function ext_exc_type_of_num(e) =
+  match (e) {
+    26 => EXC_LOAD_CAP_PAGE_FAULT,
+    27 => EXC_SAMO_CAP_PAGE_FAULT,
+    _ =>  EXC_CHERI
+  }
 
 /* CHERI conversion of extension exceptions to strings */
 val ext_exc_type_to_str : ext_exc_type -> string

@@ -60,7 +60,7 @@
 (*  SUCH DAMAGE.                                                                         *)
 (*=======================================================================================*)
 
-Require Import Sail.Base.
+Require Import SailStdpp.Base.
 
 Definition write_ram {rv e} wk (addr : mword 64) size (v : mword (8 * size)) (tag : bool) : monad rv bool e := write_memt wk addr size v (bitU_of_bool tag).
 
