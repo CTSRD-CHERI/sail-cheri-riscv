@@ -709,7 +709,7 @@ function clause execute (LoadResCap(cd, rs1_cs1, aq, rl)) = {
     None() => {
       // If we don't have C capability then the tag will always be cleared and
       // it is treated as an untagged load.
-      match translateAddr(vaddr, Read(if canC(auth_val) then Data else Tagged)) {
+      match translateAddr(vaddr, Read(if canC(auth_val) then Tagged else Data)) {
         TR_Failure(e, ext_ptw) => { handle_translate_exception(vaddr, e, ext_ptw); RETIRE_FAIL },
         TR_Address(addr, pbmt, ext_ptw) => {
           let c = mem_read_cap(addr, pbmt, aq, aq & rl, false);
@@ -771,7 +771,7 @@ function clause execute LoadCapImm(cd, rs1_cs1, imm) = {
     None() => {
       // If we don't have C capability then the tag will always be cleared and
       // it is treated as an untagged load.
-      match translateAddr(vaddr, Read(if canC(auth_val) then Data else Tagged)) {
+      match translateAddr(vaddr, Read(if canC(auth_val) then Tagged else Data)) {
         TR_Failure(e, ext_ptw) => { handle_translate_exception(vaddr, e, ext_ptw); RETIRE_FAIL },
         TR_Address(addr, pbmt, ext_ptw) => {
           let aq = false;
@@ -950,7 +950,7 @@ function clause execute AMOSwapCap(cd, cs2, rs1_cs1, aq, rl) = {
       let cs2_val = clearTagIf(cs2_val, not(canC(auth_val)));
       let cs2_val = legalizeStoredPermissions(cs2_val, auth_val);
 
-      match translateAddr(vaddr, ReadWrite(if canC(auth_val) then Data else Tagged, if cs2_val.tag then Tagged else Data)) {
+      match translateAddr(vaddr, ReadWrite(if canC(auth_val) then Tagged else Data, if cs2_val.tag then Tagged else Data)) {
         TR_Failure(e, ext_ptw) => { handle_translate_exception(vaddr, e, ext_ptw); RETIRE_FAIL },
         TR_Address(addr, pbmt, ext_ptw) => {
           match mem_write_ea_cap(addr, aq & rl, rl, false) {

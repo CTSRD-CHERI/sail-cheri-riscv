@@ -32,7 +32,7 @@ function pte_permission_ok(
           // Clear loaded tag.
           (0b0, _) => tagged_load_behaviour = TaggedLoadClear,
           // Page fault, or page fault if tag set.
-          (0b1, crg) if crg == mstatus[UCRG] => {
+          (0b1, crg) if crg != mstatus[UCRG] & (pte[U] == 0b1) => {
             if sys_cheri_pte_crg_exception_check_tag() then {
               tagged_load_behaviour = TaggedLoadTrap;
             } else {
