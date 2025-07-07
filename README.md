@@ -18,6 +18,37 @@ The
 repository contains a number of SMT-checked properties of the compressed
 capability helper functions.
 
+## Building to Rocq
+
+To build the Rocq code for CHERI RISCV you'll first need to install Sail and Coq-Sail from their repositories.
+The following script sets up the opam environment.
+
+```bash
+# Tested with opam 2.2.1
+opam switch create sail-cheri-riscv 4.14.1
+eval $(opam env)
+opam repo add rocq-released https://rocq-prover.org/opam/released
+opam pin add coq 8.20.0
+# Add sail, tested with commit 54574467c33b56673151a0ee720f5dd09e74ac0a
+git clone https://github.com/rems-project/sail.git
+cd sail
+opam install .
+cd ..
+# Add coq-sail, tested with commit ae4cd3fa351bb1a696e43ef86d4d7eed3618f874
+git clone https://github.com/rems-project/coq-sail.git
+cd coq-sail
+opam install .
+```
+
+Then simply run `make riscv_coq_build` from the sail-cheri-riscv repo directory.
+It should print a lot of warnings and take some time to build.
+If it fails, it may mean you didn't clone the directory with `--recurse-submodules`.
+In this case try running `git submodule update --init` to initialize the sail-riscv dependency.
+
+You'll find the generated definitions in `generated_definitions/coq/RV64/*.v`.
+Despite not having `CHERI` in the path, it is indeed the CHERI definitions.
+For reassurance search for `Capability` or a capability-aware instruction like `CJALR`.
+
 ## Funding
 
 This software was developed by SRI International and the University of
