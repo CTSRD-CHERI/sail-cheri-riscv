@@ -707,7 +707,7 @@ function clause execute (CClear(q, m)) = {
       if q_u == 0 & i == 0 then
         DDC = null_cap
       else
-        C(8 * q_u + i) = null_cap;
+        wC (false, 8 * q_u + i, null_cap);
   RETIRE_SUCCESS
 }
 
