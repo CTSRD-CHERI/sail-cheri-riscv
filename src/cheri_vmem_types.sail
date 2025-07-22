@@ -42,6 +42,13 @@ enum ext_access_type = {
 
 let default_write_acc : ext_access_type = Data
 
+function isWriteAc(ac : AccessType(ext_access_type)) -> bool =
+  match ac {
+    Write(_) => true,
+    ReadWrite(_, _) => true,
+    _ => false,
+  }
+
 // Return true if we are writing a tagged capability.
 function isTaggedWrite(ac : AccessType(ext_access_type)) -> bool =
   match ac {
