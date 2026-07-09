@@ -397,24 +397,27 @@ function canSL(cap : Capability) -> bool = getArchPermsLegalized(cap).SL
 
 // Format used by GCPERM and ACPERM.
 bitfield BitPerms : xlenbits = {
-  reserved_1  : xlen - 1                   .. 19,
-  R           : 18,
-  X           : 17,
-  ASR         : 16,
-  reserved_0  : 15                         .. 6 + cap_sd_perms_width,
-  SDP         : 6 + cap_sd_perms_width - 1 .. 6,
-  C           : 5,
-  CL          : 4,
-  SL          : 3,
-  EL          : 2,
-  LM          : 1,
-  W           : 0,
+  reserved_0    : xlen - 1                   .. 24,
+  reserved_1_1  : 23 .. 19,
+  R             : 18,
+  X             : 17,
+  ASR           : 16,
+  reserved_1_0  : 15                         .. 6 + cap_sd_perms_width,
+  SDP           : 6 + cap_sd_perms_width - 1 .. 6,
+  C             : 5,
+  CL            : 4,
+  SL            : 3,
+  EL            : 2,
+  LM            : 1,
+  W             : 0,
 }
 
 // Convert the capability permissions into the format expected by GCPerm and ACPerm.
 function packPerms(arch_perms : ArchPerms, cap_level : bits(lvlbits), sd_perms : bits(cap_sd_perms_width)) -> BitPerms =
   [
     Mk_BitPerms(zeros()) with
+    reserved_1_1 = ones(),
+    reserved_1_0 = ones(),
     SDP = sd_perms,
     ASR = bool_bits(arch_perms.ASR),
     X = bool_bits(arch_perms.X),
