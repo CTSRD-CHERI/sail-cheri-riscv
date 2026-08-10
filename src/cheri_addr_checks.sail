@@ -151,7 +151,7 @@ function ext_data_get_addr(base_reg : regidx, offset : xlenbits, acc : AccessTyp
 
   let (any_byte_in_bounds, exc_addr): (bool, xlenbits) = match acc {
     Cache(CleanFlush) => (true, newAddr - offset),
-    Cache(Inval)      => (true, newAddr - offset),
+    Cache(Inval)      => (false, newAddr - offset),
     Cache(Zero)       => (false, newAddr - offset),
     _                 => (false, newAddr),
   };
