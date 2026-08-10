@@ -300,7 +300,7 @@ function test_cheri_circular() -> unit = {
 }
 
 function test_cheri_clen_csr() -> unit = {
-    let csr : csreg = csr_name_map("mtvec");
+    let csr : csreg = csr_name_map("mscratch");
     let (_, capTest) = setCapBounds(infinite_cap, zero_extend(0x00010000), zero_extend(0x00020000));
     let src : regidx = Regidx(0b00100);
     let dst : regidx = Regidx(0b00101);
