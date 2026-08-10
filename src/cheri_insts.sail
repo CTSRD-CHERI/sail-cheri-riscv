@@ -668,9 +668,9 @@ function cap_mem_standard_errors(auth_val : Capability, vaddr : virtaddr, acc_ty
       // All loads and stores of capabilities must be aligned.
       if not(is_aligned_addr(vaddr, cap_size)) then {
         handle_mem_exception(vaddr, match acc_type {
-          Cap_Read => E_Load_Addr_Align(),
-          Cap_Write => E_SAMO_Addr_Align(),
-          Cap_ReadWrite => E_SAMO_Addr_Align(),
+          Cap_Read => E_Load_Access_Fault(),
+          Cap_Write => E_SAMO_Access_Fault(),
+          Cap_ReadWrite => E_SAMO_Access_Fault(),
         });
         Some(RETIRE_FAIL)
       } else {
