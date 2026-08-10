@@ -306,13 +306,13 @@ function test_cheri_clen_csr() -> unit = {
     let dst : regidx = Regidx(0b00101);
     let tmp : regidx = Regidx(0b11000);
     C(src) = capTest;
-    /////////////////////////////////////////////
+    // ///////////////////////////////////////////
     PCC = {setCapMode(PCC, CapPtrMode)};
     let _ = handle_csr_op(csr, src, dst, false, CSRRW, true, false);
     let _ = handle_csr_op(csr, src, dst, false, CSRRW, false, true);
     assert(C(src) == C(dst));
     assert(C(dst) == capTest);
-    /////////////////////////////////////////////
+    // ///////////////////////////////////////////
     let addr : xlenbits = zero_extend(0x00010111);
     X(tmp) = addr;
     PCC = {setCapMode(PCC, IntPtrMode)};
