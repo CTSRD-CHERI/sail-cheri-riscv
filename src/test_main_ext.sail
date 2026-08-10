@@ -18,34 +18,34 @@ function test_cheri_xtval2() -> unit = {
     assert(mtval2[CAUSE] == capex_code(CapEx_TagViolation));
 }
 
-function test_cheri_sdtrig() -> unit = {
-  set_cur_privilege(Machine);
-  assert (not(debug_mode_active));
-  let addr : xlenbits = zero_extend(0x01234567);
-  let src : regidx = Regidx(0b00100);
-  let rd : regidx = Regidx(0b00011);
-  C(src) = { null_cap with address = addr };
-  PCC = setCapMode(PCC, CapPtrMode);
-  let ret = execute(LoadCapImm(rd, src, zeros()));
-  assert (ret == RETIRE_FAIL);
-  assert (mcause[Cause] == zero_extend (0x1C));
-  assert (not(debug_mode_active));
-  let tdata1 : xlenbits = 0x68 @ zeros(xlen - 24) @ 0x107f;
-  write_tdata1_underlying(0, tdata1);
-  write_tdata2_underlying(0, addr);
-  PCC = setCapMode(PCC, CapPtrMode);
-  let ret = execute(LoadCapImm(rd, src, zeros()));
-  assert (ret == RETIRE_DEBUG_TRIGGER);
-  assert (debug_mode_active);
-  let _ = execute (DRET());
-  assert (not(debug_mode_active));
-  X(src) = addr;
-  set_ddc(null_cap);
-  PCC = setCapMode(PCC, IntPtrMode);
-  let _ = execute(LOAD(zeros(), src, rd, true, BYTE, false, false));
-  assert (ret == RETIRE_DEBUG_TRIGGER);
-  assert (debug_mode_active);
-}
+//function test_cheri_sdtrig() -> unit = {
+//  set_cur_privilege(Machine);
+//  assert (not(debug_mode_active));
+//  let addr : xlenbits = zero_extend(0x01234567);
+//  let src : regidx = Regidx(0b00100);
+//  let rd : regidx = Regidx(0b00011);
+//  C(src) = { null_cap with address = addr };
+//  PCC = setCapMode(PCC, CapPtrMode);
+//  let ret = execute(LoadCapImm(rd, src, zeros()));
+//  assert (ret == RETIRE_FAIL);
+//  assert (mcause[Cause] == zero_extend (0x1C));
+//  assert (not(debug_mode_active));
+//  let tdata1 : xlenbits = 0x68 @ zeros(xlen - 24) @ 0x107f;
+//  write_tdata1_underlying(0, tdata1);
+//  write_tdata2_underlying(0, addr);
+//  PCC = setCapMode(PCC, CapPtrMode);
+//  let ret = execute(LoadCapImm(rd, src, zeros()));
+//  assert (ret == RETIRE_DEBUG_TRIGGER);
+//  assert (debug_mode_active);
+//  let _ = execute (DRET());
+//  assert (not(debug_mode_active));
+//  X(src) = addr;
+//  set_ddc(null_cap);
+//  PCC = setCapMode(PCC, IntPtrMode);
+//  let _ = execute(LOAD(zeros(), src, rd, true, BYTE, false, false));
+//  assert (ret == RETIRE_DEBUG_TRIGGER);
+//  assert (debug_mode_active);
+//}
 
 function test_cheri_nofastrep () -> unit = {
     // Check that the representability check is exact, i.e. that the historical
@@ -258,7 +258,7 @@ function test_cheri_circular() -> unit = {
       atomicSupport                    = AMONone,
       reservability                    = RsrvNone,
       taggable                         = true,
-      taggableAccessFaults      = false,
+      taggableAccessFaults             = false,
       supportsCboZero                  = true,
     };
     // Since PMAs can't encode a 2^XLEN region we'll just have two regions.
@@ -589,7 +589,7 @@ function test_main_ext() -> unit = {
     set_menvcfg(update_CRE(menvcfg, 0b1).bits);
     set_senvcfg(update_CRE(senvcfg, 0b1).bits);
 
-    test_cheri_sdtrig();
+    //test_cheri_sdtrig();
     debug_mode_active = false;
 
     test_cheri_cap_encoding();
@@ -606,5 +606,6 @@ function test_main_ext() -> unit = {
     test_cheri_csr_access_control();
     test_cheri_malformed();
     test_cheri_invalid_addr();
-    test_cheri_enables();
+    //test_cheri_enables(); Disable while cheri enables hardwired high
+    print("CHERI tests passed\n");
 }

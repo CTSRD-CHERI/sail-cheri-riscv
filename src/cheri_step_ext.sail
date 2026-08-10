@@ -62,17 +62,46 @@ function ext_cheri_reset() -> unit = {
   //x29 = {x29 with tag = false};
   //x30 = {x30 with tag = false};
   //x31 = {x31 with tag = false};
+
+  if (platform_get_rvfi_dii()) then {
+    x1  = infinite_cap;
+    x2  = infinite_cap;
+    x3  = infinite_cap;
+    x4  = infinite_cap;
+    x5  = infinite_cap;
+    x6  = infinite_cap;
+    x7  = infinite_cap;
+    x8  = infinite_cap;
+    x9  = infinite_cap;
+    x10 = infinite_cap;
+    x11 = infinite_cap;
+    x12 = infinite_cap;
+    x13 = infinite_cap;
+    x14 = infinite_cap;
+    x15 = infinite_cap;
+    x16 = infinite_cap;
+    x17 = infinite_cap;
+    x18 = infinite_cap;
+    x19 = infinite_cap;
+    x20 = infinite_cap;
+    x21 = infinite_cap;
+    x22 = infinite_cap;
+    x23 = infinite_cap;
+    x24 = infinite_cap;
+    x25 = infinite_cap;
+    x26 = infinite_cap;
+    x27 = infinite_cap;
+    x28 = infinite_cap;
+    x29 = infinite_cap;
+    x30 = infinite_cap;
+    x31 = infinite_cap;
+  }
 }
 
 function ext_reset_misa() -> unit = ()
 
-//function ext_fetch_hook(f : FetchResult) -> FetchResult = f
-
 function ext_fetch_mem_read_hi(paddr : physaddr, pbmt : PBMT) -> MemoryOpResult(half) = mem_read(Execute(), pbmt, paddr, 2, false, false, false)
 function ext_fetch_mem_read_lo(paddr : physaddr, pbmt : PBMT) -> MemoryOpResult(half) = mem_read(Execute(), pbmt, paddr, 2, false, false, false)
-
-//function ext_pre_step_hook()  -> unit = ()
-//function ext_post_step_hook() -> unit = ()
 
 // Print an instruction we are executing. For CHERI we print the mode too.
 function ext_print_instr forall 'n, 'n in {16, 32} . (

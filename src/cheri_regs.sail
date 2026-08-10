@@ -97,46 +97,6 @@ function wC_bits(r: regidx, v: regtype) -> unit = wC(regidx_to_regno(r), v)
 
 overload C = {rC_bits, wC_bits, rC, wC}
 
-/*!
- * This function is called after above when running rvfi and allows the model
- * to be initialised differently. For RVFI we initialise cap regs to default
- * instead of null.
- */
-val ext_rvfi_reset : unit -> unit
-function ext_rvfi_reset () = {
-  x1  = infinite_cap;
-  x2  = infinite_cap;
-  x3  = infinite_cap;
-  x4  = infinite_cap;
-  x5  = infinite_cap;
-  x6  = infinite_cap;
-  x7  = infinite_cap;
-  x8  = infinite_cap;
-  x9  = infinite_cap;
-  x10 = infinite_cap;
-  x11 = infinite_cap;
-  x12 = infinite_cap;
-  x13 = infinite_cap;
-  x14 = infinite_cap;
-  x15 = infinite_cap;
-  x16 = infinite_cap;
-  x17 = infinite_cap;
-  x18 = infinite_cap;
-  x19 = infinite_cap;
-  x20 = infinite_cap;
-  x21 = infinite_cap;
-  x22 = infinite_cap;
-  x23 = infinite_cap;
-  x24 = infinite_cap;
-  x25 = infinite_cap;
-  x26 = infinite_cap;
-  x27 = infinite_cap;
-  x28 = infinite_cap;
-  x29 = infinite_cap;
-  x30 = infinite_cap;
-  x31 = infinite_cap;
-}
-
 /* mappings for assembly */
 
 mapping cap_reg_name : regidx <-> string = {

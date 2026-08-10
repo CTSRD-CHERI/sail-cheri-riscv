@@ -120,6 +120,7 @@ SAIL_REGS_SRCS += $(SAIL_RISCV_MODEL_DIR)/riscv_vreg_type.sail \
                   $(SAIL_RISCV_MODEL_DIR)/riscv_vext_regs.sail
 
 SAIL_ARCH_SRCS = $(PRELUDE) \
+                 $(SAIL_RISCV_MODEL_DIR)/riscv_rvfi_stub.sail \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_types_common.sail \
                  $(SAIL_CHERI_MODEL_DIR)/cheri_riscv_types.sail \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_extensions.sail \
@@ -132,6 +133,7 @@ SAIL_ARCH_SRCS = $(PRELUDE) \
                  $(SAIL_CHECK_SRCS) \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_mem.sail \
                  $(SAIL_CHERI_MODEL_DIR)/cheri_mem.sail \
+                 $(SAIL_CHERI_MODEL_DIR)/cheri_csr_ext.sail \
                  $(SAIL_VM_SRCS)
 
 SAIL_ARCH_RVFI_SRCS = \
@@ -156,14 +158,18 @@ SAIL_STEP_SRCS = $(SAIL_RISCV_MODEL_DIR)/riscv_step_common.sail \
                  $(SAIL_CHERI_MODEL_DIR)/cheri_step_ext.sail \
                  $(SAIL_CHERI_MODEL_DIR)/cheri_decode_ext.sail \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_fetch.sail \
-                 $(SAIL_RISCV_MODEL_DIR)/riscv_step.sail
+                 $(SAIL_RISCV_MODEL_DIR)/riscv_step.sail \
+                 src/test_main_ext.sail \
+                 $(SAIL_RISCV_MODEL_DIR)/test_main.sail
 
 RVFI_STEP_SRCS = $(SAIL_RISCV_MODEL_DIR)/riscv_step_common.sail \
                  $(SAIL_CHERI_MODEL_DIR)/cheri_step_ext.sail \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_step_rvfi.sail \
                  $(SAIL_CHERI_MODEL_DIR)/cheri_decode_ext.sail \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_fetch_rvfi.sail \
-                 $(SAIL_RISCV_MODEL_DIR)/riscv_step.sail
+                 $(SAIL_RISCV_MODEL_DIR)/riscv_step.sail \
+                 src/test_main_ext.sail \
+                 $(SAIL_RISCV_MODEL_DIR)/test_main.sail
 
 # Control inclusion of 64-bit only riscv_analysis
 SAIL_RV32_OTHER_SRCS     = $(SAIL_STEP_SRCS)
@@ -307,7 +313,8 @@ rvfi_preserve_fns=-c_preserve rvfi_set_instr_packet \
 preserve_fns=--c-preserve init_model \
              --c-preserve step \
              --c-preserve tick_clock \
-             --c-preserve tick_platform
+             --c-preserve tick_platform \
+             --c-preserve test_main
 
 generated_definitions/c/riscv_rvfi_model_%.c: $(SAIL_RVFI_SRCS) $(SAIL_RISCV_MODEL_DIR)/main.sail Makefile
 	mkdir -p generated_definitions/c
