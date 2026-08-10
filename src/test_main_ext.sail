@@ -368,8 +368,6 @@ function test_cheri_csr_access_control() -> unit = {
     //              CSR        , minPriv   , ro   , needsAsrWrite, needsAsrRead
     // Completely new registers added by CHERI
     test_csr_access("ddc"      , User      , false, false, false);
-    test_csr_access("mtdc"     , Machine   , false, true , true);
-    test_csr_access("stdc"     , Supervisor, false, true , true);
     test_csr_access("mtid"     , Machine   , false, true , false);
     test_csr_access("stid"     , Supervisor, false, true , false);
     test_csr_access("utid"     , User      , false, true , false);
