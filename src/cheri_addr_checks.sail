@@ -139,7 +139,7 @@ function ext_data_get_addr(base_reg : regidx, offset : xlenbits, acc : AccessTyp
     Write(Data)       => (true          , canW(auth_val), true),
     ReadWrite(Data, Data) => (canR(auth_val), canW(auth_val), true),
     Cache(CleanFlush) => (canR(auth_val), canW(auth_val), true),
-    Cache(Inval)      => (canR(auth_val), canW(auth_val), canASR(auth_val)),
+    Cache(Inval)      => (canR(auth_val), canW(auth_val), pcc_access_system_regs()),
     Cache(Zero)       => (true          , canW(auth_val), true),
     Execute()         => internal_error(__FILE__, __LINE__, "ext_data_get_addr for Execute"),
     Read(Tagged)      => internal_error(__FILE__, __LINE__, "ext_data_get_addr for Read(Tagged)"),
