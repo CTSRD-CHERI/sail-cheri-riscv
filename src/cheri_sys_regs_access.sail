@@ -1,19 +1,19 @@
-// This file contains overrides for accessing CLEN extended CSRs and their
+// This file contains overrides for accessing YLEN extended CSRs and their
 // XLEN aliases.
 //
 // E.g. for `mtvec[c]` we have:
 //
 // * get_mtvec(): XLEN read
 // * set_mtvec(): XLEN write
-// * set_mtvecc(): CLEN write
+// * set_mtvecc(): YLEN write
 //
-// For the CLEN CSRs with no XLEN name, e.g. `ddc` we have:
+// For the YLEN CSRs with no XLEN name, e.g. `ddc` we have:
 //
 // * get_ddc_xlen(): XLEN read
-// * set_ddc(): CLEN write
+// * set_ddc(): YLEN write
 // * set_ddc_xlen(): XLEN write.
 //
-// There's no need for CLEN read functions since they're only used in CHERI and
+// There's no need for YLEN read functions since they're only used in CHERI and
 // would always be just returning the register value directly.
 
 /******************************* xTVEC[C] *******************************/

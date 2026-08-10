@@ -46,7 +46,7 @@ mapping clause assembly = ZBA_RTYPEUW_capmode(cs2, rs1, cd, op)
  */
 function clause execute (ZBA_RTYPEUW_capmode(cs2, rs1, cd, op)) = {
   let rs1_val = X(rs1);
-  let cs2_val = C(cs2);
+  let cs2_val = Y(cs2);
   let shamt : range(0,3) = match op {
     RISCV_ADDUW    => 0,
     RISCV_SH1ADDUW => 1,
@@ -54,7 +54,7 @@ function clause execute (ZBA_RTYPEUW_capmode(cs2, rs1, cd, op)) = {
     RISCV_SH3ADDUW => 3,
   };
   let result = incCapAddrChecked(cs2_val, zero_extend(rs1_val[31..0]) << shamt);
-  C(cd) = result;
+  Y(cd) = result;
   RETIRE_SUCCESS
 }
 
@@ -104,10 +104,10 @@ function clause execute (ZBA_SH4ADDUW(rs2, rs1, rd)) = {
  */
 function clause execute (ZBA_SH4ADDUW_capmode(cs2, rs1, cd)) = {
   let rs1_val = X(rs1);
-  let cs2_val = C(cs2);
+  let cs2_val = Y(cs2);
   let shamt = 4;
   let result = incCapAddrChecked(cs2_val, zero_extend(rs1_val[31..0]) << shamt);
-  C(cd) = result;
+  Y(cd) = result;
   RETIRE_SUCCESS
 }
 
@@ -137,14 +137,14 @@ mapping clause assembly = ZBA_RTYPE_capmode(cs2, rs1, cd, op)
  */
 function clause execute (ZBA_RTYPE_capmode(cs2, rs1, cd, op)) = {
   let rs1_val = X(rs1);
-  let cs2_val = C(cs2);
+  let cs2_val = Y(cs2);
   let shamt : range(0,3) = match op {
     RISCV_SH1ADD => 1,
     RISCV_SH2ADD => 2,
     RISCV_SH3ADD => 3,
   };
   let result = incCapAddrChecked(cs2_val, rs1_val << shamt);
-  C(cd) = result;
+  Y(cd) = result;
   RETIRE_SUCCESS
 }
 
@@ -193,9 +193,9 @@ function clause execute (ZBA_SH4ADD(rs2, rs1, rd)) = {
  */
 function clause execute (ZBA_SH4ADD_capmode(cs2, rs1, cd)) = {
   let rs1_val = X(rs1);
-  let cs2_val = C(cs2);
+  let cs2_val = Y(cs2);
   let shamt = 4;
   let result = incCapAddrChecked(cs2_val, rs1_val << shamt);
-  C(cd) = result;
+  Y(cd) = result;
   RETIRE_SUCCESS
 }

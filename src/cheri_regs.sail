@@ -9,7 +9,7 @@
 /* accessors for capability representation */
 
 /* reads a given capability register, or the null capability if the argument is zero. */
-function rC(Regno(r) : regno) -> regtype = {
+function rY(Regno(r) : regno) -> regtype = {
   match r {
     0  => zero_reg,
     1  => x1,
@@ -48,7 +48,7 @@ function rC(Regno(r) : regno) -> regtype = {
 }
 
 /* writes a register with a capability value */
-function wC (Regno(r) : regno, v : regtype) -> unit = {
+function wY (Regno(r) : regno, v : regtype) -> unit = {
   match r {
     0  => (),
     1  => x1 = v,
@@ -91,11 +91,11 @@ function wC (Regno(r) : regno, v : regtype) -> unit = {
   }
 }
 
-function rC_bits(r: regidx) -> regtype = rC(regidx_to_regno(r))
+function rY_bits(r: regidx) -> regtype = rY(regidx_to_regno(r))
 
-function wC_bits(r: regidx, v: regtype) -> unit = wC(regidx_to_regno(r), v)
+function wY_bits(r: regidx, v: regtype) -> unit = wY(regidx_to_regno(r), v)
 
-overload C = {rC_bits, wC_bits, rC, wC}
+overload Y = {rY_bits, wY_bits, rY, wY}
 
 /* mappings for assembly */
 

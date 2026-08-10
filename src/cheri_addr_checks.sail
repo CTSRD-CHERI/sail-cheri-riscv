@@ -126,7 +126,7 @@ type ext_data_addr_error = ExtDataErr
 val get_cheri_mode_cap_addr : (regidx, xlenbits) -> (Capability, virtaddr)
 function get_cheri_mode_cap_addr (base_reg : regidx, offset : xlenbits) =
   match effective_cheri_mode() {
-    CapPtrMode => (C(base_reg), virtaddr(C(base_reg).address + offset)),
+    CapPtrMode => (Y(base_reg), virtaddr(Y(base_reg).address + offset)),
     IntPtrMode => (ddc, virtaddr(X(base_reg) + offset)),
   }
 

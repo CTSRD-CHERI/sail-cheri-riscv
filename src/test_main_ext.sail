@@ -24,7 +24,7 @@ function test_cheri_xtval2() -> unit = {
 //  let addr : xlenbits = zero_extend(0x01234567);
 //  let src : regidx = Regidx(0b00100);
 //  let rd : regidx = Regidx(0b00011);
-//  C(src) = { null_cap with address = addr };
+//  Y(src) = { null_cap with address = addr };
 //  PCC = setCapMode(PCC, CapPtrMode);
 //  let ret = execute(LoadCapImm(rd, src, zeros()));
 //  assert (ret == RETIRE_FAIL);
@@ -67,20 +67,20 @@ function test_cheri_nofastrep () -> unit = {
     // Construct the cap
     let (exact, cap) = setCapBounds({infinite_cap with address = base}, base, top);
     assert(exact);
-    C(capR) = cap;
+    Y(capR) = cap;
     X(addrR) = addr;
     assert(execute(SCADDR(capR, capR, addrR)) == RETIRE_SUCCESS);
-    assert(C(capR).tag);
+    assert(Y(capR).tag);
     // Perform the CADDI that would detag the capability if the fast
     // representability check is being used.
     assert(execute(CADDI(outR, capR, increment)) == RETIRE_SUCCESS);
-    assert(C(outR).tag);
+    assert(Y(outR).tag);
     // Check that incrementing by one more does in fact detag the
     // cap, i.e. that if the fast representability check's assumption
     // of a carry were accurate, then the capability should be
     // detagged.
     assert(execute(CADDI(outR, capR, increment+1)) == RETIRE_SUCCESS);
-    assert(not(C(outR).tag));
+    assert(not(Y(outR).tag));
 }
 
 val test_cheri_zba_mode : (bitvector(32), regidx) -> unit
@@ -89,21 +89,21 @@ function test_cheri_zba_mode(instBits, resR) = {
     PCC = {setCapMode(PCC, IntPtrMode)};
     let ast = ext_decode(instBits);
     assert(execute(ast) == RETIRE_SUCCESS);
-    assert(not(C(resR).tag));
+    assert(not(Y(resR).tag));
     // Check that cap mode uses capability instructions
     PCC = {setCapMode(PCC, CapPtrMode)};
     let ast = ext_decode(instBits);
     assert(execute(ast) == RETIRE_SUCCESS);
-    assert(C(resR).tag)
+    assert(Y(resR).tag)
 }
 
 function test_cheri_zba() -> unit = {
     let capR : regidx = Regidx(0b00001);
     let indR : regidx = Regidx(0b00010);
     let resR : regidx = Regidx(0b00011);
-    C(capR) = infinite_cap;
+    Y(capR) = infinite_cap;
     X(indR) = to_bits(xlen, 1);
-    C(resR) = infinite_cap;
+    Y(resR) = infinite_cap;
     test_cheri_zba_mode(encdec(ZBA_RTYPE(capR, indR, resR, RISCV_SH1ADD)), resR);
     test_cheri_zba_mode(encdec(ZBA_RTYPE(capR, indR, resR, RISCV_SH2ADD)), resR);
     test_cheri_zba_mode(encdec(ZBA_RTYPE(capR, indR, resR, RISCV_SH3ADD)), resR);
@@ -117,7 +117,7 @@ function test_cheri_zba() -> unit = {
     }
 }
 
-// Verify that setting the bounds on C(capR) based on C(capR) and X(lenR)
+// Verify that setting the bounds on Y(capR) based on Y(capR) and X(lenR)
 // gives the expected result.
 function check_format(
     capR : regidx,
@@ -128,9 +128,9 @@ function check_format(
     aimLen : CapLenBits,
 ) -> unit = {
     assert(execute(SCBNDS(dstR, capR, lenR)) == RETIRE_SUCCESS);
-    assert(C(dstR).internal_exponent == aimIE);
-    assert(C(dstR).E == aimE);
-    assert(to_bits(cap_len_width, getCapLength(C(dstR))) == aimLen);
+    assert(Y(dstR).internal_exponent == aimIE);
+    assert(Y(dstR).E == aimE);
+    assert(to_bits(cap_len_width, getCapLength(Y(dstR))) == aimLen);
 }
 
 function test_cheri_l8() -> unit = {
@@ -138,7 +138,7 @@ function test_cheri_l8() -> unit = {
     let capR : regidx = Regidx(0b00001);
     let lenR : regidx = Regidx(0b00010);
     let dstR : regidx = Regidx(0b00011);
-    C(capR) = infinite_cap;
+    Y(capR) = infinite_cap;
     let impliedLen  = 0b00_1111_1111;
     X(lenR) = zero_extend(impliedLen);
     check_format(capR, lenR, dstR, 0, false, zero_extend(impliedLen));
@@ -196,19 +196,19 @@ function test_cheri_rounding() -> unit = {
     let capR : regidx = Regidx(0b00001);
     let lenR : regidx = Regidx(0b00010);
     let outR : regidx = Regidx(0b00011);
-    C(capR) = {infinite_cap with address = to_bits(xlen, 1)};
+    Y(capR) = {infinite_cap with address = to_bits(xlen, 1)};
     X(lenR) = 0b1 @ ones(sizeof(xlen - 2)) @ 0b1; // very unaligned
     // Check that SCBNDS is exact
     let _ = execute(SCBNDS(outR, capR, lenR));
-    assert(not(C(outR).tag));
+    assert(not(Y(outR).tag));
     // Check that SCBNDSR rounds
     let _ = execute(SCBNDSR(outR, capR, lenR));
-    assert(C(outR).tag);
+    assert(Y(outR).tag);
     // Check that SCBNDSI doesn't assert with max requested len
     let _ = execute(SCBNDSI(outR, capR, 0b0, ones()));
-    assert(C(outR).tag);
+    assert(Y(outR).tag);
     let _ = execute(SCBNDSI(outR, capR, 0b1, ones()));
-    assert(C(outR).tag);
+    assert(Y(outR).tag);
 }
 
 function test_cheri_permission_encoding() -> unit = {
@@ -223,10 +223,10 @@ function test_cheri_permission_encoding() -> unit = {
         let invalid = {null_cap with ap_m = 0b100010110};
         // We shouldn't be able to change the mode to CapPtrMode because X=0
         // so this should have no effect.
-        C(capR) = invalid;
+        Y(capR) = invalid;
         X(modeR) = zero_extend(execution_mode_encdec(CapPtrMode));
         assert(execute(SCMODE(dstR, capR, modeR)) == RETIRE_SUCCESS);
-        assert(C(dstR) == invalid)
+        assert(Y(dstR) == invalid)
     };
 
     // Test that clearing the X permission of a capability with M=1 (IntPtrMode)
@@ -277,11 +277,11 @@ function test_cheri_circular() -> unit = {
 
     // Write to low end of address space
     X(valR) = zeros(sizeof(xlen - 8)) @ 0xbe;
-    C(capR) = { infinite_cap with address = to_bits(xlen, 0) };
+    Y(capR) = { infinite_cap with address = to_bits(xlen, 0) };
     assert(execute(STORE(zeros(), valR, capR, BYTE, false, false)) == RETIRE_SUCCESS);
     // Write to high end of address space
     X(valR) = zeros(sizeof(xlen - 8)) @ 0xef;
-    C(capR) = { infinite_cap with address = to_bits(xlen, -1) };
+    Y(capR) = { infinite_cap with address = to_bits(xlen, -1) };
     assert(execute(STORE(zeros(), valR, capR, BYTE, false, false)) == RETIRE_SUCCESS);
     // Perform wrapping read
     assert(execute(LOAD(zeros(), capR, valR, true, HALF, false, false)) == RETIRE_SUCCESS);
@@ -293,25 +293,25 @@ function test_cheri_circular() -> unit = {
     let top = 0b1 @ zeros(sizeof(xlen)) + zero_extend(0x1000);
     let base = ones(sizeof(xlen)) - zero_extend(0x1000);
     let (_, capTest) = setCapBounds(infinite_cap, base, top);
-    C(capR) = { capTest with address = ones(sizeof(xlen)) };
+    Y(capR) = { capTest with address = ones(sizeof(xlen)) };
     assert(execute(LOAD(zeros(), capR, valR, true, HALF, false, false)) == RETIRE_FAIL);
     assert(mtval2[TYPE] == capchecktype_code(CapCheckType_Data));
     assert(mtval2[CAUSE] == capex_code(CapEx_LengthViolation));
 }
 
-function test_cheri_clen_csr() -> unit = {
+function test_cheri_ylen_csr() -> unit = {
     let csr : csreg = csr_name_map("mscratch");
     let (_, capTest) = setCapBounds(infinite_cap, zero_extend(0x00010000), zero_extend(0x00020000));
     let src : regidx = Regidx(0b00100);
     let dst : regidx = Regidx(0b00101);
     let tmp : regidx = Regidx(0b11000);
-    C(src) = capTest;
+    Y(src) = capTest;
     // ///////////////////////////////////////////
     PCC = {setCapMode(PCC, CapPtrMode)};
     let _ = handle_csr_op(csr, src, dst, false, CSRRW, true, false);
     let _ = handle_csr_op(csr, src, dst, false, CSRRW, false, true);
-    assert(C(src) == C(dst));
-    assert(C(dst) == capTest);
+    assert(Y(src) == Y(dst));
+    assert(Y(dst) == capTest);
     // ///////////////////////////////////////////
     let addr : xlenbits = zero_extend(0x00010111);
     X(tmp) = addr;
@@ -319,14 +319,14 @@ function test_cheri_clen_csr() -> unit = {
     let _ = handle_csr_op(csr, tmp, dst, false, CSRRW, true, false);
     PCC = {setCapMode(PCC, CapPtrMode)};
     let _ = handle_csr_op(csr, src, dst, false, CSRRW, false, true);
-    assert(C(dst) == {capTest with address = addr});
+    assert(Y(dst) == {capTest with address = addr});
     let addr2 : xlenbits = zero_extend(0x00070111);
     X(tmp) = addr2;
     PCC = {setCapMode(PCC, IntPtrMode)};
     let _ = handle_csr_op(csr, tmp, dst, false, CSRRW, true, false);
     PCC = {setCapMode(PCC, CapPtrMode)};
     let _ = handle_csr_op(csr, src, dst, false, CSRRW, false, true);
-    assert(C(dst) == {capTest with address = addr2, tag = false});
+    assert(Y(dst) == {capTest with address = addr2, tag = false});
 }
 
 function attempt_csr_access(priv : Privilege, asr : bool, op : csrop, csr : csreg, src : regidx, dst : regidx) -> Retired = {
@@ -336,7 +336,7 @@ function attempt_csr_access(priv : Privilege, asr : bool, op : csrop, csr : csre
 }
 
 function test_csr_access_priv_asr_rw(csr : string, priv : Privilege, asr : bool, write : bool, allowed : bool) -> unit = {
-    C(Regidx(0b00001)) = infinite_cap;
+    Y(Regidx(0b00001)) = infinite_cap;
     let src = if write then Regidx(0b00001) else zreg;
     let dst = if write then zreg else Regidx(0b00001);
     let op = if write then CSRRW else CSRRS;
@@ -393,14 +393,14 @@ function assert_behaviour(inCap : Capability,
                           outIsCap : bool,
                           outCap : Capability,
                           outBits : xlenbits) -> unit = {
-    C(capR) = inCap;
-    assert(C(capR).tag);
+    Y(capR) = inCap;
+    assert(Y(capR).tag);
     let ret = execute(instruction);
     match exc {
       None() => {
         assert(ret == RETIRE_SUCCESS);
         if outIsCap then
-          assert(C(outR) == outCap)
+          assert(Y(outR) == outCap)
         else
           assert(X(outR) == outBits);
       },
@@ -450,7 +450,7 @@ function test_cheri_malformed() -> unit = {
     // SCSS checks all the fields.
     let (_, zeroCapTagged) = setCapBounds({ null_cap with tag=true }, zeros(), zeros());
 
-    C(otherR) = zeroCapTagged;
+    Y(otherR) = zeroCapTagged;
     let instr = SCSS(outR, capR, otherR);
     assert_behaviour(badBoundsCap  , capR, outR, instr, None(), false, undefined, zeros());
     assert_behaviour(badPermsCap   , capR, outR, instr, None(), false, undefined, zeros());
@@ -464,7 +464,7 @@ function test_cheri_malformed() -> unit = {
     assert_behaviour(zeroCapTagged , capR, outR, instr, None(), false, undefined, zero_extend(0b1));
     assert_behaviour(infinite_cap  , capR, outR, instr, None(), false, undefined, zeros());
 
-    C(otherR) = infinite_cap;
+    Y(otherR) = infinite_cap;
     let instr = SCSS(outR, capR, otherR);
     assert_behaviour(badBoundsCap  , capR, outR, instr, None(), false, undefined, zeros());
     assert_behaviour(badPermsCap   , capR, outR, instr, None(), false, undefined, zeros());
@@ -485,13 +485,13 @@ function test_cheri_malformed() -> unit = {
     assert_behaviour(badReservedCap, capR, outR, instr, Some(CapEx_TagViolation)       , false, undefined, undefined);
 
     // CSR writes check all the fields
-    write_clen_csr(csr_name_map("ddc"), badBoundsCap);
+    write_ylen_csr(csr_name_map("ddc"), badBoundsCap);
     assert(not(ddc.tag));
-    write_clen_csr(csr_name_map("ddc"), badPermsCap);
+    write_ylen_csr(csr_name_map("ddc"), badPermsCap);
     assert(not(ddc.tag));
-    write_clen_csr(csr_name_map("ddc"), badReservedCap);
+    write_ylen_csr(csr_name_map("ddc"), badReservedCap);
     assert(not(ddc.tag));
-    write_clen_csr(csr_name_map("ddc"), infinite_cap);
+    write_ylen_csr(csr_name_map("ddc"), infinite_cap);
     assert(ddc.tag);
 }
 
@@ -506,23 +506,23 @@ function test_cheri_invalid_addr() -> unit = {
     let finiteR : regidx = Regidx(0b00010);
     let zeroR : regidx = Regidx(0b00000);
     // Attempt to jump to the invalid address with a capability jump
-    C(infiniteR) = {infinite_cap with address=invalidAddr};
-    C(finiteR) = {finite_cap with address=invalidAddr};
+    Y(infiniteR) = {infinite_cap with address=invalidAddr};
+    Y(finiteR) = {finite_cap with address=invalidAddr};
     assert(execute(JALR_capmode(zeros(), infiniteR, zeroR)) == RETIRE_SUCCESS);
     assert(execute(JALR_capmode(zeros(), finiteR  , zeroR)) == RETIRE_FAIL);
     assert(mtval2[TYPE] == capchecktype_code(CapCheckType_JBr));
     assert(mtval2[CAUSE] == capex_code(CapEx_InvalidAddressViolation));
     // Attempt to jump to the invalid address with an integer jump
-    PCC = C(infiniteR);
+    PCC = Y(infiniteR);
     assert(execute(RISCV_JALR(zeros(), finiteR, zeroR)) == RETIRE_SUCCESS);
-    PCC = C(finiteR);
+    PCC = Y(finiteR);
     assert(execute(RISCV_JALR(zeros(), finiteR, zeroR)) == RETIRE_FAIL);
     assert(mtval2[TYPE] == capchecktype_code(CapCheckType_JBr));
     assert(mtval2[CAUSE] == capex_code(CapEx_InvalidAddressViolation));
     // Attempt to load from the invalid address
-    ddc = C(infiniteR);
+    ddc = Y(infiniteR);
     assert(execute(LOAD(zeros(), finiteR, zeroR, true, BYTE, false, false)) == RETIRE_SUCCESS);
-    ddc = C(finiteR);
+    ddc = Y(finiteR);
     assert(execute(LOAD(zeros(), finiteR, zeroR, true, BYTE, false, false)) == RETIRE_FAIL);
     assert(mtval2[TYPE] == capchecktype_code(CapCheckType_Data));
     assert(mtval2[CAUSE] == capex_code(CapEx_InvalidAddressViolation));
@@ -537,8 +537,8 @@ function test_cheri_feature_enables(priv : Privilege, cheri_allowed : bool, expe
     // Capmode has expected tag-preserving behaviour
     let auipcEnc = encdec(UTYPE(0x00000, resR, RISCV_AUIPC));
     assert(execute(ext_decode(auipcEnc)) == RETIRE_SUCCESS);
-    assert(C(resR).tag == (expected_mode == CapPtrMode));
-    // Can access CLEN-width CSRs iff not prevented by some cre
+    assert(Y(resR).tag == (expected_mode == CapPtrMode));
+    // Can access YLEN-width CSRs iff not prevented by some cre
     assert(execute(CSR(ddcAddr, resR, resR, false, CSRRW)) == (if cheri_allowed then RETIRE_SUCCESS else RETIRE_FAIL));
     // Restore things, as above might have trapped!
     PCC = backupPCC;
@@ -600,7 +600,7 @@ function test_main_ext() -> unit = {
     test_cheri_rounding();
     test_cheri_permission_encoding();
     test_cheri_circular();
-    test_cheri_clen_csr();
+    test_cheri_ylen_csr();
     test_cheri_csr_access_control();
     test_cheri_malformed();
     test_cheri_invalid_addr();

@@ -7,7 +7,7 @@
 /*=======================================================================================*/
 
 // Width of capability in bytes (excluding tag).
-// TODO: Rename to clen_bytes and clen?
+// TODO: Rename to ylen_bytes and ylen?
 // TODO: Change root xlen to be in terms of the log2 bytes.
 type cap_size : Int = xlen_bytes * 2
 let  cap_size = sizeof(cap_size)

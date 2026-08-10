@@ -24,7 +24,7 @@ union clause ast = AUIPC_capmode : (bits(20), regidx)
 function clause execute AUIPC_capmode(imm, cd) = {
   let off : xlenbits = sign_extend(imm @ 0x000);
   let (representable, newCap) = setCapAddr(PCC, PC + off);
-  C(cd) = clearTagIf(newCap, not(representable));
+  Y(cd) = clearTagIf(newCap, not(representable));
   RETIRE_SUCCESS
 }
 
@@ -56,7 +56,7 @@ function clause execute(JAL_capmode(imm, cd)) = {
     let (success, linkCap) = setCapAddr(PCC, nextPC); /* Note that nextPC accounts for compressed instructions */
     assert(success, "Link cap should always be representable.");
     assert(not(capIsSealed(linkCap)), "Link cap should always be unsealed");
-    C(cd) = sealCap(linkCap);
+    Y(cd) = sealCap(linkCap);
     set_next_pc(newPC);
     RETIRE_SUCCESS
   }
@@ -78,7 +78,7 @@ union clause ast = JALR_capmode : (bits(12), regidx, regidx)
  * instruction following the jump is sealed and written to cd.
  */
 function clause execute(JALR_capmode(imm, cs1, cd)) = {
-  let cs1_val = C(cs1);
+  let cs1_val = Y(cs1);
 
   // Calculate new PC which may be offset from the capability address.
   let off : xlenbits = sign_extend(imm);
@@ -106,7 +106,7 @@ function clause execute(JALR_capmode(imm, cs1, cd)) = {
     let (success, linkCap) = setCapAddr(PCC, nextPC); /* Note that nextPC accounts for compressed instructions */
     assert(success, "Link cap should always be representable.");
     assert(not(capIsSealed(linkCap)), "Link cap should always be unsealed");
-    C(cd) = sealCap(linkCap);
+    Y(cd) = sealCap(linkCap);
     set_next_pc(newPC);
 
     // Construct the new capability pointing to the address + offset.
@@ -137,7 +137,7 @@ union clause ast = GCTYPE : (regidx, regidx)
  * See ISA document for full description
  */
 function clause execute (GCMODE(rd, cs1)) = {
-  let capVal = C(cs1);
+  let capVal = Y(cs1);
   X(rd) = zero_extend(execution_mode_encdec(getCapMode(capVal)));
   RETIRE_SUCCESS
 }
@@ -151,7 +151,7 @@ function clause execute (GCMODE(rd, cs1)) = {
  * See ISA document for full description
  */
 function clause execute (GCTYPE(rd, cs1)) = {
-  let capVal = C(cs1);
+  let capVal = Y(cs1);
   X(rd) = zero_extend(bool_to_bits(capVal.sealed));
   RETIRE_SUCCESS
 }
@@ -165,7 +165,7 @@ function clause execute (GCTYPE(rd, cs1)) = {
  * See ISA document for full description
  */
 function clause execute (GCPERM(rd, cs1)) = {
-  let capVal = C(cs1);
+  let capVal = Y(cs1);
   X(rd) = packPerms(getArchPermsLegalized(capVal), capVal.cl, capVal.sd_perms).bits;
   RETIRE_SUCCESS
 }
@@ -182,7 +182,7 @@ function clause execute (GCPERM(rd, cs1)) = {
  */
 
 function clause execute (GCBASE(rd, cs1)) = {
-  let capVal = C(cs1);
+  let capVal = Y(cs1);
   X(rd) = match getCapBoundsBits(capVal) {
     None() => zeros(),
     Some(base, _) => base
@@ -196,10 +196,10 @@ function clause execute (GCBASE(rd, cs1)) = {
  *
  * gchi rd, cs1
  *
- * Copy the metadata (bits [CLEN-1:MXLEN]) of capability cs1 into rd.
+ * Copy the metadata (bits [YLEN-1:MXLEN]) of capability cs1 into rd.
  */
 function clause execute (GCHI(rd, cs1)) = {
-  let capVal = C(cs1);
+  let capVal = Y(cs1);
   X(rd) = capToMetadataBits(capVal).bits;
   RETIRE_SUCCESS
 }
@@ -212,13 +212,13 @@ union clause ast = SCHI : (regidx, regidx, regidx)
  * schi cd, cs1, rs2
  *
  * Copy cs1  to cd , replace the capability metadata (i.e. bits
- * [CLEN-1:MXLEN]) with rs2  and set cd.tag to 0.
+ * [YLEN-1:MXLEN]) with rs2  and set cd.tag to 0.
  */
 function clause execute (SCHI(cd, cs1, rs2)) = {
-  let capVal = C(cs1);
+  let capVal = Y(cs1);
   let intVal = X(rs2);
   let newCap = bitsToCap(false, intVal @ capVal.address);
-  C(cd) = newCap;
+  Y(cd) = newCap;
   RETIRE_SUCCESS
 }
 
@@ -236,7 +236,7 @@ function clause execute (SCHI(cd, cs1, rs2)) = {
  * length of cs1 is 2^MXLEN^.
  */
 function clause execute (GCLEN(rd, cs1)) = {
-  let capVal = C(cs1);
+  let capVal = Y(cs1);
   // getCapLength returns 0 if the bounds are malformed
   let len = getCapLength(capVal);
   X(rd) = to_bits(xlen, if len > cap_max_addr then cap_max_addr else len);
@@ -252,7 +252,7 @@ function clause execute (GCLEN(rd, cs1)) = {
  * Zero extend the value of cs1.tag and write the result to rd.
  */
 function clause execute (GCTAG(rd, cs1)) = {
-  let capVal = C(cs1);
+  let capVal = Y(cs1);
   X(rd) = zero_extend(bool_to_bits(capVal.tag));
   RETIRE_SUCCESS
 }
@@ -267,7 +267,7 @@ union clause ast = ACPERM : (regidx, regidx, regidx)
  * See ISA document for full description
  */
 function clause execute(ACPERM(cd, cs1, rs2)) = {
-  let cs1_val = C(cs1);
+  let cs1_val = Y(cs1);
   let rs2_val = X(rs2);
 
   let cond = capIsSealed(cs1_val) | not(capReservedValid(cs1_val));
@@ -280,7 +280,7 @@ function clause execute(ACPERM(cd, cs1, rs2)) = {
   let (new_arch_perms, new_cl, new_sd_perms) = unpackPerms(struct {bits = new_perms});
   let newCap = { setArchPerms(inCap, new_arch_perms) with cl = new_cl, sd_perms = new_sd_perms };
 
-  C(cd) = newCap;
+  Y(cd) = newCap;
   RETIRE_SUCCESS
 }
 
@@ -298,14 +298,14 @@ union clause ast = SCMODE : (regidx, regidx, regidx)
  * . The existing permissions can be produced by ACPERM
  */
 function clause execute(SCMODE(cd, cs1, rs2)) = {
-  let cap = C(cs1);
+  let cap = Y(cs1);
   let mode = execution_mode_encdec(X(rs2)[0 .. 0]);
 
   let cap = clearTagIf(cap, capIsSealed(cap));
   let hasMode = not(permsMalformed(cap)) & canX(cap);
   let newCap = if hasMode then setCapMode(cap, mode) else cap;
 
-  C(cd) = newCap;
+  Y(cd) = newCap;
   RETIRE_SUCCESS
 }
 
@@ -355,12 +355,12 @@ union clause ast = CADD : (regidx, regidx, regidx)
  * For CADDI, the address is incremented by the immediate value imm.
  */
 function clause execute (CADD(cd, cs1, rs2)) = {
-  let cs1_val = C(cs1);
+  let cs1_val = Y(cs1);
   let rs2_val = X(rs2);
 
   let newCap = incCapAddrChecked(cs1_val, rs2_val);
 
-  C(cd) = newCap;
+  Y(cd) = newCap;
   RETIRE_SUCCESS
 }
 
@@ -381,12 +381,12 @@ union clause ast = CADDI : (regidx, regidx, bits(12))
  * For CADDI, the address is incremented by the immediate value imm.
  */
 function clause execute (CADDI(cd, cs1, imm)) = {
-  let cs1_val = C(cs1);
+  let cs1_val = Y(cs1);
   let immBits : xlenbits = sign_extend(imm);
 
   let newCap = incCapAddrChecked(cs1_val, immBits);
 
-  C(cd) = newCap;
+  Y(cd) = newCap;
   RETIRE_SUCCESS
 }
 
@@ -403,7 +403,7 @@ union clause ast = SCADDR : (regidx, regidx, regidx)
  * cs1 or if cs1 is sealed.
  */
 function clause execute (SCADDR(cd, cs1, rs2)) = {
-  C(cd) = setCapAddrChecked(C(cs1), X(rs2));
+  Y(cd) = setCapAddrChecked(Y(cs1), X(rs2));
   RETIRE_SUCCESS
 }
 
@@ -423,7 +423,7 @@ union clause ast = SCBNDSR : (regidx, regidx, regidx)
  * is 0 or cs1  is sealed.
  */
 function clause execute (SCBNDSR(cd, cs1, rs2)) = {
-  let cs1_val = C(cs1);
+  let cs1_val = Y(cs1);
   let length = X(rs2);
   let newBase = cs1_val.address;
   let newTop : CapLenBits = zero_extend(newBase) + zero_extend(length);
@@ -434,7 +434,7 @@ function clause execute (SCBNDSR(cd, cs1, rs2)) = {
              boundsMalformed(newCap) |
              not(capReservedValid(newCap)) |
              capIsSealed(newCap);
-  C(cd) = clearTagIf(newCap, cond);
+  Y(cd) = clearTagIf(newCap, cond);
   RETIRE_SUCCESS
 }
 
@@ -456,7 +456,7 @@ union clause ast = SCBNDSI : (regidx, regidx, bits(1), bits(5))
  * immediate = ZeroExtend(s ? uimm<<4 : uimm)
  */
 function clause execute (SCBNDSI(cd, cs1, s, uimm5)) = {
-  let cs1_val = C(cs1);
+  let cs1_val = Y(cs1);
   let length = if s == 0b1 then uimm5 @ 0b0000 else 0b0000 @ uimm5;
   let newBase = cs1_val.address;
   let newTop : CapLenBits = zero_extend(newBase) + zero_extend(length);
@@ -468,7 +468,7 @@ function clause execute (SCBNDSI(cd, cs1, s, uimm5)) = {
              boundsMalformed(newCap) |
              not(capReservedValid(newCap)) |
              capIsSealed(newCap);
-  C(cd) = clearTagIf(newCap, cond);
+  Y(cd) = clearTagIf(newCap, cond);
   RETIRE_SUCCESS
 }
 
@@ -490,7 +490,7 @@ union clause ast = SCBNDS : (regidx, regidx, regidx)
  * immediate = ZeroExtend(s ? uimm<<4 : uimm)
  */
 function clause execute (SCBNDS(cd, cs1, rs2)) = {
-  let cs1_val = C(cs1);
+  let cs1_val = Y(cs1);
   let length = X(rs2);
   let newBase = cs1_val.address;
   let newTop : CapLenBits = zero_extend(newBase) + zero_extend(length);
@@ -501,7 +501,7 @@ function clause execute (SCBNDS(cd, cs1, rs2)) = {
              boundsMalformed(newCap) |
              not(capReservedValid(newCap)) |
              capIsSealed(newCap);
-  C(cd) = clearTagIf(newCap, cond);
+  Y(cd) = clearTagIf(newCap, cond);
   RETIRE_SUCCESS
 }
 
@@ -516,7 +516,7 @@ union clause ast = CMV : (regidx, regidx)
  * register cd. CMV unconditionally moves the whole capability to cd .
  */
 function clause execute (CMV(cd, cs1)) = {
-  C(cd) = C(cs1);
+  Y(cd) = Y(cs1);
   RETIRE_SUCCESS
 }
 
@@ -544,15 +544,15 @@ union clause ast = CBLD : (regidx, regidx, regidx)
  * integer values.
  */
 function clause execute (CBLD(cd, cs1, cs2)) = {
-  let cs1_val = C(cs1);
-  let cs2_val = C(cs2);
+  let cs1_val = Y(cs1);
+  let cs2_val = Y(cs2);
 
   let tag = cs1_val.tag &
             not(capIsSealed(cs1_val)) &
             capIsSubset(cs2_val, cs1_val); /* Subset checks for malformed bounds,
                                               perms, and reserved bits */
 
-  C(cd) = { cs2_val with tag = tag };
+  Y(cd) = { cs2_val with tag = tag };
   RETIRE_SUCCESS
 }
 
@@ -590,8 +590,8 @@ union clause ast = SCSS : (regidx, regidx, regidx)
  * then the instruction returns zero.
  */
 function clause execute (SCSS(rd, cs1, cs2)) = {
-  let cs1_val = C(cs1);
-  let cs2_val = C(cs2);
+  let cs1_val = Y(cs1);
+  let cs2_val = Y(cs2);
 
   X(rd) = zero_extend(bool_bits(
     (cs1_val.tag == cs2_val.tag) &
@@ -609,12 +609,12 @@ union clause ast = SCEQ : (regidx, regidx, regidx)
  *
  * sceq rd, cs1, cs2
  *
- * rd is set to 1 if all bits (i.e. CLEN bits and the tag) of
+ * rd is set to 1 if all bits (i.e. YLEN bits and the tag) of
  * capabilities cs1 and cs2  are equal, otherwise rd is set to 0.
  */
 function clause execute (SCEQ(rd, cs1, cs2)) = {
-  let cs1_val = C(cs1);
-  let cs2_val = C(cs2);
+  let cs1_val = Y(cs1);
+  let cs2_val = Y(cs2);
   X(rd) = zero_extend(bool_to_bits(cs1_val == cs2_val));
   RETIRE_SUCCESS
 }
@@ -630,9 +630,9 @@ union clause ast = SENTRY : (regidx, regidx)
  * Attempting to seal an already sealed capability will lead to the tag of `cd` being set to 0.
  */
 function clause execute (SENTRY(cd, cs1)) = {
-  let cs1_val = C(cs1);
+  let cs1_val = Y(cs1);
   let inCap = clearTagIf(cs1_val, capIsSealed(cs1_val));
-  C(cd) = sealCap(inCap);
+  Y(cd) = sealCap(inCap);
   RETIRE_SUCCESS
 }
 
@@ -721,7 +721,7 @@ function clause execute (LoadResCap(cd, rs1_cs1, aq, rl)) = {
               } else {
                 load_reservation(physaddr_bits(addr));
                 let cr = clearTagIf(v, ext_ptw.tagged_load_behaviour == TaggedLoadClear | not(canC(auth_val)));
-                C(cd) = legalizeLoadedPermissions(cr, auth_val);
+                Y(cd) = legalizeLoadedPermissions(cr, auth_val);
                 RETIRE_SUCCESS
               }
             },
@@ -748,7 +748,7 @@ union clause ast = LoadCapImm : (regidx, regidx, bits(12))
  * lc cd, offset(rs1)
  *
  * Capability Pointer Mode:
- * Load a CLEN+1 bit value from memory and writes it to cd. The
+ * Load a YLEN+1 bit value from memory and writes it to cd. The
  * capability in cs1 authorizes the operation. The effective address of
  * the memory access is obtained by adding the address of cs1 to the
  * sign-extended 12-bit offset. The tag value written to cd is 0 if the
@@ -756,7 +756,7 @@ union clause ast = LoadCapImm : (regidx, regidx, bits(12))
  * C-permission.
  *
  * Integer Pointer Mode:
- * Loads a CLEN+1 bit value from memory and writes it to cd. The
+ * Loads a YLEN+1 bit value from memory and writes it to cd. The
  * capability authorising the operation is ddc. The effective address of
  * the memory access is obtained by adding rs1 to the sign-extended
  * 12-bit offset. The tag value written to cd is 0 if the tag of the
@@ -783,7 +783,7 @@ function clause execute LoadCapImm(cd, rs1_cs1, imm) = {
                 RETIRE_FAIL
               } else {
                 let cr = clearTagIf(v, ext_ptw.tagged_load_behaviour == TaggedLoadClear | not(canC(auth_val)));
-                C(cd) = legalizeLoadedPermissions(cr, auth_val);
+                Y(cd) = legalizeLoadedPermissions(cr, auth_val);
                 RETIRE_SUCCESS
               }
             },
@@ -810,14 +810,14 @@ union clause ast = StoreCapImm : (regidx, regidx, bits(12))
  * sc cs2, offset(rs1)
  *
  * Capability Pointer Mode:
- * Store the CLEN+1 bit value in cs2 to memory. The capability in cs1
+ * Store the YLEN+1 bit value in cs2 to memory. The capability in cs1
  * authorizes the operation. The effective address of the memory access
  * is obtained by adding the address of cs1 to the sign-extended 12-bit
  * offset. The capability written to memory has the tag set to 0 if the
  * tag of cs2 is 0 or cs1 does not grant C-permission.
  *
  * Integer Pointer Mode:
- * Store the CLEN+1 bit value in cs2 to memory. The capability
+ * Store the YLEN+1 bit value in cs2 to memory. The capability
  * authorising the operation is ddc. The effective address of the memory
  * access is obtained by adding rs1 to the sign-extended 12-bit offset.
  * The capability written to memory has the tag set to 0 if cs2's tag is
@@ -830,7 +830,7 @@ function clause execute StoreCapImm(cs2, rs1_cs1, imm) = {
   match cap_mem_standard_errors(auth_val, vaddr, Cap_Write) {
     Some(r) => r,
     None() => {
-      let cs2_val = C(cs2);
+      let cs2_val = Y(cs2);
       let cs2_val = clearTagIf(cs2_val, not(canC(auth_val)));
       let cs2_val = legalizeStoredPermissions(cs2_val, auth_val);
 
@@ -882,7 +882,7 @@ function clause execute StoreCondCap(rd, cs2, rs1_cs1, aq, rl) = {
   match cap_mem_standard_errors(auth_val, vaddr, Cap_Write) {
     Some(r) => r,
     None() => {
-      let cs2_val = C(cs2);
+      let cs2_val = Y(cs2);
       let cs2_val = clearTagIf(cs2_val, not(canC(auth_val)));
       let cs2_val = legalizeStoredPermissions(cs2_val, auth_val);
 
@@ -946,7 +946,7 @@ function clause execute AMOSwapCap(cd, cs2, rs1_cs1, aq, rl) = {
   match cap_mem_standard_errors(auth_val, vaddr, Cap_ReadWrite) {
     Some(r) => r,
     None() => {
-      let cs2_val = C(cs2);
+      let cs2_val = Y(cs2);
       let cs2_val = clearTagIf(cs2_val, not(canC(auth_val)));
       let cs2_val = legalizeStoredPermissions(cs2_val, auth_val);
 
@@ -965,7 +965,7 @@ function clause execute AMOSwapCap(cd, cs2, rs1_cs1, aq, rl) = {
                         RETIRE_FAIL
                       } else {
                         let cr = clearTagIf(v, ext_ptw.tagged_load_behaviour == TaggedLoadClear | not(canC(auth_val)));
-                        C(cd) = legalizeLoadedPermissions(cr, auth_val);
+                        Y(cd) = legalizeLoadedPermissions(cr, auth_val);
                         RETIRE_SUCCESS
                       }
                     },

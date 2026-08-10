@@ -1,46 +1,46 @@
 enum CSRLen = {
   // Standard RISC-V CSR
   Standard,
-  // XLEN CSR extended to CLEN
-  ClenExtended,
-  // New CLEN CSR
-  ClenNew,
+  // XLEN CSR extended to YLEN
+  YlenExtended,
+  // New YLEN CSR
+  YlenNew,
 }
 
 function csr_type(csr : csreg) -> CSRLen = match csr {
-  0x7b1 => ClenExtended, // dpcc
-  0x7b2 => ClenExtended, // dscratch0c
-  0x7b3 => ClenExtended, // dscratch1c
+  0x7b1 => YlenExtended, // dpcc
+  0x7b2 => YlenExtended, // dscratch0c
+  0x7b3 => YlenExtended, // dscratch1c
 
-  0x305 => ClenExtended, // mtvecc
-  0x340 => ClenExtended, // mscratchc
-  0x341 => ClenExtended, // mepcc
+  0x305 => YlenExtended, // mtvecc
+  0x340 => YlenExtended, // mscratchc
+  0x341 => YlenExtended, // mepcc
 
-  0x105 => ClenExtended, // stvecc
-  0x140 => ClenExtended, // sscratchc
-  0x141 => ClenExtended, // sepcc
+  0x105 => YlenExtended, // stvecc
+  0x140 => YlenExtended, // sscratchc
+  0x141 => YlenExtended, // sepcc
 
-  0x780 => ClenExtended, // mtidc
-  0x580 => ClenExtended, // stidc
-  0x480 => ClenExtended, // utidc
+  0x780 => YlenExtended, // mtidc
+  0x580 => YlenExtended, // stidc
+  0x480 => YlenExtended, // utidc
 
-  0x7bc => ClenNew, // dddc
-  0x7bd => ClenNew, // dinfc
+  0x7bc => YlenNew, // dddc
+  0x7bd => YlenNew, // dinfc
 
-  0x416 => ClenNew, // ddc
+  0x416 => YlenNew, // ddc
 
-  0x74c => ClenNew, // mtdc
-  0x163 => ClenNew, // stdc
+  0x74c => YlenNew, // mtdc
+  0x163 => YlenNew, // stdc
 
   _ => Standard,
 }
 
-// Return true if this is a CLEN-width CSR.
-function is_clen_csr(csr : csreg) -> bool = csr_type(csr) == ClenExtended | csr_type(csr) == ClenNew
+// Return true if this is a YLEN-width CSR.
+function is_ylen_csr(csr : csreg) -> bool = csr_type(csr) == YlenExtended | csr_type(csr) == YlenNew
 
-// Write a capability CSR (is_clen_csr(csr) is true) with a Capability.
+// Write a capability CSR (is_ylen_csr(csr) is true) with a Capability.
 // It may undergo invalid address conversion.
-function write_clen_csr(csr : csreg, value : Capability) -> unit = {
+function write_ylen_csr(csr : csreg, value : Capability) -> unit = {
   let stripTag = boundsMalformed(value) | permsMalformed(value) | not(capReservedValid(value));
   let value = { value with tag = value.tag & not(stripTag) };
   let res : Capability = match csr {
@@ -67,15 +67,15 @@ function write_clen_csr(csr : csreg, value : Capability) -> unit = {
     0x580 => {set_stidc(value); stidc},
     0x480 => {set_utidc(value); utidc},
 
-    _ => internal_error(__FILE__, __LINE__, "write_clen_csr for XLEN CSR; this should not be possible"),
+    _ => internal_error(__FILE__, __LINE__, "write_ylen_csr for XLEN CSR; this should not be possible"),
   };
   if   get_config_print_reg()
   then print_reg("CSR " ^ to_str(csr) ^ " <- " ^ capToString(res) ^ " (input: " ^ capToString(value) ^ ")")
 }
 
-// Write a capability CSR (is_clen_csr(csr) is true) with xlenbits.
+// Write a capability CSR (is_ylen_csr(csr) is true) with xlenbits.
 // It may undergo invalid address conversion, and the tag may be cleared.
-function write_clen_csr_with_xlen(csr : csreg, value : xlenbits) -> unit = {
+function write_ylen_csr_with_xlen(csr : csreg, value : xlenbits) -> unit = {
   let res : Capability = match csr {
     // 0x7b1 => {let _ = set_dpc(value); dpcc},
     // 0x7b2 => {let _ = set_dscratch0(value); dscratch0c},
@@ -100,15 +100,15 @@ function write_clen_csr_with_xlen(csr : csreg, value : xlenbits) -> unit = {
     0x580 => {set_stid(value); stidc},
     0x480 => {set_utid(value); utidc},
 
-    _ => internal_error(__FILE__, __LINE__, "write_clen_csr_with_xlen for XLEN CSR; this should not be possible"),
+    _ => internal_error(__FILE__, __LINE__, "write_ylen_csr_with_xlen for XLEN CSR; this should not be possible"),
   };
   if   get_config_print_reg()
   then print_reg("CSR " ^ to_str(csr) ^ " <- " ^ capToString(res) ^ " (input addr: " ^ BitStr(value) ^ ")")
 }
 
-// Read a capability CSR (is_clen_csr(csr) is true) returning the entire capability.
+// Read a capability CSR (is_ylen_csr(csr) is true) returning the entire capability.
 // The write_val is only required for xscratchcsw[l]c and xtvtscaddrc CLIC CSRs
-function read_clen_csr(csr : csreg, write_val : Capability) -> Capability = match csr {
+function read_ylen_csr(csr : csreg, write_val : Capability) -> Capability = match csr {
   // 0x7b1 => dpcc,
   // 0x7b2 => dscratch0c,
   // 0x7b3 => dscratch1c,
@@ -132,36 +132,36 @@ function read_clen_csr(csr : csreg, write_val : Capability) -> Capability = matc
   0x580 => stidc,
   0x480 => utidc,
 
-  _ => internal_error(__FILE__, __LINE__, "read_clen_csr for XLEN CSR; this should not be possible"),
+  _ => internal_error(__FILE__, __LINE__, "read_ylen_csr for XLEN CSR; this should not be possible"),
 }
 
-// Handle CSR ops for CHERI. This special cases CLEN-width CSRs and delegates
+// Handle CSR ops for CHERI. This special cases YLEN-width CSRs and delegates
 // all other CSRs to the default non-CHERI handler.
 function handle_csr_op(csr, rs1, rd, is_imm, op, isWrite, isRead) = {
-  if is_clen_csr(csr) then {
+  if is_ylen_csr(csr) then {
     // The only way to write metadata is with `csrrw`.
     // For extended CSRs, it also has to be in CapPtrMode mode.
     // Note `op == CSRRW` means `csrrw` or` csrrwi` which is why we also check `not(is_imm)`.
-    let clen_write = (effective_cheri_mode() == CapPtrMode | csr_type(csr) == ClenNew) & op == CSRRW & not(is_imm);
+    let ylen_write = (effective_cheri_mode() == CapPtrMode | csr_type(csr) == YlenNew) & op == CSRRW & not(is_imm);
     let write_val = if is_imm then {null_cap with address = zero_extend(regidx_bits(rs1))}
-      else if clen_write then C(rs1)
+      else if ylen_write then Y(rs1)
       else {null_cap with address = X(rs1)};
-    // Reads of CLEN registers are always CLEN.
-    let csr_val = if isRead then read_clen_csr(csr, write_val) else zero_reg;
+    // Reads of YLEN registers are always YLEN.
+    let csr_val = if isRead then read_ylen_csr(csr, write_val) else zero_reg;
     if isWrite then {
-      if clen_write then {
-        write_clen_csr(csr, write_val);
+      if ylen_write then {
+        write_ylen_csr(csr, write_val);
       } else {
         let new_val : xlenbits = match op {
           CSRRW => write_val.address,
           CSRRS => csr_val.address | write_val.address,
           CSRRC => csr_val.address & ~(write_val.address)
         };
-        write_clen_csr_with_xlen(csr, new_val);
+        write_ylen_csr_with_xlen(csr, new_val);
       };
     };
-    if effective_cheri_mode() == CapPtrMode | csr_type(csr) == ClenNew then {
-      C(rd) = csr_val;
+    if effective_cheri_mode() == CapPtrMode | csr_type(csr) == YlenNew then {
+      Y(rd) = csr_val;
     } else {
       X(rd) = csr_val.address;
     };
