@@ -43,13 +43,7 @@ union clause ast = JAL_capmode : (bits(21), regidx)
 function clause execute(JAL_capmode(imm, cd)) = {
   let off : xlenbits = sign_extend(imm);
   let newPC = PC + off;
-  if not(validAddr(newPC) | capBoundsInfinite(PCC)) then {
-    handle_cheri_exception(CapCheckType_JBr, CapEx_InvalidAddressViolation, virtaddr(zeros()));
-    RETIRE_FAIL
-  } else if not(inCapBounds(PCC, newPC, min_instruction_bytes())) then {
-    handle_cheri_exception(CapCheckType_JBr, CapEx_LengthViolation, virtaddr(zeros()));
-    RETIRE_FAIL
-  } else if newPC[1] == bitone & not(extensionEnabled(Ext_Zca)) then {
+  if newPC[1] == bitone & not(extensionEnabled(Ext_Zca)) then {
     handle_mem_exception(virtaddr(newPC), E_Fetch_Addr_Align());
     RETIRE_FAIL
   } else {
@@ -84,22 +78,7 @@ function clause execute(JALR_capmode(imm, cs1, cd)) = {
   let off : xlenbits = sign_extend(imm);
   let newPC = [cs1_val.address + off with 0 = bitzero]; /* clear bit zero as for RISCV JALR */
 
-  if not(capTaggedAndReservedValid(cs1_val)) then {
-    handle_cheri_exception(CapCheckType_JBr, CapEx_TagViolation, virtaddr(zeros()));
-    RETIRE_FAIL
-  } else if capIsSealed(cs1_val) & imm != zeros() then {
-    handle_cheri_exception(CapCheckType_JBr, CapEx_SealViolation, virtaddr(zeros()));
-    RETIRE_FAIL
-  } else if not(canX(cs1_val)) then {
-    handle_cheri_exception(CapCheckType_JBr, CapEx_PermissionViolation, virtaddr(zeros()));
-    RETIRE_FAIL
-  } else if not(validAddr(newPC) | capBoundsInfinite(cs1_val)) then {
-    handle_cheri_exception(CapCheckType_JBr, CapEx_InvalidAddressViolation, virtaddr(zeros()));
-    RETIRE_FAIL
-  } else if not(inCapBounds(cs1_val, newPC, min_instruction_bytes())) then {
-    handle_cheri_exception(CapCheckType_JBr, CapEx_LengthViolation, virtaddr(zeros()));
-    RETIRE_FAIL
-  } else if newPC[1] == bitone & not(extensionEnabled(Ext_Zca)) then {
+  if newPC[1] == bitone & not(extensionEnabled(Ext_Zca)) then {
     handle_mem_exception(virtaddr(newPC), E_Fetch_Addr_Align());
     RETIRE_FAIL
   } else {

@@ -49,19 +49,16 @@ mapping capex_name : CapEx <-> string = {
 enum CapCheckType = {
   CapCheckType_Inst,
   CapCheckType_Data,
-  CapCheckType_JBr,
 }
 
 mapping capchecktype_code : CapCheckType <-> bits(4) = {
   CapCheckType_Inst <-> 0x0,
   CapCheckType_Data <-> 0x1,
-  CapCheckType_JBr  <-> 0x2,
 }
 
 mapping capchecktype_name : CapCheckType <-> string = {
   CapCheckType_Inst <-> "InstructionAccessFault",
   CapCheckType_Data <-> "LdStAmoDataFault",
-  CapCheckType_JBr  <-> "JBrFault",
 }
 
 // Options for the M mode bit.

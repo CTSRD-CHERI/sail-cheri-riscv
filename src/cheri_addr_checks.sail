@@ -81,35 +81,6 @@ function ext_handle_fetch_check_error(err : ext_fetch_addr_error) -> unit = {
   handle_cheri_exception(CapCheckType_Inst, capEx, virtaddr(zeros()))
 }
 
-/* CHERI control address checks */
-
-type ext_control_addr_error = CapEx
-
-/* the control address is derived from a non-PC register, e.g. in JALR */
-function ext_control_check_addr(pc : xlenbits) -> Ext_ControlAddr_Check(ext_control_addr_error) = {
-  let target : xlenbits = [pc with 0=bitzero];
-
-  if      not(validAddr(target) | capBoundsInfinite(PCC))
-  then    Ext_ControlAddr_Error(CapEx_InvalidAddressViolation)
-  else if not(inCapBounds(PCC, target, min_instruction_bytes ()))
-  then    Ext_ControlAddr_Error(CapEx_LengthViolation)
-  else    Ext_ControlAddr_OK(virtaddr(target))
-}
-
-/* the control address is derived from the PC register, e.g. in JAL */
-function ext_control_check_pc(pc : xlenbits) -> Ext_ControlAddr_Check(ext_control_addr_error) = {
-  if      not(validAddr(pc) | capBoundsInfinite(PCC))
-  then    Ext_ControlAddr_Error(CapEx_InvalidAddressViolation)
-  else if not(inCapBounds(PCC, pc, min_instruction_bytes ()))
-  then    Ext_ControlAddr_Error(CapEx_LengthViolation)
-  else    Ext_ControlAddr_OK(virtaddr(pc))
-}
-
-function ext_handle_control_check_error(err : ext_control_addr_error) -> unit = {
-  let capEx = err;
-  handle_cheri_exception(CapCheckType_JBr, capEx, virtaddr(zeros()))
-}
-
 /* CHERI data address checks */
 
 struct ExtDataErr = {

@@ -509,16 +509,18 @@ function test_cheri_invalid_addr() -> unit = {
     Y(infiniteR) = {infinite_cap with address=invalidAddr};
     Y(finiteR) = {finite_cap with address=invalidAddr};
     assert(execute(JALR_capmode(zeros(), infiniteR, zeroR)) == RETIRE_SUCCESS);
-    assert(execute(JALR_capmode(zeros(), finiteR  , zeroR)) == RETIRE_FAIL);
-    assert(mtval2[TYPE] == capchecktype_code(CapCheckType_JBr));
-    assert(mtval2[CAUSE] == capex_code(CapEx_InvalidAddressViolation));
+    // Jump itself should retire
+    assert(execute(JALR_capmode(zeros(), finiteR  , zeroR)) == RETIRE_SUCCESS);
+    // Subsequent fetch must trap
+    tick_pc();
+    assert(fetch() == F_Ext_Error(CapEx_InvalidAddressViolation));
     // Attempt to jump to the invalid address with an integer jump
     PCC = Y(infiniteR);
     assert(execute(RISCV_JALR(zeros(), finiteR, zeroR)) == RETIRE_SUCCESS);
     PCC = Y(finiteR);
-    assert(execute(RISCV_JALR(zeros(), finiteR, zeroR)) == RETIRE_FAIL);
-    assert(mtval2[TYPE] == capchecktype_code(CapCheckType_JBr));
-    assert(mtval2[CAUSE] == capex_code(CapEx_InvalidAddressViolation));
+    // Subsequent fetch must trap
+    tick_pc();
+    assert(fetch() == F_Ext_Error(CapEx_InvalidAddressViolation));
     // Attempt to load from the invalid address
     ddc = Y(infiniteR);
     assert(execute(LOAD(zeros(), finiteR, zeroR, true, BYTE, false, false)) == RETIRE_SUCCESS);
@@ -581,6 +583,48 @@ function test_cheri_enables() -> unit = {
     test_cheri_mcre(false);
 }
 
+function test_cheri_oob_jump() -> unit = {
+    // Make a small cap
+    let (_, finite_cap) = setCapBounds(infinite_cap, zeros(), zero_extend(0x100));
+    let infiniteR : regidx = Regidx(0b00001);
+    let finiteR : regidx = Regidx(0b00010);
+    let zeroR : regidx = Regidx(0b00000);
+    let bigR : regidx = Regidx(0b00011);
+    // Attempt to jump in-bounds
+    Y(infiniteR) = infinite_cap;
+    Y(finiteR) = finite_cap;
+
+    // In-bounds cap jump
+    assert(execute(JALR_capmode(zeros(), infiniteR, zeroR)) == RETIRE_SUCCESS);
+    assert(execute(ITYPE (zeros(), zeroR, zeroR, RISCV_ADDI)) == RETIRE_SUCCESS);
+
+    // Out-of-bounds cap jump
+    // Jump itself should retire
+    assert(execute(JALR_capmode(0x200, finiteR, zeroR)) == RETIRE_SUCCESS);
+    // Subsequent fetch must trap
+    tick_pc();
+    assert(fetch() == F_Ext_Error(CapEx_LengthViolation));
+
+    // Attempt to jump out of PCC
+    PCC = finite_cap;
+    // Jump itself should retire
+    assert(execute(RISCV_JALR(0x200, zeroR, zeroR)) == RETIRE_SUCCESS);
+    // Subsequent fetch must trap
+    tick_pc();
+    assert(fetch() == F_Ext_Error(CapEx_LengthViolation));
+
+    // Jump so far it must make PCC unrepresentable
+    PCC = finite_cap;
+    X(bigR) = zero_extend(0x80000000);
+    // Jump itself should retire
+    assert(execute(RISCV_JALR(zeros(), bigR, zeroR)) == RETIRE_SUCCESS);
+    // Subsequent fetch must trap
+    tick_pc();
+    assert(fetch() == F_Ext_Error(CapEx_TagViolation));
+
+    PCC = infinite_cap;
+}
+
 function test_main_ext() -> unit = {
     // Enable CHERI
     set_mseccfg(update_CRE(mseccfg, 0b1).bits);
@@ -604,6 +648,7 @@ function test_main_ext() -> unit = {
     test_cheri_csr_access_control();
     test_cheri_malformed();
     test_cheri_invalid_addr();
+    test_cheri_oob_jump();
     //test_cheri_enables(); Disable while cheri enables hardwired high
     print("CHERI tests passed\n");
 }
