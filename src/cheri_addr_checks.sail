@@ -41,7 +41,7 @@ function cheri_fetch_addr_check(start_addr : xlenbits, addr : xlenbits, auth_cap
   else if start_addr == addr
   then {
     /* We need to perform the permission checks only for the first granule. */
-    if  capTaggedAndReservedValid(auth_cap) &
+    if  capTaggedAndNotMalformed(auth_cap) &
         not(capIsSealed(auth_cap)) &
         canX(auth_cap) &
         (validAddr(addr) | capBoundsInfinite(auth_cap)) &
@@ -113,7 +113,7 @@ function ext_data_get_addr(base_reg : regidx, offset : xlenbits, acc : AccessTyp
     _                 => (false, newAddr),
   };
 
-  if  capTaggedAndReservedValid(auth_val) &
+  if  capTaggedAndNotMalformed(auth_val) &
       not(capIsSealed(auth_val)) &
       have_rqd_load_perm &
       have_rqd_store_perm &

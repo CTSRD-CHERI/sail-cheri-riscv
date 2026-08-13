@@ -219,9 +219,22 @@ function boundsMalformed(cap : Capability) -> bool = {
   })
 }
 
+// A capability is malformed if it has a reserved permission encoding.
+function permsMalformed(cap : Capability) -> bool =
+  not(ap_m_encdec_forwards_matches(cap.ap_m))
+
+function capReservedValid(cap : Capability) -> bool =
+  (cap.reserved_0 == zeros()) & (cap.reserved_1 == zeros())
+
+function capIsMalformed(cap: Capability) -> bool =
+  not(capReservedValid(cap)) | permsMalformed(cap) | boundsMalformed(cap)
+
+function capTaggedAndNotMalformed(cap : Capability) -> bool =
+  cap.tag & not(capIsMalformed(cap))
+
 // Get the full cap bounds (base and top) as bit vectors.
 function getCapBoundsBits(c : Capability) -> option((CapAddrBits, CapLenBits)) = {
-  if boundsMalformed(c) then return None();
+  if capIsMalformed(c) then return None();
   let E = c.E;
   assert(E >= 0, "Cap is malformed if E<0");
 
@@ -349,14 +362,10 @@ function sealCap(cap : Capability) -> Capability =
 function unsealCap(cap : Capability) -> Capability =
   {cap with sealed=false}
 
-// A capability is malformed if it has a reserved permission encoding.
-function permsMalformed(cap : Capability) -> bool =
-  not(ap_m_encdec_forwards_matches(cap.ap_m))
-
 // Utility field functions.
 
 function getCapPermsAndMode(cap : Capability) -> option((ArchPerms, ExecutionMode)) =
-  if permsMalformed(cap) then None() else Some(ap_m_encdec(cap.ap_m))
+  if capIsMalformed(cap) then None() else Some(ap_m_encdec(cap.ap_m))
 
 function setCapPermsAndMode(cap : Capability, (perms, mode): (ArchPerms, ExecutionMode)) -> Capability =
   {cap with ap_m = ap_m_encdec(legalizePermsAndMode(perms, mode))}
@@ -504,12 +513,6 @@ function inCapBoundsNoWrap(cap : Capability, addr : CapAddrBits, size : CapLenIn
   }
 }
 
-function capReservedValid(cap : Capability) -> bool =
-  (cap.reserved_0 == zeros()) & (cap.reserved_1 == zeros())
-
-function capTaggedAndReservedValid(cap : Capability) -> bool =
-  cap.tag & capReservedValid(cap)
-
 // Return true if c0's bounds and permissions are a subset of c1's.
 function capIsSubset(c0 : Capability, c1 : Capability) -> bool = {
   let bounds_subset : bool = match (getCapBounds(c0), getCapBounds(c1)) {
@@ -619,7 +622,7 @@ function setCapAddr(c : Capability, addr : CapAddrBits) -> (bool, Capability) = 
 
 function setCapAddrChecked(c : Capability, addr : CapAddrBits) -> Capability = {
   let (representable, newCap) = setCapAddr(c, addr);
-  clearTagIf(newCap, not(representable) | capIsSealed(c) | not(capReservedValid(c)))
+  clearTagIf(newCap, not(representable) | capIsSealed(c) | capIsMalformed(c))
 }
 
 infix 1 >>_s

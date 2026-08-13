@@ -249,7 +249,7 @@ function clause execute(ACPERM(cd, cs1, rs2)) = {
   let cs1_val = Y(cs1);
   let rs2_val = X(rs2);
 
-  let cond = capIsSealed(cs1_val) | not(capReservedValid(cs1_val)) | permsMalformed(cs1_val);
+  let cond = capIsSealed(cs1_val) | capIsMalformed(cs1_val);
   let inCap = clearTagIf(cs1_val, cond);
 
   let old_perms = packPerms(getArchPermsLegalized(inCap), inCap.cl, inCap.sd_perms).bits;
@@ -410,8 +410,7 @@ function clause execute (SCBNDSR(cd, cs1, rs2)) = {
   let inBounds = inCapBoundsNoWrap(cs1_val, newBase, unsigned(length));
   let (_, newCap) : (bool, Capability) = setCapBounds(cs1_val, newBase, newTop);
   let cond = not(inBounds) |
-             boundsMalformed(newCap) |
-             not(capReservedValid(newCap)) |
+             capIsMalformed(newCap) |
              capIsSealed(newCap);
   Y(cd) = clearTagIf(newCap, cond);
   RETIRE_SUCCESS
@@ -444,8 +443,7 @@ function clause execute (SCBNDSI(cd, cs1, s, uimm5)) = {
   let (exact, newCap) : (bool, Capability) = setCapBounds(cs1_val, newBase, newTop);
   assert(exact, "SCBNDSI immediate too small for non-exact lengths");
   let cond = not(inBounds) |
-             boundsMalformed(newCap) |
-             not(capReservedValid(newCap)) |
+             capIsMalformed(newCap) |
              capIsSealed(newCap);
   Y(cd) = clearTagIf(newCap, cond);
   RETIRE_SUCCESS
@@ -477,8 +475,7 @@ function clause execute (SCBNDS(cd, cs1, rs2)) = {
   let inBounds = inCapBoundsNoWrap(cs1_val, newBase, unsigned(length));
   let (exact, newCap) : (bool, Capability) = setCapBounds(cs1_val, newBase, newTop);
   let cond = not(inBounds & exact) |
-             boundsMalformed(newCap) |
-             not(capReservedValid(newCap)) |
+             capIsMalformed(newCap) |
              capIsSealed(newCap);
   Y(cd) = clearTagIf(newCap, cond);
   RETIRE_SUCCESS
@@ -618,7 +615,7 @@ function clause execute (SENTRY(cd, cs1)) = {
 enum CapAccessType = { Cap_Read, Cap_Write, Cap_ReadWrite }
 
 function cap_mem_access_authorised(auth_val : Capability, virtaddr(vaddr) : virtaddr, acc_type : CapAccessType) -> bool = {
-  capTaggedAndReservedValid(auth_val) &
+  capTaggedAndNotMalformed(auth_val) &
   not(capIsSealed(auth_val)) &
   (match acc_type {
     Cap_Read => canR(auth_val),
