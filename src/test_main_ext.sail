@@ -557,6 +557,36 @@ function test_cheri_pcc_mode(priv : Privilege, cheri_allowed : bool) -> unit = {
     test_cheri_feature_enables(priv, cheri_allowed, if cheri_allowed then CapPtrMode else IntPtrMode);
 }
 
+function test_cheri_reserved_branches() -> unit = {
+    let instBitsBEQGood = encdec(BTYPE(zeros(), Regidx(0b00010), Regidx(0b00001), RISCV_BEQ));
+    let instBitsBEQBad = encdec(BTYPE(zeros(), Regidx(0b00001), Regidx(0b00010), RISCV_BEQ));
+    let instBitsBNEGood = encdec(BTYPE(zeros(), Regidx(0b00010), Regidx(0b00001), RISCV_BNE));
+    let instBitsBNEBad = encdec(BTYPE(zeros(), Regidx(0b00001), Regidx(0b00010), RISCV_BNE));
+    // Check that integer mode works with all branches
+    PCC = {setCapMode(PCC, IntPtrMode)};
+    let ast = ext_decode(instBitsBEQGood);
+    assert(execute(ast) == RETIRE_SUCCESS);
+    let ast = ext_decode(instBitsBEQBad);
+    assert(execute(ast) == RETIRE_SUCCESS);
+    let ast = ext_decode(instBitsBNEGood);
+    assert(execute(ast) == RETIRE_SUCCESS);
+    let ast = ext_decode(instBitsBNEBad);
+    assert(execute(ast) == RETIRE_SUCCESS);
+    // Check that cap mode allows the "good" instructions
+    PCC = {setCapMode(PCC, CapPtrMode)};
+    let ast = ext_decode(instBitsBEQGood);
+    assert(execute(ast) == RETIRE_SUCCESS);
+    let ast = ext_decode(instBitsBNEGood);
+    assert(execute(ast) == RETIRE_SUCCESS);
+    // Check that cap mode bans the "bad" instructions
+    let ast = ext_decode(instBitsBEQBad);
+    assert(execute(ast) == RETIRE_FAIL);
+    assert(mcause[Cause] == zero_extend(exceptionType_to_bits(E_Illegal_Instr())));
+    let ast = ext_decode(instBitsBNEBad);
+    assert(execute(ast) == RETIRE_FAIL);
+    assert(mcause[Cause] == zero_extend(exceptionType_to_bits(E_Illegal_Instr())));
+}
+
 function test_cheri_scre(cheri_allowed : bool) -> unit = {
     set_senvcfg(update_CRE(senvcfg, 0b1).bits);
     test_cheri_pcc_mode(User, cheri_allowed);
@@ -643,6 +673,7 @@ function test_main_ext() -> unit = {
     test_cheri_zba();
     test_cheri_l8();
     test_cheri_redundant();
+    test_cheri_reserved_branches();
     test_cheri_rounding();
     test_cheri_permission_encoding();
     test_cheri_circular();

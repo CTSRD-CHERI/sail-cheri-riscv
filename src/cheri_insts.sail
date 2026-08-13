@@ -97,6 +97,18 @@ function clause execute(JALR_capmode(imm, cs1, cd)) = {
   }
 }
 
+union clause ast = BEQ_reserved_capmode : (bits(13), regidx, regidx)
+function clause execute(BEQ_reserved_capmode(_, _, _)) = {
+  handle_illegal();
+  RETIRE_FAIL
+}
+
+union clause ast = BNE_reserved_capmode : (bits(13), regidx, regidx)
+function clause execute(BNE_reserved_capmode(_, _, _)) = {
+  handle_illegal();
+  RETIRE_FAIL
+}
+
 /* Operations that extract parts of a capability into GPR */
 
 union clause ast = GCPERM : (regidx, regidx)
@@ -1113,3 +1125,12 @@ mapping clause encdec_capmode = JAL_capmode(imm_19 @ imm_7_0 @ imm_8 @ imm_18_13
   <-> imm_19 : bits(1) @ imm_18_13 : bits(6) @ imm_12_9 : bits(4) @ imm_8 : bits(1) @ imm_7_0 : bits(8) @ encdec_reg(cd) @ 0b1101111
 mapping clause assembly = JAL_capmode(imm, cd)
   <-> "jal" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ hex_bits_21(imm)
+
+mapping clause encdec_capmode = BEQ_reserved_capmode(imm7_6 @ imm5_0 @ imm7_5_0 @ imm5_4_1 @ 0b0, rs2, rs1)                                 if encdec_reg(rs1) >=_u encdec_reg(rs2)
+  <-> imm7_6 : bits(1) @ imm7_5_0 : bits(6) @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b000 @ imm5_4_1 : bits(4) @ imm5_0 : bits(1) @ 0b1100011 if encdec_reg(rs1) >=_u encdec_reg(rs2)
+mapping clause assembly = BEQ_reserved_capmode (imm, rs1, rs2)
+  <-> "reserved (beq" ^ spc() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2) ^ sep() ^ hex_bits_signed_13(imm) ^ ")"
+mapping clause encdec_capmode = BNE_reserved_capmode(imm7_6 @ imm5_0 @ imm7_5_0 @ imm5_4_1 @ 0b0, rs2, rs1)                                 if encdec_reg(rs1) >=_u encdec_reg(rs2)
+  <-> imm7_6 : bits(1) @ imm7_5_0 : bits(6) @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b001 @ imm5_4_1 : bits(4) @ imm5_0 : bits(1) @ 0b1100011 if encdec_reg(rs1) >=_u encdec_reg(rs2)
+mapping clause assembly = BNE_reserved_capmode (imm, rs1, rs2)
+  <-> "reserved (bne" ^ spc() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2) ^ sep() ^ hex_bits_signed_13(imm) ^ ")"
