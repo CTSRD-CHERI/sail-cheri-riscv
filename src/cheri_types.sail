@@ -22,43 +22,24 @@ enum ClearRegSet = {
   FPRegs
 }
 
-enum CapEx = {
-  CapEx_TagViolation,
-  CapEx_SealViolation,
-  CapEx_PermissionViolation,
-  CapEx_InvalidAddressViolation,
-  CapEx_LengthViolation,
+enum CheriPageAccess = {
+  CheriPage_Ld,
+  CheriPage_St
 }
 
-mapping capex_code : CapEx <-> bits(4) = {
-  CapEx_TagViolation            <-> 0x0,
-  CapEx_SealViolation           <-> 0x1,
-  CapEx_PermissionViolation     <-> 0x2,
-  CapEx_InvalidAddressViolation <-> 0x3,
-  CapEx_LengthViolation         <-> 0x4,
-}
-
-mapping capex_name : CapEx <-> string = {
-  CapEx_TagViolation            <-> "TagViolation",
-  CapEx_SealViolation           <-> "SealViolation",
-  CapEx_PermissionViolation     <-> "PermissionViolation",
-  CapEx_InvalidAddressViolation <-> "InvalidAddressViolation",
-  CapEx_LengthViolation         <-> "LengthViolation",
-}
-
-enum CapCheckType = {
-  CapCheckType_Inst,
-  CapCheckType_Data,
-}
-
-mapping capchecktype_code : CapCheckType <-> bits(4) = {
-  CapCheckType_Inst <-> 0x0,
-  CapCheckType_Data <-> 0x1,
+union CapCheckType = {
+  CapCheckType_Inst : unit,
+  CapCheckType_Ld : unit,
+  CapCheckType_St : unit,
+  CapCheckType_Pte : CheriPageAccess,
 }
 
 mapping capchecktype_name : CapCheckType <-> string = {
-  CapCheckType_Inst <-> "InstructionAccessFault",
-  CapCheckType_Data <-> "LdStAmoDataFault",
+  CapCheckType_Inst() <-> "Instruction Access",
+  CapCheckType_Ld() <-> "Load Access",
+  CapCheckType_St() <-> "Store Access",
+  CapCheckType_Pte(CheriPage_Ld) <-> "Load Page",
+  CapCheckType_Pte(CheriPage_St) <-> "Store/Amo Page",
 }
 
 // Options for the M mode bit.

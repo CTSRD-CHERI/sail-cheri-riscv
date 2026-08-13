@@ -188,14 +188,3 @@ function set_senvcfg(v : xlenbits) -> unit = {
 function set_mseccfg(v : bits(64)) -> unit = {
   mseccfg = legalize_mseccfg(mseccfg, v);
 }
-
-/******************************* xtval2 ********************************/
-
-function legalize_tval2(o: Tval2, v: xlenbits) -> Tval2 = {
-  let v = Mk_Tval2(v);
-  [
-    o with
-    TYPE = v[TYPE],
-    CAUSE = v[CAUSE],
-  ]
-}

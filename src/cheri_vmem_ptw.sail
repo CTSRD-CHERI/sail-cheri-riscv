@@ -40,23 +40,29 @@ overload to_str = {ptw_error_to_str}
 
 // Convert translation/PTW failures into architectural exceptions
 function translationException(a : AccessType(ext_access_type),
-                              f : PTW_Error)
+                              f : PTW_Error,
+                              ext_ptw : ext_ptw)
                              -> ExceptionType = {
-  match (a, f) {
-    /* For other exceptions, Tagged and Data accesses fault in the same way. */
-    (ReadWrite(_, _), PTW_Access())                => E_SAMO_Access_Fault(),
-    (ReadWrite(_, _), _)                           => E_SAMO_Page_Fault(),
-    (Read(_), PTW_Access())                        => E_Load_Access_Fault(),
-    (Read(_), _)                                   => E_Load_Page_Fault(),
-    (Write(_), PTW_Access())                       => E_SAMO_Access_Fault(),
-    (Write(_), _)                                  => E_SAMO_Page_Fault(),
+  match (a, f, ext_ptw.cheri_page_fault) {
+    (ReadWrite(_, _), PTW_Access(), _)              => E_SAMO_Access_Fault(),
+    (ReadWrite(_, _), PTW_No_Permission(), Some(e)) => E_Extension(EXC_CHERI(CapCheckType_Pte(e))),
+    (ReadWrite(_, _), PTW_PTE_Update(), Some(e))    => E_Extension(EXC_CHERI(CapCheckType_Pte(e))),
+    (ReadWrite(_, _), _, _)                         => E_SAMO_Page_Fault(),
+    (Read(_), PTW_Access(), _)                      => E_Load_Access_Fault(),
+    (Read(_), PTW_No_Permission(), Some(e))         => E_Extension(EXC_CHERI(CapCheckType_Pte(e))),
+    (Read(_), PTW_PTE_Update(), Some(e))            => E_Extension(EXC_CHERI(CapCheckType_Pte(e))),
+    (Read(_), _, _)                                 => E_Load_Page_Fault(),
+    (Write(_), PTW_Access(), _)                     => E_SAMO_Access_Fault(),
+    (Write(_), PTW_No_Permission(), Some(e))        => E_Extension(EXC_CHERI(CapCheckType_Pte(e))),
+    (Write(_), PTW_PTE_Update(), Some(e))           => E_Extension(EXC_CHERI(CapCheckType_Pte(e))),
+    (Write(_), _, _)                                => E_SAMO_Page_Fault(),
 
-    (Execute(), PTW_Access())                      => E_Fetch_Access_Fault(),
-    (Execute(), _)                                 => E_Fetch_Page_Fault(),
+    (Execute(), PTW_Access(), _)                    => E_Fetch_Access_Fault(),
+    (Execute(), _, _)                               => E_Fetch_Page_Fault(),
 
-    (Cache(Zero), PTW_Access())                    => E_SAMO_Access_Fault(),
-    (Cache(Zero), _)                               => E_SAMO_Page_Fault(),
-    (Cache(_), _)                                  => internal_error(__FILE__, __LINE__,
+    (Cache(Zero), PTW_Access(), _)                  => E_SAMO_Access_Fault(),
+    (Cache(Zero), _, _)                             => E_SAMO_Page_Fault(),
+    (Cache(_), _, _)                                => internal_error(__FILE__, __LINE__,
                                                                      "Invalid CacheAccessType; Inval, Clean and Flush check Read/Write permissions.")
   }
 }

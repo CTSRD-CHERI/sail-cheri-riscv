@@ -15,10 +15,9 @@ function pte_permission_ok(
   ext     : option(PTE_Ext), // None() for Sv32.
   ext_ptw : ext_ptw,
 ) -> (bool, ext_ptw) = {
-  let non_cheri_page_fault = not(pte_rwxu_permission_ok(ac, priv, mxr, do_sum, pte)) |
-                             (not(plat_enable_dirty_update()) & ((pte[A] == 0b0) | (pte[D] == 0b0 & isWriteAc(ac))));
+  let non_cheri_page_fault = not(pte_rwxu_permission_ok(ac, priv, mxr, do_sum, pte));
 
-  var cheri_page_fault : bool = false;
+  var cheri_page_fault : option(CheriPageAccess) = None();
   var tagged_load_behaviour = TaggedLoadOk;
 
   // CHERI PTE features only supported on RV64.
@@ -27,7 +26,7 @@ function pte_permission_ok(
       if isTaggedWrite(ac) &
         ext[CW] == 0b0 &
         (ext[CRG] == 0b0 | not(plat_enable_dirty_update())) then {
-        cheri_page_fault = true;
+        cheri_page_fault = Some(CheriPage_St);
       } else if isTaggedRead(ac) then {
         match (ext[CW], ext[CRG]) {
           // Clear loaded tag.
@@ -37,7 +36,7 @@ function pte_permission_ok(
             if sys_cheri_pte_crg_exception_check_tag() then {
               tagged_load_behaviour = TaggedLoadTrap;
             } else {
-              cheri_page_fault = true;
+              cheri_page_fault = Some(CheriPage_Ld);
             }
           },
           (0b1, _) => (),
@@ -47,14 +46,12 @@ function pte_permission_ok(
     None() => (),
   };
 
-  let ext_ptw = { ext_ptw with tagged_load_behaviour = tagged_load_behaviour };
+  let ext_ptw = { ext_ptw with
+    tagged_load_behaviour = tagged_load_behaviour,
+    cheri_page_fault = cheri_page_fault
+  };
 
-  match (cheri_page_fault, non_cheri_page_fault) {
-    (true, true)   => (false, { ext_ptw with cheri_page_fault = PageFault_Both }),
-    (true, false)  => (false, { ext_ptw with cheri_page_fault = PageFault_Cheri }),
-    (false, true)  => (false, { ext_ptw with cheri_page_fault = PageFault_NonCheri }),
-    (false, false) => (true, ext_ptw),
-  }
+  (non_cheri_page_fault | (cheri_page_fault != None()), ext_ptw)
 }
 
 // Update a PTE's A/D bits and write it to memory. This returns
@@ -86,13 +83,13 @@ function update_pte forall 'pte_width, 'pte_width in {4, 8} . (
 ) -> (result(option(bits('pte_width * 8)), PTW_Error), ext_ptw) = {
   // Get the updated PTE, and the fault cause (if there turns out to
   // be one when we try to write it).
-  let (pte, fault_cause) : (bits('pte_width * 8), CheriPageFault) = match updated_pte_bits(pte, ac) {
+  let (pte, fault_cause) : (bits('pte_width * 8), option(CheriPageAccess)) = match updated_pte_bits(pte, ac) {
     Some(pte) => match updated_cheri_pte_bits(pte, ac) {
-      Some(pte) => (pte, PageFault_Both),
-      None() => (pte, PageFault_NonCheri),
+      Some(pte) => (pte, Some(CheriPage_St)),
+      None() => (pte, None()),
     },
     None() => match updated_cheri_pte_bits(pte, ac) {
-      Some(pte) => (pte, PageFault_Cheri),
+      Some(pte) => (pte, Some(CheriPage_St)),
       None() => return (Ok(None()), ext_ptw), // No updates needed.
     },
   };

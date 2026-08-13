@@ -8,42 +8,21 @@
 
 /* CHERI exception model */
 
-// Extra exception info passed to handle_trap_extension. We use this
-// to store the mtval2 value.
-type ext_exception = Tval2
-
-mapping cheri_page_fault_code : CheriPageFault <-> bits(4) = {
-  PageFault_NonCheri <-> 0x0,
-  PageFault_Cheri <-> 0x1,
-  PageFault_Both <-> 0x2,
-}
-
-// Translate PTW extra information into extra exception information (passed
-// to handle_trap_extension()).
-function ext_ptw_exception_info(ext_ptw : ext_ptw) -> ext_exception =
-  Mk_Tval2(zero_extend(cheri_page_fault_code(ext_ptw.cheri_page_fault)))
+// Extra exception info passed to handle_trap_extension
+type ext_exception = CapCheckType
 
 // * When a trap is taken into X-mode, Xepcc is written with the pcc including the virtual
 //   address of the instruction that was interrupted or that encountered an exception.
-// * When a CHERI fault, or CHERI PTE page fault, is taken, Xtval2 is written
-//   with additional CHERI-specific exception information; Xtval2 is written
-//   to zero for all other exceptions (except hypervisor which isn't supported yet).
 //
-function handle_trap_extension(p : Privilege, pc : xlenbits, ext : option(Tval2)) -> unit = {
+function handle_trap_extension(p : Privilege, pc : xlenbits) -> unit = {
   if not(debug_mode_active) then {
     let (_, newXepcc) = setCapAddr(PCC, pc);
-    let xtval2 : Tval2 = match ext {
-      Some(value) => value,
-      None() => Mk_Tval2(zeros()),
-    };
     match p {
       Machine => {
         set_mepcc(newXepcc);
-        mtval2 = xtval2;
       },
       Supervisor => {
         set_sepcc(newXepcc);
-        stval2 = xtval2;
       },
       User => internal_error(__FILE__, __LINE__, "N extension not supported"),
     }

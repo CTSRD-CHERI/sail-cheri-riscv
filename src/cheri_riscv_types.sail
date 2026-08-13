@@ -28,51 +28,37 @@ enum TaggedLoadBehaviour = {
   TaggedLoadClear,
 }
 
-enum CheriPageFault = {
-  PageFault_NonCheri,
-  PageFault_Cheri,
-  PageFault_Both,
-}
-
 // Returned on success and failure from translateAddr().
 struct ext_ptw = {
   // Behaviour to apply when tagged capabilities are loaded
   // and we know if they are tagged or not.
   tagged_load_behaviour : TaggedLoadBehaviour,
-  // Was there a cheri page fault (or both?). This is used
-  // to set mtval2.
-  cheri_page_fault : CheriPageFault,
+  // Was there a cheri page fault
+  cheri_page_fault : option(CheriPageAccess),
 }
 
 let init_ext_ptw : ext_ptw = struct {
   tagged_load_behaviour = TaggedLoadOk,
-  cheri_page_fault = PageFault_NonCheri,
+  cheri_page_fault = None(),
 }
 
 /* CHERI exception extensions */
 
 // Extended exception type in main code - used in `ExceptionType::E_Extension`
-// There's only one exception code for CHERI exceptions so we need
-// no additional information here. This could be `unit` but the code
-// is a little clearer with a single entry enum.
-$[no_enum_number_conversions]
-enum ext_exc_type = {
-  EXC_CHERI,
+union ext_exc_type = {
+  EXC_CHERI : CapCheckType
 }
-
-// Convert exception code to extended exception type.
-val ext_exc_type_to_bits : ext_exc_type -> exc_code
-function ext_exc_type_to_bits(e) =
-  match e {
-    EXC_CHERI => 0x1c,
-  }
 
 // Convert from the exception code to the extended
 // exception type.
 val ext_exc_type_of_bits : exc_code -> ext_exc_type
 function ext_exc_type_of_bits(e) =
   match e {
-    0x1c => EXC_CHERI,
+    0x20 => EXC_CHERI (CapCheckType_Inst()),
+    0x21 => EXC_CHERI (CapCheckType_Ld()),
+    0x22 => EXC_CHERI (CapCheckType_St()),
+    0x23 => EXC_CHERI (CapCheckType_Pte(CheriPage_Ld)),
+    0x24 => EXC_CHERI (CapCheckType_Pte(CheriPage_St)),
     _ => internal_error(__FILE__, __LINE__, "unknown exception type")
   }
 
@@ -80,15 +66,25 @@ function ext_exc_type_of_bits(e) =
 val num_of_ext_exc_type : ext_exc_type -> range(0, xlen - 1)
 function num_of_ext_exc_type(e) =
   match e {
-    EXC_CHERI => 28,
+    EXC_CHERI(CapCheckType_Inst()) => 32,
+    EXC_CHERI(CapCheckType_Ld()) => 33,
+    EXC_CHERI(CapCheckType_St()) => 34,
+    EXC_CHERI(CapCheckType_Pte(CheriPage_Ld)) => 35,
+    EXC_CHERI(CapCheckType_Pte(CheriPage_St)) => 36,
   }
+
+// Convert exception code to extended exception type.
+val ext_exc_type_to_bits : ext_exc_type -> exc_code
+function ext_exc_type_to_bits(e) =
+  to_bits(8, num_of_ext_exc_type(e))
 
 /* CHERI conversion of extension exceptions to strings */
 val ext_exc_type_to_str : ext_exc_type -> string
 function ext_exc_type_to_str(e) =
   match e {
-    EXC_CHERI => "cheri",
+    EXC_CHERI (checkType) => "CHERI " ^ capchecktype_name(checkType) ^ " fault",
   }
 
 /* CHERI fetch address checks */
-type ext_fetch_addr_error = CapEx
+
+type ext_fetch_addr_error = unit

@@ -29,9 +29,6 @@ register mtdc      : Capability = null_cap
 register mscratchc : Capability = null_cap
 register mepcc     : Capability
 
-register mtval2    : Tval2
-register stval2    : Tval2
-
 /* Cheri pcc helpers */
 
 // Return the minimum number of bytes in an instruction supported
