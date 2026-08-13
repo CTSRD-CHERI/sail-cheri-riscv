@@ -440,12 +440,12 @@ function test_cheri_malformed() -> unit = {
     assert_behaviour(badPermsCap   , capR, outR, instr, None(), true, badPermsCap                     , undefined);
     assert_behaviour(badReservedCap, capR, outR, instr, None(), true, {badReservedCap with tag=false} , undefined);
 
-    // ACPERM legalises the *perms*
+    // ACPERM legalises the *perms*. Clears tag if malformed
     let instr = ACPERM(outR, capR, otherR);
     X(otherR) = ones();
-    assert_behaviour(badBoundsCap  , capR, outR, instr, None(), true, badBoundsCap                     , undefined);
-    assert_behaviour(badPermsCap   , capR, outR, instr, None(), true, {badPermsCap with ap_m = zeros()}, undefined);
-    assert_behaviour(badReservedCap, capR, outR, instr, None(), true, {badReservedCap with tag=false}  , undefined);
+    assert_behaviour(badBoundsCap  , capR, outR, instr, None(), true, badBoundsCap                                 , undefined);
+    assert_behaviour(badPermsCap   , capR, outR, instr, None(), true, {badPermsCap with ap_m = zeros(), tag=false} , undefined);
+    assert_behaviour(badReservedCap, capR, outR, instr, None(), true, {badReservedCap with tag=false}              , undefined);
 
     // SCSS checks all the fields.
     let (_, zeroCapTagged) = setCapBounds({ null_cap with tag=true }, zeros(), zeros());

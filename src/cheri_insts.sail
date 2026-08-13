@@ -249,7 +249,7 @@ function clause execute(ACPERM(cd, cs1, rs2)) = {
   let cs1_val = Y(cs1);
   let rs2_val = X(rs2);
 
-  let cond = capIsSealed(cs1_val) | not(capReservedValid(cs1_val));
+  let cond = capIsSealed(cs1_val) | not(capReservedValid(cs1_val)) | permsMalformed(cs1_val);
   let inCap = clearTagIf(cs1_val, cond);
 
   let old_perms = packPerms(getArchPermsLegalized(inCap), inCap.cl, inCap.sd_perms).bits;
