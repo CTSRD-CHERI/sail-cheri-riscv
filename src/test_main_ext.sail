@@ -20,6 +20,34 @@ function test_cheri_fault() -> unit = {
     // TODO test PTE exceptions
 }
 
+function assert_illegal_cause() -> unit = {
+    assert(mcause[Cause] == zero_extend(exceptionType_to_bits(E_Illegal_Instr())))
+}
+
+function try_system_insts(pccCap : Capability, allowed : bool) -> unit = {
+    let expected = if allowed then RETIRE_SUCCESS else RETIRE_FAIL;
+    PCC = pccCap;
+    set_cur_privilege(Machine);
+    assert(execute(MRET()) == expected);
+    if not(allowed) then assert_illegal_cause();
+    PCC = pccCap;
+    set_cur_privilege(Machine);
+    assert(execute(SRET()) == expected);
+    if not(allowed) then assert_illegal_cause();
+    if extensionEnabled(Ext_Zicbom) then {
+        PCC = pccCap;
+        set_cur_privilege(Machine);
+        assert(execute(RISCV_ZICBOM(CBO_INVAL, Regidx(0b00000))) == expected);
+        if not(allowed) then assert_illegal_cause();
+    }
+}
+
+function test_cheri_system_faults() -> unit = {
+    ddc = infinite_cap;
+    try_system_insts(infinite_cap, true);
+    try_system_insts(setArchPerms(infinite_cap, {getArchPermsLegalized(infinite_cap) with ASR=false}), false);
+}
+
 //function test_cheri_sdtrig() -> unit = {
 //  set_cur_privilege(Machine);
 //  assert (not(debug_mode_active));
@@ -581,10 +609,10 @@ function test_cheri_reserved_branches() -> unit = {
     // Check that cap mode bans the "bad" instructions
     let ast = ext_decode(instBitsBEQBad);
     assert(execute(ast) == RETIRE_FAIL);
-    assert(mcause[Cause] == zero_extend(exceptionType_to_bits(E_Illegal_Instr())));
+    assert_illegal_cause();
     let ast = ext_decode(instBitsBNEBad);
     assert(execute(ast) == RETIRE_FAIL);
-    assert(mcause[Cause] == zero_extend(exceptionType_to_bits(E_Illegal_Instr())));
+    assert_illegal_cause();
 }
 
 function test_cheri_scre(cheri_allowed : bool) -> unit = {
@@ -669,6 +697,7 @@ function test_main_ext() -> unit = {
     test_cheri_cap_encoding();
     test_cheri_cram();
     test_cheri_fault();
+    test_cheri_system_faults();
     test_cheri_nofastrep();
     test_cheri_zba();
     test_cheri_l8();

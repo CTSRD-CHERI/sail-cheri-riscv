@@ -137,14 +137,10 @@ function ext_check_phys_mem_read (access_type, paddr, size, aquire, release, res
 function ext_check_phys_mem_write(write_kind, paddr, size, data, metadata) =
   Ext_PhysAddr_OK()
 
-/* Is XRET from given mode permitted by extension? */
-function ext_check_xret_priv (p : Privilege) : Privilege -> bool = {
+/* Are 'dangerous' operations (XRET, cbo.inval) permitted by extension? */
+function ext_check_system_priv () -> bool = {
   pcc_access_system_regs()
 }
-
-/* Called if above check fails */
-function ext_fail_xret_priv () : unit -> unit =
-  handle_cheri_exception(CapCheckType_Inst(), virtaddr(zeros()))
 
 /* Require ASR on any CSR that is not "unprivileged", i.e. accessible from U mode
   The exception for this is Zstid CSRs which always require ASR on writes and never require
