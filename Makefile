@@ -49,6 +49,8 @@ SAIL_DEFAULT_INST = $(SAIL_RISCV_MODEL_DIR)/riscv_insts_base.sail \
                     $(SAIL_CHERI_MODEL_DIR)/cheri_insts.sail \
                     $(SAIL_CHERI_MODEL_DIR)/cheri_insts_cext.sail \
                     $(SAIL_CHERI_MODEL_DIR)/cheri_insts_zba.sail \
+                    $(SAIL_RISCV_MODEL_DIR)/riscv_insts_zicbom.sail \
+                    $(SAIL_RISCV_MODEL_DIR)/riscv_insts_zicboz.sail \
                     $(SAIL_CHERI_MODEL_DIR)/cheri_insts_end.sail
 SAIL_SEQ_INST  = $(SAIL_DEFAULT_INST) $(SAIL_RISCV_MODEL_DIR)/riscv_jalr_seq.sail
 SAIL_RMEM_INST = $(SAIL_DEFAULT_INST) $(SAIL_RISCV_MODEL_DIR)/riscv_jalr_rmem.sail $(SAIL_RISCV_MODEL_DIR)/riscv_insts_rmem.sail
