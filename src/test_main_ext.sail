@@ -5,7 +5,7 @@ function test_cheri_cap_encoding() -> unit = {
     assert(capToMetadataBits(null_cap).bits == zeros(), "null capability doesn't encode to zeros");
 }
 
-function test_cheri_cram() -> unit = {
+function test_cheri_yram() -> unit = {
     // Check the mask for 0 length is all ones.
     assert(getRepresentableAlignmentMask(zeros()) == ones());
 }
@@ -99,17 +99,17 @@ function test_cheri_nofastrep () -> unit = {
     assert(exact);
     Y(capR) = cap;
     X(addrR) = addr;
-    assert(execute(SCADDR(capR, capR, addrR)) == RETIRE_SUCCESS);
+    assert(execute(YWADDR(capR, capR, addrR)) == RETIRE_SUCCESS);
     assert(Y(capR).tag);
-    // Perform the CADDI that would detag the capability if the fast
+    // Perform the ADDIY that would detag the capability if the fast
     // representability check is being used.
-    assert(execute(CADDI(outR, capR, increment)) == RETIRE_SUCCESS);
+    assert(execute(ADDIY(outR, capR, increment)) == RETIRE_SUCCESS);
     assert(Y(outR).tag);
     // Check that incrementing by one more does in fact detag the
     // cap, i.e. that if the fast representability check's assumption
     // of a carry were accurate, then the capability should be
     // detagged.
-    assert(execute(CADDI(outR, capR, increment+1)) == RETIRE_SUCCESS);
+    assert(execute(ADDIY(outR, capR, increment+1)) == RETIRE_SUCCESS);
     assert(not(Y(outR).tag));
 }
 
@@ -157,7 +157,7 @@ function check_format(
     aimIE : bool,
     aimLen : CapLenBits,
 ) -> unit = {
-    assert(execute(SCBNDS(dstR, capR, lenR)) == RETIRE_SUCCESS);
+    assert(execute(YWBNDS(dstR, capR, lenR)) == RETIRE_SUCCESS);
     assert(Y(dstR).internal_exponent == aimIE);
     assert(Y(dstR).E == aimE);
     assert(to_bits(cap_len_width, getCapLength(Y(dstR))) == aimLen);
@@ -228,21 +228,21 @@ function test_cheri_rounding() -> unit = {
     let outR : regidx = Regidx(0b00011);
     Y(capR) = {infinite_cap with address = to_bits(xlen, 1)};
     X(lenR) = 0b1 @ ones(sizeof(xlen - 2)) @ 0b1; // very unaligned
-    // Check that SCBNDS is exact
-    let _ = execute(SCBNDS(outR, capR, lenR));
+    // Check that YWBNDS is exact
+    let _ = execute(YWBNDS(outR, capR, lenR));
     assert(not(Y(outR).tag));
-    // Check that SCBNDSR rounds
-    let _ = execute(SCBNDSR(outR, capR, lenR));
+    // Check that YWBNDSR rounds
+    let _ = execute(YWBNDSR(outR, capR, lenR));
     assert(Y(outR).tag);
-    // Check that SCBNDSI doesn't assert with max requested len
-    let _ = execute(SCBNDSI(outR, capR, 0b0, ones()));
+    // Check that YWBNDSI doesn't assert with max requested len
+    let _ = execute(YWBNDSI(outR, capR, 0b0, ones()));
     assert(Y(outR).tag);
-    let _ = execute(SCBNDSI(outR, capR, 0b1, ones()));
+    let _ = execute(YWBNDSI(outR, capR, 0b1, ones()));
     assert(Y(outR).tag);
 }
 
 function test_cheri_permission_encoding() -> unit = {
-    // Verify that SCMODE doesn't affect other permissions bits even if they have
+    // Verify that YWMODE doesn't affect other permissions bits even if they have
     // malformed permissions.
     let capR : regidx = Regidx(0b00001);
     let modeR : regidx = Regidx(0b00010);
@@ -255,7 +255,7 @@ function test_cheri_permission_encoding() -> unit = {
         // so this should have no effect.
         Y(capR) = invalid;
         X(modeR) = zero_extend(execution_mode_encdec(CapPtrMode));
-        assert(execute(SCMODE(dstR, capR, modeR)) == RETIRE_SUCCESS);
+        assert(execute(YWMODE(dstR, capR, modeR)) == RETIRE_SUCCESS);
         assert(Y(dstR) == invalid)
     };
 
@@ -453,39 +453,39 @@ function test_cheri_malformed() -> unit = {
     let otherR : regidx = Regidx(0b00010);
     let outR : regidx = Regidx(0b00011);
 
-    // Instructions like CMV that don't touch the fields should leave the bits untouched.
-    let instr = CMV(outR, capR);
+    // Instructions like YMV that don't touch the fields should leave the bits untouched.
+    let instr = YMV(outR, capR);
     assert_behaviour(badBoundsCap  , capR, outR, instr, None(), true, badBoundsCap  , undefined);
     assert_behaviour(badPermsCap   , capR, outR, instr, None(), true, badPermsCap   , undefined);
     assert_behaviour(badReservedCap, capR, outR, instr, None(), true, badReservedCap, undefined);
 
     // Instructions that do a representability check should clear on any malformed fields
-    // Do an SCADDR to zero (all input caps have address zero, so this will otherwise pass
+    // Do an YWADDR to zero (all input caps have address zero, so this will otherwise pass
     // the input through.
-    let instr = SCADDR(outR, capR, otherR);
+    let instr = YWADDR(outR, capR, otherR);
     X(otherR) = zeros();
     assert_behaviour(badBoundsCap  , capR, outR, instr, None(), true, {badBoundsCap with tag=false}   , undefined);
     assert_behaviour(badPermsCap   , capR, outR, instr, None(), true, {badPermsCap with tag=false}    , undefined);
     assert_behaviour(badReservedCap, capR, outR, instr, None(), true, {badReservedCap with tag=false} , undefined);
 
-    // ACPERM legalises the *perms*. Clears tag if any fields malformed
-    let instr = ACPERM(outR, capR, otherR);
+    // YWPERM legalises the *perms*. Clears tag if any fields malformed
+    let instr = YWPERM(outR, capR, otherR);
     X(otherR) = ones();
     assert_behaviour(badBoundsCap  , capR, outR, instr, None(), true, {badBoundsCap with ap_m = zeros(), tag=false}   , undefined);
     assert_behaviour(badPermsCap   , capR, outR, instr, None(), true, {badPermsCap with ap_m = zeros(), tag=false}    , undefined);
     assert_behaviour(badReservedCap, capR, outR, instr, None(), true, {badReservedCap with ap_m = zeros(), tag=false} , undefined);
 
-    // SCSS checks all the fields.
+    // YLT checks all the fields.
     let (_, zeroCapTagged) = setCapBounds({ null_cap with tag=true }, zeros(), zeros());
 
     Y(otherR) = zeroCapTagged;
-    let instr = SCSS(outR, capR, otherR);
+    let instr = YLT(outR, capR, otherR);
     assert_behaviour(badBoundsCap  , capR, outR, instr, None(), false, undefined, zeros());
     assert_behaviour(badPermsCap   , capR, outR, instr, None(), false, undefined, zeros());
     assert_behaviour(badReservedCap, capR, outR, instr, None(), false, undefined, zeros());
     assert_behaviour(zeroCapTagged , capR, outR, instr, None(), false, undefined, zero_extend(0b1));
     assert_behaviour(infinite_cap  , capR, outR, instr, None(), false, undefined, zero_extend(0b1));
-    let instr = SCSS(outR, otherR, capR);
+    let instr = YLT(outR, otherR, capR);
     assert_behaviour(badBoundsCap  , capR, outR, instr, None(), false, undefined, zeros());
     assert_behaviour(badPermsCap   , capR, outR, instr, None(), false, undefined, zeros());
     assert_behaviour(badReservedCap, capR, outR, instr, None(), false, undefined, zeros());
@@ -493,13 +493,13 @@ function test_cheri_malformed() -> unit = {
     assert_behaviour(infinite_cap  , capR, outR, instr, None(), false, undefined, zeros());
 
     Y(otherR) = infinite_cap;
-    let instr = SCSS(outR, capR, otherR);
+    let instr = YLT(outR, capR, otherR);
     assert_behaviour(badBoundsCap  , capR, outR, instr, None(), false, undefined, zeros());
     assert_behaviour(badPermsCap   , capR, outR, instr, None(), false, undefined, zeros());
     assert_behaviour(badReservedCap, capR, outR, instr, None(), false, undefined, zeros());
     assert_behaviour(zeroCapTagged , capR, outR, instr, None(), false, undefined, zeros());
     assert_behaviour(infinite_cap  , capR, outR, instr, None(), false, undefined, zero_extend(0b1));
-    let instr = SCSS(outR, otherR, capR);
+    let instr = YLT(outR, otherR, capR);
     assert_behaviour(badBoundsCap  , capR, outR, instr, None(), false, undefined, zeros());
     assert_behaviour(badPermsCap   , capR, outR, instr, None(), false, undefined, zeros());
     assert_behaviour(badReservedCap, capR, outR, instr, None(), false, undefined, zeros());
@@ -574,7 +574,7 @@ function test_cheri_feature_enables(priv : Privilege, cheri_allowed : bool, expe
     set_cur_privilege(priv);
     // CHERI-only mode-independent instructions are allowed iff not prevented by some cre
     let resR = regidx_bits(resR);
-    let instEnc = 0b0001000 @ 0b00001 @ resR @ 0b000 @ resR @ 0b0110011; // gcperm manually encoded as encdec depends on mode!
+    let instEnc = 0b0001000 @ 0b00001 @ resR @ 0b000 @ resR @ 0b0110011; // yrperm manually encoded as encdec depends on mode!
     assert(execute(ext_decode(instEnc)) == (if cheri_allowed then RETIRE_SUCCESS else RETIRE_FAIL));
 }
 
@@ -695,7 +695,7 @@ function test_main_ext() -> unit = {
     debug_mode_active = false;
 
     test_cheri_cap_encoding();
-    test_cheri_cram();
+    test_cheri_yram();
     test_cheri_fault();
     test_cheri_system_faults();
     test_cheri_nofastrep();

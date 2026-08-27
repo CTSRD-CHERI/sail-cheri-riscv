@@ -68,7 +68,7 @@ type CapAP_M = bits(5)
 
 // 32-bit permission encoding/decoding, converting between the the encoded bits compressed into the capability
 // and the architectural fields.
-// Forwards match failures mean bit permissions have been directly changed e.g. with SCHI. These should be
+// Forwards match failures mean bit permissions have been directly changed e.g. with YWHI. These should be
 // checked for outside the function, and the null fields returned.
 // Backwards match failures occur when encoding an unrepresentable combination of fields: this should be
 // prevented by calling legalizeFields when changing the fields.
@@ -97,7 +97,7 @@ mapping ap_m_encdec : bits(cap_AP_M_width) <-> (ArchPerms, ExecutionMode) = {
 let null_ap_m     = 0b00000
 let infinite_ap_m = 0b01001
 
-// Perform the XLEN-specific ACPERMS legalization.
+// Perform the XLEN-specific YWPERM legalization.
 function legalizePermsAndMode(perms : ArchPerms, mode : ExecutionMode) -> (ArchPerms, ExecutionMode) = {
   let perms = if perms.R & perms.W & perms.X & perms.ASR & perms.C & perms.LM & perms.EL & perms.SL then perms else {perms with ASR=false};
   let perms = if perms.R | perms.W then perms else {perms with C=false};

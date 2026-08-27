@@ -139,62 +139,62 @@ function clause execute(C_SYSP(cs2, uimm)) =
   execute(StoreCapImm(cs2, sp, zero_extend(uimm)))
 
 /* Capability arithmetic instructions */
-union clause ast = C_ADDI16SP_capmode : (bits(10))
+union clause ast = C_ADDYI16SP : (bits(10))
 
 // This instruction is only available in capability encoding mode.
 // This instruction replaces the encoding of [C.ADDI16SP].
-mapping clause encdec_compressed_capmode = C_ADDI16SP_capmode(nzi9 @ nzi87 @ nzi6 @ nzi5 @ nzi4 @ 0b0000)
+mapping clause encdec_compressed_capmode = C_ADDYI16SP(nzi9 @ nzi87 @ nzi6 @ nzi5 @ nzi4 @ 0b0000)
       if nzi9 @ nzi87 @ nzi6 @ nzi5 @ nzi4 != 0b000000
   <-> 0b011 @ nzi9 : bits(1) @ /* x2 */ 0b00010 @ nzi4 : bits(1) @ nzi6 : bits(1) @ nzi87 : bits(2) @ nzi5 : bits(1) @ 0b01
       if nzi9 @ nzi87 @ nzi6 @ nzi5 @ nzi4 != 0b000000
-mapping clause assembly = C_ADDI16SP_capmode(nzimm) if nzimm != 0b0000000000
-  <-> "c.addi16sp" ^ spc() ^ hex_bits_10(nzimm)     if nzimm != 0b0000000000
+mapping clause assembly = C_ADDYI16SP(nzimm)     if nzimm != 0b0000000000
+  <-> "c.addyi16sp" ^ spc() ^ hex_bits_10(nzimm) if nzimm != 0b0000000000
 
 /*!
- * insnref: addi16sp_16bit capmode
- * Stack pointer increment in blocks of 16 (C.ADDI16SP), 16-bit encodings
+ * insnref: addyi16sp_16bit capmode
+ * Stack pointer increment in blocks of 16 (C.ADDYI16SP), 16-bit encodings
  *
- * c.addi16sp imm
+ * c.addyi16sp imm
  *
  * Expansion:
- * cadd csp, csp, imm
+ * addy csp, csp, imm
  *
  * Add the non-zero sign-extended 6-bit immediate to the value in the
  * stack pointer (csp=c2), where the immediate is scaled to represent
  * multiples of 16 in the range (-512,496). Clear the tag if the
  * resulting capability is unrepresentable or csp is sealed.
  */
-function clause execute(C_ADDI16SP_capmode(nzimm)) =
-  execute(CADDI(sp, sp, sign_extend(nzimm)))
+function clause execute(C_ADDYI16SP(nzimm)) =
+  execute(ADDIY(sp, sp, sign_extend(nzimm)))
 
-union clause ast = C_ADDI4SPN_capmode : (cregidx, bits(10))
+union clause ast = C_ADDYI4SPN : (cregidx, bits(10))
 
 // This instruction is only available in capability encoding mode.
 // This instruction replaces the encoding of [C.ADDI4SPN].
-mapping clause encdec_compressed_capmode = C_ADDI4SPN_capmode(cdc, nz96 @ nz54 @ nz3 @ nz2 @ 0b00)
+mapping clause encdec_compressed_capmode = C_ADDYI4SPN(cdc, nz96 @ nz54 @ nz3 @ nz2 @ 0b00)
       if nz96 @ nz54 @ nz3 @ nz2 != 0b00000000
   <-> 0b000 @ nz54 : bits(2) @ nz96 : bits(4) @ nz2 : bits(1) @ nz3 : bits(1) @ encdec_creg(cdc) @ 0b00
       if nz96 @ nz54 @ nz3 @ nz2 != 0b00000000
-mapping clause assembly = C_ADDI4SPN_capmode(cdc, nzuimm)                     if nzuimm != 0b0000000000
-  <-> "c.addi4spn" ^ spc() ^ cap_creg_name(cdc) ^ sep() ^ hex_bits_10(nzuimm) if nzuimm != 0b0000000000
+mapping clause assembly = C_ADDYI4SPN(cdc, nzuimm)                             if nzuimm != 0b0000000000
+  <-> "c.addyi4spn" ^ spc() ^ cap_creg_name(cdc) ^ sep() ^ hex_bits_10(nzuimm) if nzuimm != 0b0000000000
 
 /*!
- * insnref: addi4spn_16bit capmode
- * Stack pointer increment in blocks of 4 (C.ADDI4SPN), 16-bit encoding
+ * insnref: addyi4spn_16bit capmode
+ * Stack pointer increment in blocks of 4 (C.ADDYI4SPN), 16-bit encoding
  *
- * c.addi4spn cd', uimm
+ * c.addyi4spn cd', uimm
  *
  * Expansion:
- * cadd cd', csp, uimm
+ * addy cd', csp, uimm
  *
  * Add a zero-extended non-zero immediate, scaled by 4, to the stack
  * pointer, csp, and writes the result to cd'. This instruction is used
  * to generate pointers to stack-allocated variables. Clear the tag if
  * the resulting capability is unrepresentable or csp is sealed.
  */
-function clause execute(C_ADDI4SPN_capmode(cdc, nzuimm)) = {
+function clause execute(C_ADDYI4SPN(cdc, nzuimm)) = {
   let cd = creg2reg_idx(cdc) in
-  execute(CADDI(cd, sp, zero_extend(nzuimm)))
+  execute(ADDIY(cd, sp, zero_extend(nzuimm)))
 }
 
 /* Control flow */
@@ -265,29 +265,29 @@ mapping clause assembly = C_JAL_capmode(imm) if xlen == 32
  */
 function clause execute(C_JAL_capmode(imm)) = execute(JAL_capmode(sign_extend(imm), ra))
 
-union clause ast = C_MV_capmode : (regidx, regidx)
+union clause ast = C_YMV : (regidx, regidx)
 
 // This instruction is only available in capability encoding mode.
 // This instruction replaces the encoding of [C.MV].
-mapping clause encdec_compressed_capmode = C_MV_capmode(cd, cs2)
+mapping clause encdec_compressed_capmode = C_YMV(cd, cs2)
   if cd != zreg & cs2 != zreg
     <-> 0b100 @ 0b0 @ encdec_reg(cd) @ encdec_reg(cs2) @ 0b10
   if cd != zreg & cs2 != zreg
 
 /*!
- * insnref: cmv_16bit capmode
+ * insnref: ymv_16bit capmode
  * Capability move (C.MV), 16-bit encoding
  *
- * c.mv cd, cs2
+ * c.ymv cd, cs2
  *
  * Expansion:
- * cmv cd, cs2
+ * ymv cd, cs2
  *
  * Capability register cd is replaced with the contents of cs2.
  */
-function clause execute(C_MV_capmode(cd, cs2)) = execute(CMV(cd, cs2))
+function clause execute(C_YMV(cd, cs2)) = execute(YMV(cd, cs2))
 
-mapping clause assembly = C_MV_capmode(cd, cs2)
+mapping clause assembly = C_YMV(cd, cs2)
   if cd != zreg & cs2 != zreg
-    <-> "c.mv" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs2)
+    <-> "c.ymv" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs2)
   if cd != zreg & cs2 != zreg
