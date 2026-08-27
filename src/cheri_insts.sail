@@ -90,8 +90,7 @@ function clause execute(JALR_capmode(imm, cs1, cd)) = {
 
     // Construct the new capability pointing to the address + offset.
     let (representable, newPCC) = setCapAddr(cs1_val, newPC);
-    assert(representable, "If bounds checks passed then new PCC must be representable");
-    set_next_pcc(unsealCap(newPCC));
+    set_next_pcc(clearTagIf(unsealCap(newPCC), not(representable)));
 
     RETIRE_SUCCESS
   }
