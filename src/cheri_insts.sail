@@ -663,13 +663,13 @@ function cap_mem_standard_errors(auth_val : Capability, vaddr : virtaddr, acc_ty
 union clause ast = LoadResCap : (regidx, regidx, bool, bool)
 /*
  * insnref: load_res_cap_32bit modedep
- * Load Reserved Capability (LR.C), 32-bit encodings
+ * Load Reserved Capability (LR.Y), 32-bit encodings
  *
  * Capability Pointer Mode:
- * lr.c cd, 0(cs1)
+ * lr.y cd, 0(cs1)
  *
  * Integer Pointer Mode:
- * lr.c cd, 0(rs1)
+ * lr.y cd, 0(rs1)
  *
  * Capability Pointer Mode:
  * Load reserved instructions, authorised by the capability in cs1. All
@@ -722,10 +722,10 @@ union clause ast = LoadCapImm : (regidx, regidx, bits(12))
  * Load capability
  *
  * Capability Pointer Mode:
- * lc cd, offset(cs1)
+ * ly cd, offset(cs1)
  *
  * Integer Pointer Mode:
- * lc cd, offset(rs1)
+ * ly cd, offset(rs1)
  *
  * Capability Pointer Mode:
  * Load a YLEN+1 bit value from memory and writes it to cd. The
@@ -784,10 +784,10 @@ union clause ast = StoreCapImm : (regidx, regidx, bits(12))
  * Store capability
  *
  * Capability Pointer Mode:
- * sc cs2, offset(cs1)
+ * sy cs2, offset(cs1)
  *
  * Integer Pointer Mode:
- * sc cs2, offset(rs1)
+ * sy cs2, offset(rs1)
  *
  * Capability Pointer Mode:
  * Store the YLEN+1 bit value in cs2 to memory. The capability in cs1
@@ -838,13 +838,13 @@ function clause execute StoreCapImm(cs2, rs1_cs1, imm) = {
 union clause ast = StoreCondCap : (regidx, regidx, regidx, bool, bool)
 /*!
  * insnref: store_cond_cap_32bit modedep
- * Store Conditional (SC.C), 32-bit encoding
+ * Store Conditional (SC.Y), 32-bit encoding
  *
  * Capability Pointer Mode:
- * sc.c rd, cs2, 0(cs1)
+ * sc.y rd, cs2, 0(cs1)
  *
  * Integer Pointer Mode:
- * sc.c rd, cs2, 0(rs1)
+ * sc.y rd, cs2, 0(rs1)
  *
  * Capability Pointer Mode:
  * Store conditional instructions, authorised by the capability in cs1.
@@ -906,13 +906,13 @@ function clause execute StoreCondCap(rd, cs2, rs1_cs1, aq, rl) = {
 union clause ast = AMOSwapCap : (regidx, regidx, regidx, bool, bool)
 /*!
  * insnref: amoswap_32bit_cap modedep
- * Atomic Operation (AMOSWAP.C), 32-bit encoding
+ * Atomic Operation (AMOSWAP.Y), 32-bit encoding
  *
  * Capability Pointer Mode:
- * amoswap.c cd, cs2, offset(cs1)
+ * amoswap.y cd, cs2, offset(cs1)
  *
  * Integer Pointer Mode:
- * amoswap.c cd, cs2, offset(rs1)
+ * amoswap.y cd, cs2, offset(rs1)
  *
  * Capability Pointer Mode:
  * Atomic swap of capability type, authorised by the capability in cs1.
@@ -1071,27 +1071,27 @@ mapping clause assembly = SCBNDSI(cd, cs1, 0b1, uimm5) <-> "scbndsi" ^ spc() ^ c
 let haveRV128 = xlen >= 128
 let haveRV64  = xlen >= 64
 
-mapping clause encdec = LoadCapImm(cd, rs1, offset)                 if cheri_registers_enabled()  /* lc */
+mapping clause encdec = LoadCapImm(cd, rs1, offset)                 if cheri_registers_enabled()  /* ly */
   <-> offset @ encdec_reg(rs1) @ 0b100 @ encdec_reg(cd) @ 0b0001111 if cheri_registers_enabled()
 
 mapping clause encdec = StoreCapImm(cs2, rs1, off7 @ off5)                                    if cheri_registers_enabled()
-  <-> off7 : bits(7) @ encdec_reg(cs2) @ encdec_reg(rs1) @ 0b100 @ off5 : bits(5) @ 0b0100011 if cheri_registers_enabled() /* sc */
+  <-> off7 : bits(7) @ encdec_reg(cs2) @ encdec_reg(rs1) @ 0b100 @ off5 : bits(5) @ 0b0100011 if cheri_registers_enabled() /* sy */
 
-mapping clause assembly = LoadCapImm(cd, rs1, offset)   <-> "lc" ^ spc() ^ cap_reg_name(cd)  ^ sep() ^ hex_bits_12(offset) ^ opt_spc() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
-mapping clause assembly = StoreCapImm(cs2, rs1, offset) <-> "sc" ^ spc() ^ cap_reg_name(cs2) ^ sep() ^ hex_bits_12(offset) ^ opt_spc() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
+mapping clause assembly = LoadCapImm(cd, rs1, offset)   <-> "ly" ^ spc() ^ cap_reg_name(cd)  ^ sep() ^ hex_bits_12(offset) ^ opt_spc() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
+mapping clause assembly = StoreCapImm(cs2, rs1, offset) <-> "sy" ^ spc() ^ cap_reg_name(cs2) ^ sep() ^ hex_bits_12(offset) ^ opt_spc() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
 
 mapping clause encdec = LoadResCap(cd, rs1, aq, rl)                                                            if cheri_registers_enabled() & extensionEnabled(Ext_Zalrsc)
-  <-> 0b00010 @ bool_bits(aq) @ bool_bits(rl) @ 0b00000 @ encdec_reg(rs1) @ 0b100 @ encdec_reg(cd) @ 0b0101111 if cheri_registers_enabled() & extensionEnabled(Ext_Zalrsc) /* lr.c */
+  <-> 0b00010 @ bool_bits(aq) @ bool_bits(rl) @ 0b00000 @ encdec_reg(rs1) @ 0b100 @ encdec_reg(cd) @ 0b0101111 if cheri_registers_enabled() & extensionEnabled(Ext_Zalrsc) /* lr.y */
 
 mapping clause encdec = StoreCondCap(rd, cs2, rs1, aq, rl)                                                             if cheri_registers_enabled() & extensionEnabled(Ext_Zalrsc)
-  <-> 0b00011 @ bool_bits(aq) @ bool_bits(rl) @ encdec_reg(cs2) @ encdec_reg(rs1) @ 0b100 @ encdec_reg(rd) @ 0b0101111 if cheri_registers_enabled() & extensionEnabled(Ext_Zalrsc) /* sc.c */
+  <-> 0b00011 @ bool_bits(aq) @ bool_bits(rl) @ encdec_reg(cs2) @ encdec_reg(rs1) @ 0b100 @ encdec_reg(rd) @ 0b0101111 if cheri_registers_enabled() & extensionEnabled(Ext_Zalrsc) /* sc.y */
 
 mapping clause encdec = AMOSwapCap(cd, cs2, rs1, aq, rl)                                                               if cheri_registers_enabled() & extensionEnabled(Ext_Zaamo)
-  <-> 0b00001 @ bool_bits(aq) @ bool_bits(rl) @ encdec_reg(cs2) @ encdec_reg(rs1) @ 0b100 @ encdec_reg(cd) @ 0b0101111 if cheri_registers_enabled() & extensionEnabled(Ext_Zaamo) /* amoswap.c */
+  <-> 0b00001 @ bool_bits(aq) @ bool_bits(rl) @ encdec_reg(cs2) @ encdec_reg(rs1) @ 0b100 @ encdec_reg(cd) @ 0b0101111 if cheri_registers_enabled() & extensionEnabled(Ext_Zaamo) /* amoswap.y */
 
-mapping clause assembly = LoadResCap(cd, rs1, aq, rl)        <-> "lr.c"      ^ maybe_aq(aq) ^ maybe_rl(rl) ^ spc() ^ cap_reg_name(cd) ^ sep() ^ reg_name(rs1)
-mapping clause assembly = StoreCondCap(rd, cs2, rs1, aq, rl) <-> "sc.c"      ^ maybe_aq(aq) ^ maybe_rl(rl) ^ spc() ^ reg_name(rd)     ^ sep() ^ cap_reg_name(cs2) ^ sep() ^ reg_name(rs1)
-mapping clause assembly = AMOSwapCap(cd, cs2, rs1, aq, rl)   <-> "amoswap.c" ^ maybe_aq(aq) ^ maybe_rl(rl) ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs2) ^ sep() ^ reg_name(rs1)
+mapping clause assembly = LoadResCap(cd, rs1, aq, rl)        <-> "lr.y"      ^ maybe_aq(aq) ^ maybe_rl(rl) ^ spc() ^ cap_reg_name(cd) ^ sep() ^ reg_name(rs1)
+mapping clause assembly = StoreCondCap(rd, cs2, rs1, aq, rl) <-> "sc.y"      ^ maybe_aq(aq) ^ maybe_rl(rl) ^ spc() ^ reg_name(rd)     ^ sep() ^ cap_reg_name(cs2) ^ sep() ^ reg_name(rs1)
+mapping clause assembly = AMOSwapCap(cd, cs2, rs1, aq, rl)   <-> "amoswap.y" ^ maybe_aq(aq) ^ maybe_rl(rl) ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs2) ^ sep() ^ reg_name(rs1)
 
 /*
   CHERI really needs sub word atomic operations because bounds checks mean you
