@@ -119,27 +119,6 @@ function set_ddc_xlen(value : xlenbits) -> unit = {
   ddc = setCapCSRAddr(ddc, convertInvalidAddr(value));
 }
 
-/******************************* xTDC *******************************/
-
-function get_mtdc_xlen() -> xlenbits = mtdc.address
-function get_stdc_xlen() -> xlenbits = stdc.address
-
-function set_mtdc(value : Capability) -> unit = {
-  mtdc = value;
-}
-
-function set_stdc(value : Capability) -> unit = {
-  stdc = value;
-}
-
-function set_mtdc_xlen(value : xlenbits) -> unit = {
-  mtdc = setCapAddrChecked(mtdc, value);
-}
-
-function set_stdc_xlen(value : xlenbits) -> unit = {
-  stdc = setCapAddrChecked(stdc, value);
-}
-
 /******************************* xTID[C] *******************************/
 
 function is_zstid_csr (csrno : bits(12)) -> bool =

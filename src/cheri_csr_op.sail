@@ -29,9 +29,6 @@ function csr_type(csr : csreg) -> CSRLen = match csr {
 
   0x416 => YlenNew, // ddc
 
-  0x74c => YlenNew, // mtdc
-  0x163 => YlenNew, // stdc
-
   _ => Standard,
 }
 
@@ -59,9 +56,6 @@ function write_ylen_csr(csr : csreg, value : Capability) -> unit = {
     0x141 => {set_sepcc(value); sepcc},
 
     0x416 => {set_ddc(value); ddc},
-
-    0x74c => {set_mtdc(value); mtdc},
-    0x163 => {set_stdc(value); stdc},
 
     0x780 => {set_mtidc(value); mtidc},
     0x580 => {set_stidc(value); stidc},
@@ -93,9 +87,6 @@ function write_ylen_csr_with_xlen(csr : csreg, value : xlenbits) -> unit = {
 
     0x416 => {set_ddc_xlen(value); ddc},
 
-    0x74c => {set_mtdc_xlen(value); mtdc},
-    0x163 => {set_stdc_xlen(value); stdc},
-
     0x780 => {set_mtid(value); mtidc},
     0x580 => {set_stid(value); stidc},
     0x480 => {set_utid(value); utidc},
@@ -124,9 +115,6 @@ function read_ylen_csr(csr : csreg, write_val : Capability) -> Capability = matc
   0x141 => sepcc,
 
   0x416 => ddc,
-
-  0x74c => mtdc,
-  0x163 => stdc,
 
   0x780 => mtidc,
   0x580 => stidc,

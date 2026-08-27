@@ -18,14 +18,12 @@ register nextPCC   : Capability
 register ddc       : Capability
 
 register stvecc    : Capability
-register stdc      : Capability = null_cap
 register sscratchc : Capability = null_cap
 register sepcc     : Capability
 register mtidc     : Capability = null_cap
 register stidc     : Capability = null_cap
 register utidc     : Capability = null_cap
 register mtvecc    : Capability
-register mtdc      : Capability = null_cap
 register mscratchc : Capability = null_cap
 register mepcc     : Capability
 
