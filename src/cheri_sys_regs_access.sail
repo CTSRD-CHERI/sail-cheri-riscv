@@ -5,7 +5,7 @@
 //
 // * get_mtvec(): XLEN read
 // * set_mtvec(): XLEN write
-// * set_mtvecc(): YLEN write
+// * set_mtvec_y(): YLEN write
 //
 // For the YLEN CSRs with no XLEN name, e.g. `ddc` we have:
 //
@@ -16,13 +16,13 @@
 // There's no need for YLEN read functions since they're only used in CHERI and
 // would always be just returning the register value directly.
 
-/******************************* xTVEC[C] *******************************/
+/******************************* xTVEC *******************************/
 
-function tvecc_vector_range_check(tvecc: Capability) -> Capability = {
+function tvec_y_vector_range_check(tvec: Capability) -> Capability = {
   // Check representability of base address with mode bits zeroed
-  let (representable, _) = setCapAddr(tvecc, tvec_base_addr(Mk_Mtvec(tvecc.address)));
-  let tvecc = clearTagIf(tvecc, not(representable));
-  if Mk_Mtvec(tvecc.address)[Mode] != trapVectorMode_bits(TV_Vector) then return tvecc;
+  let (representable, _) = setCapAddr(tvec, tvec_base_addr(Mk_Mtvec(tvec.address)));
+  let tvec = clearTagIf(tvec, not(representable));
+  if Mk_Mtvec(tvec.address)[Mode] != trapVectorMode_bits(TV_Vector) then return tvec;
 
   // If in vectored mode, also check maximum vector address
   let max_interrupt = if extensionEnabled(Ext_Sscofpmf) then Local_Counter_Overflow else I_M_External;
@@ -30,81 +30,81 @@ function tvecc_vector_range_check(tvecc: Capability) -> Capability = {
     Cause = zero_extend(interruptType_to_bits(max_interrupt)),
     IsInterrupt = 0b1,
   ];
-  let max_cause_addr : xlenbits = match tvec_addr(Mk_Mtvec(tvecc.address), max_mcause) {
+  let max_cause_addr : xlenbits = match tvec_addr(Mk_Mtvec(tvec.address), max_mcause) {
     Some(addr) => addr,
     None() => internal_error(__FILE__, __LINE__, "tvec_addr should return an address"),
   };
-  let (representable, c) = setCapAddr(tvecc, max_cause_addr);
-  clearTagIf(tvecc, not(representable) | not(convertInvalidAddr(c).tag))
+  let (representable, c) = setCapAddr(tvec, max_cause_addr);
+  clearTagIf(tvec, not(representable) | not(convertInvalidAddr(c).tag))
 }
 
-function legalize_tvecc(o : Capability, v : Capability) -> Capability = {
+function legalize_tvec_y(o : Capability, v : Capability) -> Capability = {
   let new_tvec = v.address;
   let legalized_tvec = legalize_tvec(Mk_Mtvec(o.address), new_tvec);
-  tvecc_vector_range_check(setCapAddrChecked(v, legalized_tvec.bits))
+  tvec_y_vector_range_check(setCapAddrChecked(v, legalized_tvec.bits))
 }
 
-function get_mtvec() -> xlenbits = mtvecc.address
-function get_stvec() -> xlenbits = stvecc.address
+function get_mtvec() -> xlenbits = mtvec_y.address
+function get_stvec() -> xlenbits = stvec_y.address
 
 function set_mtvec(value : xlenbits) -> unit = {
-  let mtv = legalize_tvec(Mk_Mtvec(mtvecc.address), convertInvalidAddr(value));
-  mtvecc = tvecc_vector_range_check(setCapCSRAddr(mtvecc, mtv.bits));
+  let mtv = legalize_tvec(Mk_Mtvec(mtvec_y.address), convertInvalidAddr(value));
+  mtvec_y = tvec_y_vector_range_check(setCapCSRAddr(mtvec_y, mtv.bits));
 }
 
 function set_stvec(value : xlenbits) -> unit = {
-  let stv = legalize_tvec(Mk_Mtvec(stvecc.address), convertInvalidAddr(value));
-  stvecc = tvecc_vector_range_check(setCapCSRAddr(stvecc, stv.bits));
+  let stv = legalize_tvec(Mk_Mtvec(stvec_y.address), convertInvalidAddr(value));
+  stvec_y = tvec_y_vector_range_check(setCapCSRAddr(stvec_y, stv.bits));
 }
 
-function set_mtvecc(value : Capability) -> unit = {
-  mtvecc = legalize_tvecc(mtvecc, convertInvalidAddr(value));
+function set_mtvec_y(value : Capability) -> unit = {
+  mtvec_y = legalize_tvec_y(mtvec_y, convertInvalidAddr(value));
 }
 
-function set_stvecc(value : Capability) -> unit = {
-  stvecc = legalize_tvecc(stvecc, convertInvalidAddr(value));
+function set_stvec_y(value : Capability) -> unit = {
+  stvec_y = legalize_tvec_y(stvec_y, convertInvalidAddr(value));
 }
 
-/******************************* xSCRATCH[C] *******************************/
+/******************************* xSCRATCH *******************************/
 
-function get_mscratch() -> xlenbits = mscratchc.address
-function get_sscratch() -> xlenbits = sscratchc.address
+function get_mscratch() -> xlenbits = mscratch_y.address
+function get_sscratch() -> xlenbits = sscratch_y.address
 
 function set_mscratch(value : xlenbits) -> unit = {
-  mscratchc = setCapAddrChecked(mscratchc, value);
+  mscratch_y = setCapAddrChecked(mscratch_y, value);
 }
 
 function set_sscratch(value : xlenbits) -> unit = {
-  sscratchc = setCapAddrChecked(sscratchc, value);
+  sscratch_y = setCapAddrChecked(sscratch_y, value);
 }
 
-function set_mscratchc(value : Capability) -> unit = {
-  mscratchc = value;
+function set_mscratch_y(value : Capability) -> unit = {
+  mscratch_y = value;
 }
 
-function set_sscratchc(value : Capability) -> unit = {
-  sscratchc = value;
+function set_sscratch_y(value : Capability) -> unit = {
+  sscratch_y = value;
 }
 
 /******************************* xEPC[C] *******************************/
 
-function get_mepc() -> xlenbits = align_pc(mepcc.address)
-function get_sepc() -> xlenbits = align_pc(sepcc.address)
+function get_mepc() -> xlenbits = align_pc(mepc_y.address)
+function get_sepc() -> xlenbits = align_pc(sepc_y.address)
 
 function set_mepc(value : xlenbits) -> unit = {
-  mepcc = setCapCSRAddr(mepcc, legalize_xepc(convertInvalidAddr(value)));
+  mepc_y = setCapCSRAddr(mepc_y, legalize_xepc(convertInvalidAddr(value)));
 }
 
 function set_sepc(value : xlenbits) -> unit = {
-  sepcc = setCapCSRAddr(sepcc, legalize_xepc(convertInvalidAddr(value)));
+  sepc_y = setCapCSRAddr(sepc_y, legalize_xepc(convertInvalidAddr(value)));
 }
 
-function set_mepcc(value : Capability) -> unit = {
-  mepcc = legalize_epcc(convertInvalidAddr(value));
+function set_mepc_y(value : Capability) -> unit = {
+  mepc_y = legalize_epc_y(convertInvalidAddr(value));
 }
 
-function set_sepcc(value : Capability) -> unit = {
-  sepcc = legalize_epcc(convertInvalidAddr(value));
+function set_sepc_y(value : Capability) -> unit = {
+  sepc_y = legalize_epc_y(convertInvalidAddr(value));
 }
 
 /******************************* DDC *******************************/
@@ -119,37 +119,37 @@ function set_ddc_xlen(value : xlenbits) -> unit = {
   ddc = setCapCSRAddr(ddc, convertInvalidAddr(value));
 }
 
-/******************************* xTID[C] *******************************/
+/******************************* xTID *******************************/
 
 function is_zstid_csr (csrno : bits(12)) -> bool =
   csr_name_map(csrno) == "mtid" | csr_name_map(csrno) == "stid" | csr_name_map(csrno) == "utid"
 
-function get_mtid() -> xlenbits = mtidc.address
-function get_stid() -> xlenbits = stidc.address
-function get_utid() -> xlenbits = utidc.address
+function get_mtid() -> xlenbits = mtid_y.address
+function get_stid() -> xlenbits = stid_y.address
+function get_utid() -> xlenbits = utid_y.address
 
-function set_mtidc(value : Capability) -> unit = {
-  mtidc = value;
+function set_mtid_y(value : Capability) -> unit = {
+  mtid_y = value;
 }
 
-function set_stidc(value : Capability) -> unit = {
-  stidc = value;
+function set_stid_y(value : Capability) -> unit = {
+  stid_y = value;
 }
 
-function set_utidc(value : Capability) -> unit = {
-  utidc = value;
+function set_utid_y(value : Capability) -> unit = {
+  utid_y = value;
 }
 
 function set_mtid(value : xlenbits) -> unit = {
-  mtidc = setCapAddrChecked(mtidc, value);
+  mtid_y = setCapAddrChecked(mtid_y, value);
 }
 
 function set_stid(value : xlenbits) -> unit = {
-  stidc = setCapAddrChecked(stidc, value);
+  stid_y = setCapAddrChecked(stid_y, value);
 }
 
 function set_utid(value : xlenbits) -> unit = {
-  utidc = setCapAddrChecked(utidc, value);
+  utid_y = setCapAddrChecked(utid_y, value);
 }
 
 /******************************* xenvcfg *******************************/

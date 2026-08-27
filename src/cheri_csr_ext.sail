@@ -6,9 +6,9 @@
 // handle_csr_op().
 
 function clause is_CSR_defined(0x416) = cheri_registers_enabled() // ddc
-function clause is_CSR_defined(0x780) = haveZstid() // mtidc
-function clause is_CSR_defined(0x580) = haveZstid() // stidc
-function clause is_CSR_defined(0x480) = haveZstid() // utidc
+function clause is_CSR_defined(0x780) = haveZstid() // mtid
+function clause is_CSR_defined(0x580) = haveZstid() // stid
+function clause is_CSR_defined(0x480) = haveZstid() // utid
 function clause is_CSR_defined(0x7bc) = cheri_registers_enabled() & debug_mode_active // dddc
 function clause is_CSR_defined(0x7bd) = cheri_registers_enabled() & debug_mode_active // dinfc
 

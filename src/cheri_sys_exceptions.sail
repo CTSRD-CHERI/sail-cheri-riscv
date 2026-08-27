@@ -11,18 +11,18 @@
 // Extra exception info passed to handle_trap_extension
 type ext_exception = CapCheckType
 
-// * When a trap is taken into X-mode, Xepcc is written with the pcc including the virtual
+// * When a trap is taken into X-mode, Xepc is written with the pcc including the virtual
 //   address of the instruction that was interrupted or that encountered an exception.
 //
 function handle_trap_extension(p : Privilege, pc : xlenbits) -> unit = {
   if not(debug_mode_active) then {
-    let (_, newXepcc) = setCapAddr(PCC, pc);
+    let (_, newXepc) = setCapAddr(PCC, pc);
     match p {
       Machine => {
-        set_mepcc(newXepcc);
+        set_mepc_y(newXepc);
       },
       Supervisor => {
-        set_sepcc(newXepcc);
+        set_sepc_y(newXepc);
       },
       User => internal_error(__FILE__, __LINE__, "N extension not supported"),
     }
@@ -34,29 +34,29 @@ function handle_nmi_extension(pc : xlenbits, handler_pc : xlenbits) -> unit = {
   let (_, nmi_pcc) = setCapAddr(infinite_cap, handler_pc);
   set_next_pcc(nmi_pcc);
 
-  // Set MEPCC to PCC as for other traps
+  // Set MEPC to PCC as for other traps
   // NMIs always trap into M-mode
-  let (_, newXepcc) = setCapAddr(PCC, pc);
-  set_mepcc(newXepcc);
+  let (_, newXepc) = setCapAddr(PCC, pc);
+  set_mepc_y(newXepc);
 }
 
 /* used for traps and ECALL */
 function prepare_trap_vector(p : Privilege, c : Mcause) -> xlenbits = {
-  let tvecc : Capability = match p {
-                           Machine    => mtvecc,
-                           Supervisor => stvecc,
-                           User       => internal_error(__FILE__, __LINE__, "N extension not supported"),
-                         };
+  let tvec : Capability = match p {
+                          Machine    => mtvec_y,
+                          Supervisor => stvec_y,
+                          User       => internal_error(__FILE__, __LINE__, "N extension not supported"),
+                        };
 
-  /* Calculate absolute target address from xtvecc address (offset) and mode, and
-     insert it into PCC (with xtvecc metadata) and return it to be inserted into PC.
-     Inserting xtvecc directly into PCC would result in incorrect address in PCC. */
-  match tvec_addr(Mk_Mtvec(tvecc.address), c) {
-    // Note that the representability check for xtvecc.address + 4 * MAX_MCAUSE
-    // will have been done when xtvecc is written, so we blindly copy the address
-    // in. If it is not representable the xtvecc tag will have already been
+  /* Calculate absolute target address from xtvec address (offset) and mode, and
+     insert it into PCC (with xtvec metadata) and return it to be inserted into PC.
+     Inserting xtvec directly into PCC would result in incorrect address in PCC. */
+  match tvec_addr(Mk_Mtvec(tvec.address), c) {
+    // Note that the representability check for xtvec.address + 4 * MAX_MCAUSE
+    // will have been done when xtvec is written, so we blindly copy the address
+    // in. If it is not representable the xtvec tag will have already been
     // cleared.
-    Some(addr) => { if not(debug_mode_active) then set_next_pcc({tvecc with address=addr}); addr },
+    Some(addr) => { if not(debug_mode_active) then set_next_pcc({tvec with address=addr}); addr },
     None()     => internal_error(__FILE__, __LINE__, "Invalid tvec mode")
   }
 }
@@ -64,16 +64,16 @@ function prepare_trap_vector(p : Privilege, c : Mcause) -> xlenbits = {
 val prepare_clic_xret_vectored_target : (Privilege) -> xlenbits
 
 function prepare_xret_target(p : Privilege) -> xlenbits = {
-  let epcc : Capability = match p {
-                            Machine    => mepcc,
-                            Supervisor => sepcc,
+  let epc_y : Capability = match p {
+                            Machine    => mepc_y,
+                            Supervisor => sepc_y,
                             User       => internal_error(__FILE__, __LINE__, "N extension not supported"),
                           };
 
-  set_next_pcc(unsealCap(epcc));
+  set_next_pcc(unsealCap(epc_y));
   /* Similar to prepare_trap_vector above we need to return the absolute address
     destined for PC, rather than the offset (architecutral PC) */
-  epcc.address
+  epc_y.address
 }
 
 // TODO: This is duplicated in `riscv_sys_exceptions.sail` which is unfortunate.

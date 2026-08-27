@@ -8,21 +8,21 @@ enum CSRLen = {
 }
 
 function csr_type(csr : csreg) -> CSRLen = match csr {
-  0x7b1 => YlenExtended, // dpcc
-  0x7b2 => YlenExtended, // dscratch0c
-  0x7b3 => YlenExtended, // dscratch1c
+  0x7b1 => YlenExtended, // dpc
+  0x7b2 => YlenExtended, // dscratch0
+  0x7b3 => YlenExtended, // dscratch1
 
-  0x305 => YlenExtended, // mtvecc
-  0x340 => YlenExtended, // mscratchc
-  0x341 => YlenExtended, // mepcc
+  0x305 => YlenExtended, // mtvec
+  0x340 => YlenExtended, // mscratch
+  0x341 => YlenExtended, // mepc
 
-  0x105 => YlenExtended, // stvecc
-  0x140 => YlenExtended, // sscratchc
-  0x141 => YlenExtended, // sepcc
+  0x105 => YlenExtended, // stvec
+  0x140 => YlenExtended, // sscratch
+  0x141 => YlenExtended, // sepc
 
-  0x780 => YlenExtended, // mtidc
-  0x580 => YlenExtended, // stidc
-  0x480 => YlenExtended, // utidc
+  0x780 => YlenExtended, // mtid
+  0x580 => YlenExtended, // stid
+  0x480 => YlenExtended, // utid
 
   0x7bc => YlenNew, // dddc
   0x7bd => YlenNew, // dinfc
@@ -47,19 +47,19 @@ function write_ylen_csr(csr : csreg, value : Capability) -> unit = {
     // 0x7bc => {set_dddc(value); dddc},
     // 0x7bd => {set_dinfc(value); dinfc},
 
-    0x305 => {set_mtvecc(value); mtvecc},
-    0x340 => {set_mscratchc(value); mscratchc},
-    0x341 => {set_mepcc(value); mepcc},
+    0x305 => {set_mtvec_y(value); mtvec_y},
+    0x340 => {set_mscratch_y(value); mscratch_y},
+    0x341 => {set_mepc_y(value); mepc_y},
 
-    0x105 => {set_stvecc(value); stvecc},
-    0x140 => {set_sscratchc(value); sscratchc},
-    0x141 => {set_sepcc(value); sepcc},
+    0x105 => {set_stvec_y(value); stvec_y},
+    0x140 => {set_sscratch_y(value); sscratch_y},
+    0x141 => {set_sepc_y(value); sepc_y},
 
     0x416 => {set_ddc(value); ddc},
 
-    0x780 => {set_mtidc(value); mtidc},
-    0x580 => {set_stidc(value); stidc},
-    0x480 => {set_utidc(value); utidc},
+    0x780 => {set_mtid_y(value); mtid_y},
+    0x580 => {set_stid_y(value); stid_y},
+    0x480 => {set_utid_y(value); utid_y},
 
     _ => internal_error(__FILE__, __LINE__, "write_ylen_csr for XLEN CSR; this should not be possible"),
   };
@@ -77,19 +77,19 @@ function write_ylen_csr_with_xlen(csr : csreg, value : xlenbits) -> unit = {
     // 0x7bc => {let _ = set_dddc_xlen(value); dddc},
     // 0x7bd => {let _ = set_dinfc_xlen(value); dinfc},
 
-    0x305 => {set_mtvec(value); mtvecc},
-    0x340 => {set_mscratch(value); mscratchc},
-    0x341 => {set_mepc(value); mepcc},
+    0x305 => {set_mtvec(value); mtvec_y},
+    0x340 => {set_mscratch(value); mscratch_y},
+    0x341 => {set_mepc(value); mepc_y},
 
-    0x105 => {set_stvec(value); stvecc},
-    0x140 => {set_sscratch(value); sscratchc},
-    0x141 => {set_sepc(value); sepcc},
+    0x105 => {set_stvec(value); stvec_y},
+    0x140 => {set_sscratch(value); sscratch_y},
+    0x141 => {set_sepc(value); sepc_y},
 
     0x416 => {set_ddc_xlen(value); ddc},
 
-    0x780 => {set_mtid(value); mtidc},
-    0x580 => {set_stid(value); stidc},
-    0x480 => {set_utid(value); utidc},
+    0x780 => {set_mtid(value); mtid_y},
+    0x580 => {set_stid(value); stid_y},
+    0x480 => {set_utid(value); utid_y},
 
     _ => internal_error(__FILE__, __LINE__, "write_ylen_csr_with_xlen for XLEN CSR; this should not be possible"),
   };
@@ -106,19 +106,19 @@ function read_ylen_csr(csr : csreg, write_val : Capability) -> Capability = matc
   // 0x7bc => dddc,
   // 0x7bd => get_dinfc(),
 
-  0x305 => mtvecc,
-  0x340 => mscratchc,
-  0x341 => mepcc, // Note: this would require legalisation for implementations with writable misa.C.
+  0x305 => mtvec_y,
+  0x340 => mscratch_y,
+  0x341 => mepc_y, // Note: this would require legalisation for implementations with writable misa.C.
 
-  0x105 => stvecc,
-  0x140 => sscratchc,
-  0x141 => sepcc,
+  0x105 => stvec_y,
+  0x140 => sscratch_y,
+  0x141 => sepc_y,
 
   0x416 => ddc,
 
-  0x780 => mtidc,
-  0x580 => stidc,
-  0x480 => utidc,
+  0x780 => mtid_y,
+  0x580 => stid_y,
+  0x480 => utid_y,
 
   _ => internal_error(__FILE__, __LINE__, "read_ylen_csr for XLEN CSR; this should not be possible"),
 }

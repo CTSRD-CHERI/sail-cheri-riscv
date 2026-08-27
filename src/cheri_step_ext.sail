@@ -12,16 +12,16 @@ function ext_cheri_reset() -> unit = {
   ddc = infinite_cap;
 
   // The address bits may have been initialised by the non-CHERI reset to a non-zero value.
-  stvecc = {infinite_cap with address = stvec.bits};
-  sscratchc = {sscratchc with tag = false, address = sscratch} ;
-  sepcc = infinite_cap;
-  mtidc = {mtidc with tag = false};
-  stidc = {stidc with tag = false};
-  utidc = {utidc with tag = false};
+  stvec_y = {infinite_cap with address = stvec.bits};
+  sscratch_y = {sscratch_y with tag = false, address = sscratch} ;
+  sepc_y = infinite_cap;
+  mtid_y = {mtid_y with tag = false};
+  stid_y = {stid_y with tag = false};
+  utid_y = {utid_y with tag = false};
 
-  mtvecc = {infinite_cap with address = mtvec.bits};
-  mscratchc = {mscratchc with tag = false, address = mscratch} ;
-  mepcc = infinite_cap;
+  mtvec_y = {infinite_cap with address = mtvec.bits};
+  mscratch_y = {mscratch_y with tag = false, address = mscratch} ;
+  mepc_y = infinite_cap;
 
   // dpcc = {dpcc with tag = false} ;
   // dscratch0c = {dscratch0c with tag = false};

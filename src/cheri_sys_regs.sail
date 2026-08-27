@@ -17,15 +17,15 @@ register PCC       : Capability
 register nextPCC   : Capability
 register ddc       : Capability
 
-register stvecc    : Capability
-register sscratchc : Capability = null_cap
-register sepcc     : Capability
-register mtidc     : Capability = null_cap
-register stidc     : Capability = null_cap
-register utidc     : Capability = null_cap
-register mtvecc    : Capability
-register mscratchc : Capability = null_cap
-register mepcc     : Capability
+register stvec_y    : Capability
+register sscratch_y : Capability = null_cap
+register sepc_y     : Capability
+register mtid_y     : Capability = null_cap
+register stid_y     : Capability = null_cap
+register utid_y     : Capability = null_cap
+register mtvec_y    : Capability
+register mscratch_y : Capability = null_cap
+register mepc_y     : Capability
 
 /* Cheri pcc helpers */
 
@@ -49,27 +49,27 @@ function cheri_registers_enabled () -> bool = {
 function haveZstid () -> bool = true
 
 /*
- * Used during readout (but not assignment!) of ?EPCC registers (csrrw,
+ * Used during readout (but not assignment!) of ?EPC registers (csrrw,
  * handle_trap_extension) and not during control transfer
  * (get_xreg_target).
  *
- * The result is that it is only possible to faithfully read out ?EPCC if
+ * The result is that it is only possible to faithfully read out ?EPC if
  * either
  *  - misa.C is enabled or
- *  - misa.C is disabled and the EPCC offset is sufficiently aligned
+ *  - misa.C is disabled and the EPC offset is sufficiently aligned
  *
  * If misa.C is held constant, as it almost always will be, between fault and
- * readback, ?EPCC will be faithfully read back, because the alignment will
+ * readback, ?EPC will be faithfully read back, because the alignment will
  * adhere to the requirements of the architecture, which is what legalization
  * is intending to enforce.
  *
  * If neither of those conditions hold, the resulting readout will be a lie; if
- * ?EPCC has additionally been set to be a sentry, then the result will be an
+ * ?EPC has additionally been set to be a sentry, then the result will be an
  * untagged lie.
  *
  * NOTE: this legalisation is also used for DPCC in the Sdext extension
  */
-function legalize_epcc(v : Capability) -> Capability = {
+function legalize_epc_y(v : Capability) -> Capability = {
   let int_val = v.address;
   let legalized = legalize_xepc(int_val);
 
