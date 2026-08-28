@@ -404,7 +404,7 @@ function canLM(cap : Capability) -> bool = getArchPermsLegalized(cap).LM
 function canEL(cap : Capability) -> bool = getArchPermsLegalized(cap).EL
 function canSL(cap : Capability) -> bool = getArchPermsLegalized(cap).SL
 
-// Format used by YRPERM and YWPERM.
+// Format used by YPERMR and YPERMC.
 bitfield BitPerms : xlenbits = {
   reserved_0    : xlen - 1                   .. 24,
   reserved_1_1  : 23 .. 19,
@@ -421,7 +421,7 @@ bitfield BitPerms : xlenbits = {
   W             : 0,
 }
 
-// Convert the capability permissions into the format expected by YRPERM and YWPERM.
+// Convert the capability permissions into the format expected by YPERMR and YPERMC.
 function packPerms(arch_perms : ArchPerms, cap_level : bits(lvlbits), sd_perms : bits(cap_sd_perms_width)) -> BitPerms =
   [
     Mk_BitPerms(zeros()) with
@@ -586,7 +586,7 @@ function legalizeSL(stored_cap : Capability, auth_cap : Capability) -> Capabilit
 }
 
 // Implementations are allowed to retain invalid capability permissions loaded from memory
-// instead of following the YWPERM behaviour of reducing them to no permissions.
+// instead of following the YPERMC behaviour of reducing them to no permissions.
 let sys_legalize_malformed_permission_on_load = false
 
 function legalizeLoadedPermissions(loaded_cap : Capability, auth_cap : Capability) -> Capability = {
