@@ -9,7 +9,7 @@
 function ext_cheri_reset() -> unit = {
   PCC = infinite_cap;
   nextPCC = infinite_cap;
-  ddc = infinite_cap;
+  ddc_y = infinite_cap;
 
   // The address bits may have been initialised by the non-CHERI reset to a non-zero value.
   stvec_y = {infinite_cap with address = stvec.bits};

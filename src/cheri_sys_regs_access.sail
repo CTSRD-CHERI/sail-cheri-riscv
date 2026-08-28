@@ -7,12 +7,6 @@
 // * set_mtvec(): XLEN write
 // * set_mtvec_y(): YLEN write
 //
-// For the YLEN CSRs with no XLEN name, e.g. `ddc` we have:
-//
-// * get_ddc_xlen(): XLEN read
-// * set_ddc(): YLEN write
-// * set_ddc_xlen(): XLEN write.
-//
 // There's no need for YLEN read functions since they're only used in CHERI and
 // would always be just returning the register value directly.
 
@@ -109,14 +103,12 @@ function set_sepc_y(value : Capability) -> unit = {
 
 /******************************* DDC *******************************/
 
-function get_ddc_xlen() -> xlenbits = ddc.address
-
-function set_ddc(value : Capability) -> unit = {
-  ddc = convertInvalidAddrCap(value);
+function set_ddc_y(value : Capability) -> unit = {
+  ddc_y = convertInvalidAddrCap(value);
 }
 
 function set_ddc_xlen(value : xlenbits) -> unit = {
-  ddc = setCapCSRAddr(ddc, convertInvalidAddr(value));
+  ddc_y = setCapCSRAddr(ddc_y, convertInvalidAddr(value));
 }
 
 /******************************* xTID *******************************/

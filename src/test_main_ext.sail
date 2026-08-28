@@ -43,7 +43,7 @@ function try_system_insts(pccCap : Capability, allowed : bool) -> unit = {
 }
 
 function test_cheri_system_faults() -> unit = {
-    ddc = infinite_cap;
+    ddc_y = infinite_cap;
     try_system_insts(infinite_cap, true);
     try_system_insts(setArchPerms(infinite_cap, {getArchPermsLegalized(infinite_cap) with ASR=false}), false);
 }
@@ -70,7 +70,7 @@ function test_cheri_system_faults() -> unit = {
 //  let _ = execute (DRET());
 //  assert (not(debug_mode_active));
 //  X(src) = addr;
-//  set_ddc(null_cap);
+//  set_ddc_y(null_cap);
 //  PCC = setCapMode(PCC, IntPtrMode);
 //  let _ = execute(LOAD(zeros(), src, rd, true, BYTE, false, false));
 //  assert (ret == RETIRE_DEBUG_TRIGGER);
@@ -514,13 +514,13 @@ function test_cheri_malformed() -> unit = {
 
     // CSR writes check all the fields
     write_ylen_csr(csr_name_map("ddc"), badBoundsCap);
-    assert(not(ddc.tag));
+    assert(not(ddc_y.tag));
     write_ylen_csr(csr_name_map("ddc"), badPermsCap);
-    assert(not(ddc.tag));
+    assert(not(ddc_y.tag));
     write_ylen_csr(csr_name_map("ddc"), badReservedCap);
-    assert(not(ddc.tag));
+    assert(not(ddc_y.tag));
     write_ylen_csr(csr_name_map("ddc"), infinite_cap);
-    assert(ddc.tag);
+    assert(ddc_y.tag);
 }
 
 function test_cheri_invalid_addr() -> unit = {
@@ -550,9 +550,9 @@ function test_cheri_invalid_addr() -> unit = {
     tick_pc();
     assert(fetch() == F_Ext_Error());
     // Attempt to load from the invalid address
-    ddc = Y(infiniteR);
+    ddc_y = Y(infiniteR);
     assert(execute(LOAD(zeros(), finiteR, zeroR, true, BYTE, false, false)) == RETIRE_SUCCESS);
-    ddc = Y(finiteR);
+    ddc_y = Y(finiteR);
     assert(execute(LOAD(zeros(), finiteR, zeroR, true, BYTE, false, false)) == RETIRE_FAIL);
     assert(mcause[Cause] == zero_extend(ext_exc_type_to_bits(EXC_CHERI(CapCheckType_Ld()))));
 }
