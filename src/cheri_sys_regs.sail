@@ -39,11 +39,11 @@ val feature_enabled_for_priv : (Privilege, bit, bit) -> bool
 
 /* Checking whether the Xcheri extension is enabled */
 function cheri_registers_enabled () -> bool = {
-  // CRE is always 1 in debug mode
+  // Y is always 1 in debug mode
   if debug_mode_active then return true;
-  // CRE logic described in CHERI spec
-  mseccfg[CRE] == 0b1
-    & feature_enabled_for_priv(cur_privilege(), menvcfg[CRE][0], senvcfg[CRE][0])
+  // Y logic described in CHERI spec
+  misa[Y] == 0b1
+    & feature_enabled_for_priv(cur_privilege(), menvcfg[Y], senvcfg[Y])
 }
 
 function haveZstid () -> bool = true

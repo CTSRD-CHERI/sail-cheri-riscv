@@ -616,26 +616,26 @@ function test_cheri_reserved_branches() -> unit = {
 }
 
 function test_cheri_scre(cheri_allowed : bool) -> unit = {
-    set_senvcfg(update_CRE(senvcfg, 0b1).bits);
+    set_senvcfg(update_Y(senvcfg, 0b1).bits);
     test_cheri_pcc_mode(User, cheri_allowed);
-    set_senvcfg(update_CRE(senvcfg, 0b0).bits);
+    set_senvcfg(update_Y(senvcfg, 0b0).bits);
     test_cheri_pcc_mode(User, false);
 }
 
 function test_cheri_mcre(cheri_allowed : bool) -> unit = {
-    set_menvcfg(update_CRE(menvcfg, 0b1).bits);
+    set_menvcfg(update_Y(menvcfg, 0b1).bits);
     test_cheri_pcc_mode(Supervisor, cheri_allowed);
     test_cheri_scre(cheri_allowed);
-    set_menvcfg(update_CRE(menvcfg, 0b0).bits);
+    set_menvcfg(update_Y(menvcfg, 0b0).bits);
     test_cheri_pcc_mode(Supervisor, false);
     test_cheri_scre(false);
 }
 
 function test_cheri_enables() -> unit = {
-    set_mseccfg(update_CRE(mseccfg, 0b1).bits);
+    misa[Y] = 0b1;
     test_cheri_pcc_mode(Machine, true);
     test_cheri_mcre(true);
-    set_mseccfg(update_CRE(mseccfg, 0b0).bits);
+    misa[Y] = 0b0;
     test_cheri_pcc_mode(Machine, false);
     test_cheri_mcre(false);
 }
@@ -687,9 +687,9 @@ function test_cheri_oob_jump() -> unit = {
 
 function test_main_ext() -> unit = {
     // Enable CHERI
-    set_mseccfg(update_CRE(mseccfg, 0b1).bits);
-    set_menvcfg(update_CRE(menvcfg, 0b1).bits);
-    set_senvcfg(update_CRE(senvcfg, 0b1).bits);
+    misa[Y] = 0b1;
+    set_menvcfg(update_Y(menvcfg, 0b1).bits);
+    set_senvcfg(update_Y(senvcfg, 0b1).bits);
 
     //test_cheri_sdtrig();
     debug_mode_active = false;

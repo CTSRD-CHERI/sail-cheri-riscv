@@ -109,7 +109,6 @@ SAIL_REGS_SRCS = $(SAIL_CHERI_MODEL_DIR)/cheri_reg_type.sail \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_sstc.sail \
                  $(SAIL_CHERI_MODEL_DIR)/cheri_sys_regs_types.sail \
                  ${SAIL_CHERI_MODEL_DIR}/cheri_sys_regs_envcfg.sail \
-                 ${SAIL_CHERI_MODEL_DIR}/cheri_sys_regs_seccfg.sail \
                  ${SAIL_CHERI_MODEL_DIR}/cheri_sys_regs_xstatus.sail \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_sys_regs.sail \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_pmp_regs.sail \

@@ -147,15 +147,9 @@ function set_utid(value : xlenbits) -> unit = {
 /******************************* xenvcfg *******************************/
 
 function set_menvcfg(v : bits(64)) -> unit = {
-  menvcfg = legalize_menvcfg(menvcfg, mseccfg, v);
+  menvcfg = legalize_menvcfg(menvcfg, v);
 }
 
 function set_senvcfg(v : xlenbits) -> unit = {
-  senvcfg = legalize_senvcfg(senvcfg, menvcfg, v);
-}
-
-/******************************* mseccfg *******************************/
-
-function set_mseccfg(v : bits(64)) -> unit = {
-  mseccfg = legalize_mseccfg(mseccfg, v);
+  senvcfg = legalize_senvcfg(senvcfg, v);
 }
