@@ -10,7 +10,7 @@
 
 val effective_cheri_mode : unit -> ExecutionMode
 function effective_cheri_mode() = {
-  // if debug_mode_active then return getCapMode(dinfc);
+  // if debug_mode_active then return getCapMode(drootc);
 
   if cheri_registers_enabled() then getCapMode(PCC) else IntPtrMode
 }

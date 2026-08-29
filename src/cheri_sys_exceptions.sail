@@ -30,8 +30,8 @@ function handle_trap_extension(p : Privilege, pc : xlenbits) -> unit = {
 }
 
 function handle_nmi_extension(pc : xlenbits, handler_pc : xlenbits) -> unit = {
-  // Ignore representability check, since setting address on infinite_cap always succeeds.
-  let (_, nmi_pcc) = setCapAddr(infinite_cap, handler_pc);
+  // Ignore representability check, since setting address on root_cap always succeeds.
+  let (_, nmi_pcc) = setCapAddr(root_cap, handler_pc);
   set_next_pcc(nmi_pcc);
 
   // Set MEPC to PCC as for other traps

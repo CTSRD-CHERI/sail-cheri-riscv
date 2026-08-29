@@ -23,7 +23,7 @@ function csr_type(csr : csreg) -> CSRLen = match csr {
   0x480 => Ylen, // utid
 
   0x7bc => Ylen, // dddc
-  0x7bd => Ylen, // dinfc
+  0x7bd => Ylen, // drootc
 
   0x416 => Ylen, // ddc
 
@@ -43,7 +43,7 @@ function write_ylen_csr(csr : csreg, value : Capability) -> unit = {
     // 0x7b2 => {set_dscratch0c(value); dscratch0c},
     // 0x7b3 => {set_dscratch1c(value); dscratch1c},
     // 0x7bc => {set_dddc(value); dddc},
-    // 0x7bd => {set_dinfc(value); dinfc},
+    // 0x7bd => {set_drootc(value); drootc},
 
     0x305 => {set_mtvec_y(value); mtvec_y},
     0x340 => {set_mscratch_y(value); mscratch_y},
@@ -73,7 +73,7 @@ function write_ylen_csr_with_xlen(csr : csreg, value : xlenbits) -> unit = {
     // 0x7b2 => {let _ = set_dscratch0(value); dscratch0c},
     // 0x7b3 => {let _ = set_dscratch1(value); dscratch1c},
     // 0x7bc => {let _ = set_dddc_xlen(value); dddc},
-    // 0x7bd => {let _ = set_dinfc_xlen(value); dinfc},
+    // 0x7bd => {let _ = set_drootc_xlen(value); drootc},
 
     0x305 => {set_mtvec(value); mtvec_y},
     0x340 => {set_mscratch(value); mscratch_y},
@@ -102,7 +102,7 @@ function read_ylen_csr(csr : csreg, write_val : Capability) -> Capability = matc
   // 0x7b2 => dscratch0c,
   // 0x7b3 => dscratch1c,
   // 0x7bc => dddc,
-  // 0x7bd => get_dinfc(),
+  // 0x7bd => get_drootc(),
 
   0x305 => mtvec_y,
   0x340 => mscratch_y,

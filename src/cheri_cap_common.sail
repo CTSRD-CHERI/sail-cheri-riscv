@@ -198,12 +198,12 @@ let null_cap : Capability = struct {
 }
 
 // Full permission capability.
-let infinite_cap : Capability = {
+let root_cap : Capability = {
   null_cap with
   tag      = true,
   sd_perms = ones(),
   cl       = ones(),
-  ap_m     = infinite_ap_m,
+  ap_m     = root_ap_m,
 }
 
 // A capability is malformed if its encoding does not describe a valid capability
@@ -687,7 +687,7 @@ function capToString(cap : Capability) -> string = {
 }
 
 function getRepresentableAlignmentMask(len : xlenbits) -> xlenbits = {
-  let (_exact, c) = setCapBounds(infinite_cap, zeros(), 0b0 @ len);
+  let (_exact, c) = setCapBounds(root_cap, zeros(), 0b0 @ len);
   if c.internal_exponent then {
     // setCapBounds will never make a malformed cap with E < 0.
     let e = c.E;

@@ -10,7 +10,7 @@ function clause is_CSR_defined(0x780) = haveZstid() // mtid
 function clause is_CSR_defined(0x580) = haveZstid() // stid
 function clause is_CSR_defined(0x480) = haveZstid() // utid
 function clause is_CSR_defined(0x7bc) = cheri_registers_enabled() & debug_mode_active // dddc
-function clause is_CSR_defined(0x7bd) = cheri_registers_enabled() & debug_mode_active // dinfc
+function clause is_CSR_defined(0x7bd) = cheri_registers_enabled() & debug_mode_active // droot
 
 
 mapping clause csr_name_map = 0x416 <-> "ddc"
@@ -18,4 +18,4 @@ mapping clause csr_name_map = 0x780 <-> "mtid"
 mapping clause csr_name_map = 0x580 <-> "stid"
 mapping clause csr_name_map = 0x480 <-> "utid"
 mapping clause csr_name_map = 0x7bc <-> "dddc"
-mapping clause csr_name_map = 0x7bd <-> "dinfc"
+mapping clause csr_name_map = 0x7bd <-> "drootc"

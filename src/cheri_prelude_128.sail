@@ -76,9 +76,9 @@ mapping ap_m_encdec : bits(cap_AP_M_width) <-> (ArchPerms, ExecutionMode) = {
     if (not(ASR) | X) & (not(C) | (R | W)) & (M == execution_mode_encdec(0b0) | X) & (not(SL) | C) & (not(EL | LM) | (C & R)),
 }
 
-// Ideally ap_m_encdec(({null,infinite}_perms, IntPtrMode)), but spurious incomplete match side-effect at toplevel
-let null_ap_m     = 0b000000000
-let infinite_ap_m = 0b111111111
+// Ideally ap_m_encdec(({null,root}_perms, IntPtrMode)), but spurious incomplete match side-effect at toplevel
+let null_ap_m = 0b000000000
+let root_ap_m = 0b111111111
 
 // Perform the XLEN-specific YPERMC legalization.
 function legalizePermsAndMode(perms : ArchPerms, mode : ExecutionMode) -> (ArchPerms, ExecutionMode) = {

@@ -7,27 +7,27 @@
 /*=======================================================================================*/
 
 function ext_cheri_reset() -> unit = {
-  PCC = infinite_cap;
-  nextPCC = infinite_cap;
-  ddc_y = infinite_cap;
+  PCC = root_cap;
+  nextPCC = root_cap;
+  ddc_y = root_cap;
 
   // The address bits may have been initialised by the non-CHERI reset to a non-zero value.
-  stvec_y = {infinite_cap with address = stvec.bits};
+  stvec_y = {root_cap with address = stvec.bits};
   sscratch_y = {sscratch_y with tag = false, address = sscratch} ;
-  sepc_y = infinite_cap;
+  sepc_y = root_cap;
   mtid_y = {mtid_y with tag = false};
   stid_y = {stid_y with tag = false};
   utid_y = {utid_y with tag = false};
 
-  mtvec_y = {infinite_cap with address = mtvec.bits};
+  mtvec_y = {root_cap with address = mtvec.bits};
   mscratch_y = {mscratch_y with tag = false, address = mscratch} ;
-  mepc_y = infinite_cap;
+  mepc_y = root_cap;
 
   // dpcc = {dpcc with tag = false} ;
   // dscratch0c = {dscratch0c with tag = false};
   // dscratch1c = {dscratch1c with tag = false};
   // dddc = {dddc with tag = false};
-  // dinfc = infinite_cap;
+  // drootc = root_cap;
 
   //x1 = {x1 with tag = false};
   //x2 = {x2 with tag = false};
@@ -62,37 +62,37 @@ function ext_cheri_reset() -> unit = {
   //x31 = {x31 with tag = false};
 
   if (platform_get_rvfi_dii()) then {
-    x1  = infinite_cap;
-    x2  = infinite_cap;
-    x3  = infinite_cap;
-    x4  = infinite_cap;
-    x5  = infinite_cap;
-    x6  = infinite_cap;
-    x7  = infinite_cap;
-    x8  = infinite_cap;
-    x9  = infinite_cap;
-    x10 = infinite_cap;
-    x11 = infinite_cap;
-    x12 = infinite_cap;
-    x13 = infinite_cap;
-    x14 = infinite_cap;
-    x15 = infinite_cap;
-    x16 = infinite_cap;
-    x17 = infinite_cap;
-    x18 = infinite_cap;
-    x19 = infinite_cap;
-    x20 = infinite_cap;
-    x21 = infinite_cap;
-    x22 = infinite_cap;
-    x23 = infinite_cap;
-    x24 = infinite_cap;
-    x25 = infinite_cap;
-    x26 = infinite_cap;
-    x27 = infinite_cap;
-    x28 = infinite_cap;
-    x29 = infinite_cap;
-    x30 = infinite_cap;
-    x31 = infinite_cap;
+    x1  = root_cap;
+    x2  = root_cap;
+    x3  = root_cap;
+    x4  = root_cap;
+    x5  = root_cap;
+    x6  = root_cap;
+    x7  = root_cap;
+    x8  = root_cap;
+    x9  = root_cap;
+    x10 = root_cap;
+    x11 = root_cap;
+    x12 = root_cap;
+    x13 = root_cap;
+    x14 = root_cap;
+    x15 = root_cap;
+    x16 = root_cap;
+    x17 = root_cap;
+    x18 = root_cap;
+    x19 = root_cap;
+    x20 = root_cap;
+    x21 = root_cap;
+    x22 = root_cap;
+    x23 = root_cap;
+    x24 = root_cap;
+    x25 = root_cap;
+    x26 = root_cap;
+    x27 = root_cap;
+    x28 = root_cap;
+    x29 = root_cap;
+    x30 = root_cap;
+    x31 = root_cap;
   }
 }
 

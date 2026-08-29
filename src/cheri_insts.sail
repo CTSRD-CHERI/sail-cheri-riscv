@@ -316,16 +316,16 @@ union clause ast = YMODESW : (ExecutionMode)
  *   in pcc is set to _Integer Pointer Mode_ (1). Otherwise no effect.
  *
  * Executing YMODESWY or YMODESWI from the program buffer in debug mode updates
- * the M-bit of dinfc. The M-bit of dinfc sets the CHERI execution mode for the execution
+ * the M-bit of drootc. The M-bit of drootc sets the CHERI execution mode for the execution
  * of the next instruction from the program buffer, and is used to control which CHERI
  * execution mode to enter next time debug mode is entered. The CHERI execution mode
- * is only controlled by the M-bit of dinfc in debug mode.
+ * is only controlled by the M-bit of drootc in debug mode.
  */
 function clause execute(YMODESW(mode)) = {
   if getCapMode(PCC) != mode then {
     set_next_pcc(setCapMode(PCC, mode));
   };
-  // if debug_mode_active then dinfc = setCapMode(infinite_cap, mode);
+  // if debug_mode_active then drootc = setCapMode(root_cap, mode);
   RETIRE_SUCCESS
 }
 

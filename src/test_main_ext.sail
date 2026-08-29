@@ -43,9 +43,9 @@ function try_system_insts(pccCap : Capability, allowed : bool) -> unit = {
 }
 
 function test_cheri_system_faults() -> unit = {
-    ddc_y = infinite_cap;
-    try_system_insts(infinite_cap, true);
-    try_system_insts(setArchPerms(infinite_cap, {getArchPermsLegalized(infinite_cap) with ASR=false}), false);
+    ddc_y = root_cap;
+    try_system_insts(root_cap, true);
+    try_system_insts(setArchPerms(root_cap, {getArchPermsLegalized(root_cap) with ASR=false}), false);
 }
 
 //function test_cheri_sdtrig() -> unit = {
@@ -95,7 +95,7 @@ function test_cheri_nofastrep () -> unit = {
     // the representable range.
     let increment : bits(12) = zero_extend(0x1);
     // Construct the cap
-    let (exact, cap) = setCapBounds({infinite_cap with address = base}, base, top);
+    let (exact, cap) = setCapBounds({root_cap with address = base}, base, top);
     assert(exact);
     Y(capR) = cap;
     X(addrR) = addr;
@@ -131,9 +131,9 @@ function test_cheri_zba() -> unit = {
     let capR : regidx = Regidx(0b00001);
     let indR : regidx = Regidx(0b00010);
     let resR : regidx = Regidx(0b00011);
-    Y(capR) = infinite_cap;
+    Y(capR) = root_cap;
     X(indR) = to_bits(xlen, 1);
-    Y(resR) = infinite_cap;
+    Y(resR) = root_cap;
     // Test integer versions of instructions
     test_cheri_zba_mode(encdec(ZBA_RTYPE(capR, indR, resR, RISCV_SH1ADD)), resR, false);
     test_cheri_zba_mode(encdec(ZBA_RTYPE(capR, indR, resR, RISCV_SH2ADD)), resR, false);
@@ -178,7 +178,7 @@ function test_cheri_l8() -> unit = {
     let capR : regidx = Regidx(0b00001);
     let lenR : regidx = Regidx(0b00010);
     let dstR : regidx = Regidx(0b00011);
-    Y(capR) = infinite_cap;
+    Y(capR) = root_cap;
     let impliedLen  = 0b00_1111_1111;
     X(lenR) = zero_extend(impliedLen);
     check_format(capR, lenR, dstR, 0, false, zero_extend(impliedLen));
@@ -204,7 +204,7 @@ function test_cheri_redundant() -> unit = {
     // L8 keeps those bits by setting L8 to 1 and maintaining an implied exponent
     let badCap =
       {
-         infinite_cap with
+         root_cap with
          E = 0,
          B = zeros(),
          T = 0b01 @ zeros(cap_mantissa_width - 2),
@@ -212,7 +212,7 @@ function test_cheri_redundant() -> unit = {
       };
     let goodCap =
       {
-         infinite_cap with
+         root_cap with
          E = 0,
          B = zeros(),
          T = 0b01 @ zeros(cap_mantissa_width - 2),
@@ -236,7 +236,7 @@ function test_cheri_rounding() -> unit = {
     let capR : regidx = Regidx(0b00001);
     let lenR : regidx = Regidx(0b00010);
     let outR : regidx = Regidx(0b00011);
-    Y(capR) = {infinite_cap with address = to_bits(xlen, 1)};
+    Y(capR) = {root_cap with address = to_bits(xlen, 1)};
     X(lenR) = 0b1 @ ones(sizeof(xlen - 2)) @ 0b1; // very unaligned
     // Check that YBNDSW is exact
     let _ = execute(YBNDSW(outR, capR, lenR));
@@ -271,7 +271,7 @@ function test_cheri_permission_encoding() -> unit = {
 
     // Test that clearing the X permission of a capability with M=1 (IntPtrMode)
     // clears M (CapPtrMode).
-    let intmode_inf = setCapMode(infinite_cap, IntPtrMode);
+    let intmode_inf = setCapMode(root_cap, IntPtrMode);
     assert(getCapMode(intmode_inf) == IntPtrMode);
     let all_perms_but_x = {getArchPermsLegalized(intmode_inf) with X=false};
     let cap_x_cleared = setArchPerms(intmode_inf, all_perms_but_x);
@@ -317,11 +317,11 @@ function test_cheri_circular() -> unit = {
 
     // Write to low end of address space
     X(valR) = zeros(sizeof(xlen - 8)) @ 0xbe;
-    Y(capR) = { infinite_cap with address = to_bits(xlen, 0) };
+    Y(capR) = { root_cap with address = to_bits(xlen, 0) };
     assert(execute(STORE(zeros(), valR, capR, BYTE, false, false)) == RETIRE_SUCCESS);
     // Write to high end of address space
     X(valR) = zeros(sizeof(xlen - 8)) @ 0xef;
-    Y(capR) = { infinite_cap with address = to_bits(xlen, -1) };
+    Y(capR) = { root_cap with address = to_bits(xlen, -1) };
     assert(execute(STORE(zeros(), valR, capR, BYTE, false, false)) == RETIRE_SUCCESS);
     // Perform wrapping read
     assert(execute(LOAD(zeros(), capR, valR, true, HALF, false, false)) == RETIRE_SUCCESS);
@@ -332,7 +332,7 @@ function test_cheri_circular() -> unit = {
     // Then do a load wrapping the top address and check it gives a bounds violation
     let top = 0b1 @ zeros(sizeof(xlen)) + zero_extend(0x1000);
     let base = ones(sizeof(xlen)) - zero_extend(0x1000);
-    let (_, capTest) = setCapBounds(infinite_cap, base, top);
+    let (_, capTest) = setCapBounds(root_cap, base, top);
     Y(capR) = { capTest with address = ones(sizeof(xlen)) };
     assert(execute(LOAD(zeros(), capR, valR, true, HALF, false, false)) == RETIRE_FAIL);
     assert(mcause[Cause] == zero_extend(ext_exc_type_to_bits(EXC_CHERI(CapCheckType_Ld()))));
@@ -340,7 +340,7 @@ function test_cheri_circular() -> unit = {
 
 function test_cheri_ylen_csr() -> unit = {
     let csr : csreg = csr_name_map("mscratch");
-    let (_, capTest) = setCapBounds(infinite_cap, zero_extend(0x00010000), zero_extend(0x00020000));
+    let (_, capTest) = setCapBounds(root_cap, zero_extend(0x00010000), zero_extend(0x00020000));
     let src : regidx = Regidx(0b00100);
     let dst : regidx = Regidx(0b00101);
     let tmp : regidx = Regidx(0b11000);
@@ -375,7 +375,7 @@ function attempt_csr_access(priv : Privilege, asr : bool, op : csrop, csr : csre
 }
 
 function test_csr_access_priv_asr_rw(csr : string, priv : Privilege, asr : bool, write : bool, allowed : bool) -> unit = {
-    Y(Regidx(0b00001)) = infinite_cap;
+    Y(Regidx(0b00001)) = root_cap;
     let src = if write then Regidx(0b00001) else zreg;
     let dst = if write then zreg else Regidx(0b00001);
     let op = if write then CSRRW else CSRRS;
@@ -452,11 +452,11 @@ function assert_behaviour(inCap : Capability,
 
 function test_cheri_malformed() -> unit = {
     // Create capabilities that are malformed in various ways
-    let badBoundsCap = { infinite_cap with B = ones() };
+    let badBoundsCap = { root_cap with B = ones() };
     assert(boundsMalformed(badBoundsCap));
-    let badPermsCap = { infinite_cap with ap_m = (if xlen == 32 then 0b10001 else 0b000010111) };
+    let badPermsCap = { root_cap with ap_m = (if xlen == 32 then 0b10001 else 0b000010111) };
     assert(permsMalformed(badPermsCap));
-    let badReservedCap = { infinite_cap with reserved_0 = ones() };
+    let badReservedCap = { root_cap with reserved_0 = ones() };
     assert(not(capReservedValid(badReservedCap)));
 
     let capR : regidx = Regidx(0b00001);
@@ -494,27 +494,27 @@ function test_cheri_malformed() -> unit = {
     assert_behaviour(badPermsCap   , capR, outR, instr, None(), false, undefined, zeros());
     assert_behaviour(badReservedCap, capR, outR, instr, None(), false, undefined, zeros());
     assert_behaviour(zeroCapTagged , capR, outR, instr, None(), false, undefined, zero_extend(0b1));
-    assert_behaviour(infinite_cap  , capR, outR, instr, None(), false, undefined, zero_extend(0b1));
+    assert_behaviour(root_cap      , capR, outR, instr, None(), false, undefined, zero_extend(0b1));
     let instr = YLT(outR, otherR, capR);
     assert_behaviour(badBoundsCap  , capR, outR, instr, None(), false, undefined, zeros());
     assert_behaviour(badPermsCap   , capR, outR, instr, None(), false, undefined, zeros());
     assert_behaviour(badReservedCap, capR, outR, instr, None(), false, undefined, zeros());
     assert_behaviour(zeroCapTagged , capR, outR, instr, None(), false, undefined, zero_extend(0b1));
-    assert_behaviour(infinite_cap  , capR, outR, instr, None(), false, undefined, zeros());
+    assert_behaviour(root_cap      , capR, outR, instr, None(), false, undefined, zeros());
 
-    Y(otherR) = infinite_cap;
+    Y(otherR) = root_cap;
     let instr = YLT(outR, capR, otherR);
     assert_behaviour(badBoundsCap  , capR, outR, instr, None(), false, undefined, zeros());
     assert_behaviour(badPermsCap   , capR, outR, instr, None(), false, undefined, zeros());
     assert_behaviour(badReservedCap, capR, outR, instr, None(), false, undefined, zeros());
     assert_behaviour(zeroCapTagged , capR, outR, instr, None(), false, undefined, zeros());
-    assert_behaviour(infinite_cap  , capR, outR, instr, None(), false, undefined, zero_extend(0b1));
+    assert_behaviour(root_cap      , capR, outR, instr, None(), false, undefined, zero_extend(0b1));
     let instr = YLT(outR, otherR, capR);
     assert_behaviour(badBoundsCap  , capR, outR, instr, None(), false, undefined, zeros());
     assert_behaviour(badPermsCap   , capR, outR, instr, None(), false, undefined, zeros());
     assert_behaviour(badReservedCap, capR, outR, instr, None(), false, undefined, zeros());
     assert_behaviour(zeroCapTagged , capR, outR, instr, None(), false, undefined, zero_extend(0b1));
-    assert_behaviour(infinite_cap  , capR, outR, instr, None(), false, undefined, zero_extend(0b1));
+    assert_behaviour(root_cap      , capR, outR, instr, None(), false, undefined, zero_extend(0b1));
 
     // Dereference checks all the fields.
     let instr = LoadCapImm(outR, capR, zeros());
@@ -529,7 +529,7 @@ function test_cheri_malformed() -> unit = {
     assert(not(ddc_y.tag));
     write_ylen_csr(csr_name_map("ddc"), badReservedCap);
     assert(not(ddc_y.tag));
-    write_ylen_csr(csr_name_map("ddc"), infinite_cap);
+    write_ylen_csr(csr_name_map("ddc"), root_cap);
     assert(ddc_y.tag);
 }
 
@@ -539,12 +539,12 @@ function test_cheri_invalid_addr() -> unit = {
     // If system has no invalid addresses, escape
     if (validAddr(invalidAddr)) then return ();
     // Since invalid addr checks are waived for infinite caps, make a slightly smaller cap
-    let (_, finite_cap) = setCapBounds(infinite_cap, zeros(), zero_extend(0xff00_0000_0000_0000));
+    let (_, finite_cap) = setCapBounds(root_cap, zeros(), zero_extend(0xff00_0000_0000_0000));
     let infiniteR : regidx = Regidx(0b00001);
     let finiteR : regidx = Regidx(0b00010);
     let zeroR : regidx = Regidx(0b00000);
     // Attempt to jump to the invalid address with a capability jump
-    Y(infiniteR) = {infinite_cap with address=invalidAddr};
+    Y(infiniteR) = {root_cap with address=invalidAddr};
     Y(finiteR) = {finite_cap with address=invalidAddr};
     assert(execute(JALR_capmode(zeros(), infiniteR, zeroR)) == RETIRE_SUCCESS);
     // Jump itself should retire
@@ -652,13 +652,13 @@ function test_cheri_enables() -> unit = {
 
 function test_cheri_oob_jump() -> unit = {
     // Make a small cap
-    let (_, finite_cap) = setCapBounds(infinite_cap, zeros(), zero_extend(0x100));
+    let (_, finite_cap) = setCapBounds(root_cap, zeros(), zero_extend(0x100));
     let infiniteR : regidx = Regidx(0b00001);
     let finiteR : regidx = Regidx(0b00010);
     let zeroR : regidx = Regidx(0b00000);
     let bigR : regidx = Regidx(0b00011);
     // Attempt to jump in-bounds
-    Y(infiniteR) = infinite_cap;
+    Y(infiniteR) = root_cap;
     Y(finiteR) = finite_cap;
 
     // In-bounds cap jump
@@ -692,7 +692,7 @@ function test_cheri_oob_jump() -> unit = {
     assert(not(PCC.tag));
     assert(fetch() == F_Ext_Error());
 
-    PCC = infinite_cap;
+    PCC = root_cap;
 }
 
 function test_main_ext() -> unit = {
