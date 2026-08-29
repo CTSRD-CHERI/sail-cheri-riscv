@@ -13,18 +13,18 @@ union clause ast = AUIPC_capmode : (bits(20), regidx)
  * insnref: auipc_32bit capmode
  * Add upper immediate to *pc* /pcc
  *
- * auipc cd, imm
+ * auipc rd, imm
  *
  * Form a 32-bit offset from the 20-bit immediate filling the lowest 12
  * bits with zeros. Increment the address of the AUIPC instruction's pcc
- * by the 32-bit offset, then write the output capability to cd. The tag
+ * by the 32-bit offset, then write the output capability to rd. The tag
  * bit of the output capability is 0 if the incremented address is
  * outside the pcc's Representable Range.
  */
-function clause execute AUIPC_capmode(imm, cd) = {
+function clause execute AUIPC_capmode(imm, rd) = {
   let off : xlenbits = sign_extend(imm @ 0x000);
   let (representable, newCap) = setCapAddr(PCC, PC + off);
-  Y(cd) = clearTagIf(newCap, not(representable));
+  Y(rd) = clearTagIf(newCap, not(representable));
   RETIRE_SUCCESS
 }
 
@@ -33,14 +33,14 @@ union clause ast = JAL_capmode : (bits(21), regidx)
  * insnref: jal_32bit capmode
  * Jump and link
  *
- * jal cd, offset
+ * jal rd, offset
  *
  * JAL's immediate encodes a signed offset in multiple of 2 bytes. The
  * pcc is incremented by the sign-extended offset to form the jump target
  * capability. The target capability is written to pcc. The pcc of the
- * next instruction following the jump is sealed and written to cd.
+ * next instruction following the jump is sealed and written to rd.
  */
-function clause execute(JAL_capmode(imm, cd)) = {
+function clause execute(JAL_capmode(imm, rd)) = {
   let off : xlenbits = sign_extend(imm);
   let newPC = PC + off;
   if newPC[1] == bitone & not(extensionEnabled(Ext_Zca)) then {
@@ -50,7 +50,7 @@ function clause execute(JAL_capmode(imm, cd)) = {
     let (success, linkCap) = setCapAddr(PCC, nextPC); /* Note that nextPC accounts for compressed instructions */
     assert(success, "Link cap should always be representable.");
     assert(not(capIsSealed(linkCap)), "Link cap should always be unsealed");
-    Y(cd) = sealCap(linkCap);
+    Y(rd) = sealCap(linkCap);
     set_next_pc(newPC);
     RETIRE_SUCCESS
   }
@@ -61,22 +61,22 @@ union clause ast = JALR_capmode : (bits(12), regidx, regidx)
  * insnref: jalr_32bit capmode
  * Jump and link register
  *
- * jalr cd, cs1, offset
+ * jalr rd, rs1, offset
  *
  * JALR allows unconditional, indirect jumps to a target capability. The
  * target capability is unsealed if the offset is zero. The target
  * address is obtained by adding the sign-extended 12-bit offset to
- * cs1.address, then setting the least-significant bit of the result to
+ * rs1.address, then setting the least-significant bit of the result to
  * zero. The target capability may have Invalid address conversion
  * performed and is then installed in pcc. The pcc of the next
- * instruction following the jump is sealed and written to cd.
+ * instruction following the jump is sealed and written to rd.
  */
-function clause execute(JALR_capmode(imm, cs1, cd)) = {
-  let cs1_val = Y(cs1);
+function clause execute(JALR_capmode(imm, rs1, rd)) = {
+  let rs1_cap = Y(rs1);
 
   // Calculate new PC which may be offset from the capability address.
   let off : xlenbits = sign_extend(imm);
-  let newPC = [cs1_val.address + off with 0 = bitzero]; /* clear bit zero as for RISCV JALR */
+  let newPC = [rs1_cap.address + off with 0 = bitzero]; /* clear bit zero as for RISCV JALR */
 
   if newPC[1] == bitone & not(extensionEnabled(Ext_Zca)) then {
     handle_mem_exception(virtaddr(newPC), E_Fetch_Addr_Align());
@@ -85,11 +85,11 @@ function clause execute(JALR_capmode(imm, cs1, cd)) = {
     let (success, linkCap) = setCapAddr(PCC, nextPC); /* Note that nextPC accounts for compressed instructions */
     assert(success, "Link cap should always be representable.");
     assert(not(capIsSealed(linkCap)), "Link cap should always be unsealed");
-    Y(cd) = sealCap(linkCap);
+    Y(rd) = sealCap(linkCap);
     set_next_pc(newPC);
 
     // Construct the new capability pointing to the address + offset.
-    let (representable, newPCC) = setCapAddr(cs1_val, newPC);
+    let (representable, newPCC) = setCapAddr(rs1_cap, newPC);
     set_next_pcc(clearTagIf(unsealCap(newPCC), not(representable)));
 
     RETIRE_SUCCESS
@@ -123,13 +123,13 @@ union clause ast = SRLIY  : (regidx, regidx)
  * insnref: ymoder_32bit brief
  * Capability get CHERI execution mode
  *
- * ymoder rd, cs1
+ * ymoder rd, rs1
  *
  * See ISA document for full description
  */
-function clause execute (YMODER(rd, cs1)) = {
-  let capVal = Y(cs1);
-  X(rd) = zero_extend(execution_mode_encdec(getCapMode(capVal)));
+function clause execute (YMODER(rd, rs1)) = {
+  let rs1_cap = Y(rs1);
+  X(rd) = zero_extend(execution_mode_encdec(getCapMode(rs1_cap)));
   RETIRE_SUCCESS
 }
 
@@ -137,13 +137,13 @@ function clause execute (YMODER(rd, cs1)) = {
  * insnref: ytyper_32bit brief
  * Capability get type
  *
- * ytyper rd, cs1
+ * ytyper rd, rs1
  *
  * See ISA document for full description
  */
-function clause execute (YTYPER(rd, cs1)) = {
-  let capVal = Y(cs1);
-  X(rd) = zero_extend(bool_to_bits(capVal.sealed));
+function clause execute (YTYPER(rd, rs1)) = {
+  let rs1_cap = Y(rs1);
+  X(rd) = zero_extend(bool_to_bits(rs1_cap.sealed));
   RETIRE_SUCCESS
 }
 
@@ -151,13 +151,13 @@ function clause execute (YTYPER(rd, cs1)) = {
  * insnref: ypermr_32bit brief
  * Capability get permissions
  *
- * ypermr rd, cs1
+ * ypermr rd, rs1
  *
  * See ISA document for full description
  */
-function clause execute (YPERMR(rd, cs1)) = {
-  let capVal = Y(cs1);
-  X(rd) = packPerms(getArchPermsLegalized(capVal), capVal.cl, capVal.sd_perms).bits;
+function clause execute (YPERMR(rd, rs1)) = {
+  let rs1_cap = Y(rs1);
+  X(rd) = packPerms(getArchPermsLegalized(rs1_cap), rs1_cap.cl, rs1_cap.sd_perms).bits;
   RETIRE_SUCCESS
 }
 
@@ -165,16 +165,16 @@ function clause execute (YPERMR(rd, cs1)) = {
  * insnref: ybaser_32bit
  * Capability get base address
  *
- * ybaser rd, cs1
+ * ybaser rd, rs1
  *
- * Decode the base integer address from cs1's bounds and write the result
- * to rd. It is not required that the input capability cs1  has its tag
+ * Decode the base integer address from rs1's bounds and write the result
+ * to rd. It is not required that the input capability rs1  has its tag
  * set to 1.
  */
 
-function clause execute (YBASER(rd, cs1)) = {
-  let capVal = Y(cs1);
-  X(rd) = match getCapBoundsBits(capVal) {
+function clause execute (YBASER(rd, rs1)) = {
+  let rs1_cap = Y(rs1);
+  X(rd) = match getCapBoundsBits(rs1_cap) {
     None() => zeros(),
     Some(base, _) => base
   };
@@ -185,13 +185,13 @@ function clause execute (YBASER(rd, cs1)) = {
  * insnref: srliy_32bit
  * Capability get metadata
  *
- * srliy rd, cs1
+ * srliy rd, rs1
  *
- * Copy the metadata (bits [YLEN-1:MXLEN]) of capability cs1 into rd.
+ * Copy the metadata (bits [YLEN-1:MXLEN]) of capability rs1 into rd.
  */
-function clause execute (SRLIY(rd, cs1)) = {
-  let capVal = Y(cs1);
-  X(rd) = capToMetadataBits(capVal).bits;
+function clause execute (SRLIY(rd, rs1)) = {
+  let rs1_cap = Y(rs1);
+  X(rd) = capToMetadataBits(rs1_cap).bits;
   RETIRE_SUCCESS
 }
 
@@ -200,16 +200,16 @@ union clause ast = PACKY : (regidx, regidx, regidx)
  * insnref: packy_32bit
  * Capability set metadata
  *
- * packy cd, rs1, rs2
+ * packy rd, rs1, rs2
  *
  * Packs the least-significant XLEN-bits of rs1 and rs2 into
  * rd, and set rd.tag=0.
  */
-function clause execute (PACKY(cd, rs1, rs2)) = {
+function clause execute (PACKY(rd, rs1, rs2)) = {
   let lo = X(rs1);
   let hi = X(rs2);
   let newCap = bitsToCap(false, hi @ lo);
-  Y(cd) = newCap;
+  Y(rd) = newCap;
   RETIRE_SUCCESS
 }
 
@@ -217,19 +217,19 @@ function clause execute (PACKY(cd, rs1, rs2)) = {
  * insnref: ylenr_32bit
  * Capability get length
  *
- * ylenr rd, cs1
+ * ylenr rd, rs1
  *
- * Calculate the length of cs1's bounds and write the result in rd. The
+ * Calculate the length of rs1's bounds and write the result in rd. The
  * length is defined as the difference between the decoded bounds' top
  * and base addresses i.e. top - base. It is not required that the input
- * capability cs1  has its tag set to 1. YLENR outputs 0 if cs1's bounds
+ * capability rs1  has its tag set to 1. YLENR outputs 0 if rs1's bounds
  * are malformed (see Malformed Capability Bounds), and 2^MXLEN^-1 if the
- * length of cs1 is 2^MXLEN^.
+ * length of rs1 is 2^MXLEN^.
  */
-function clause execute (YLENR(rd, cs1)) = {
-  let capVal = Y(cs1);
+function clause execute (YLENR(rd, rs1)) = {
+  let rs1_cap = Y(rs1);
   // getCapLength returns 0 if the bounds are malformed
-  let len = getCapLength(capVal);
+  let len = getCapLength(rs1_cap);
   X(rd) = to_bits(xlen, if len > cap_max_addr then cap_max_addr else len);
   RETIRE_SUCCESS
 }
@@ -238,13 +238,13 @@ function clause execute (YLENR(rd, cs1)) = {
  * insnref: ytagr_32bit
  * Capability get tag
  *
- * ytagr rd, cs1
+ * ytagr rd, rs1
  *
- * Zero extend the value of cs1.tag and write the result to rd.
+ * Zero extend the value of rs1.tag and write the result to rd.
  */
-function clause execute (YTAGR(rd, cs1)) = {
-  let capVal = Y(cs1);
-  X(rd) = zero_extend(bool_to_bits(capVal.tag));
+function clause execute (YTAGR(rd, rs1)) = {
+  let rs1_cap = Y(rs1);
+  X(rd) = zero_extend(bool_to_bits(rs1_cap.tag));
   RETIRE_SUCCESS
 }
 
@@ -253,16 +253,16 @@ union clause ast = YPERMC : (regidx, regidx, regidx)
  * insnref: ypermc_32bit brief
  * Mask capability permissions
  *
- * ypermc cd, cs1, rs2
+ * ypermc rd, rs1, rs2
  *
  * See ISA document for full description
  */
-function clause execute(YPERMC(cd, cs1, rs2)) = {
-  let cs1_val = Y(cs1);
+function clause execute(YPERMC(rd, rs1, rs2)) = {
+  let rs1_cap = Y(rs1);
   let rs2_val = X(rs2);
 
-  let cond = capIsSealed(cs1_val) | capIsMalformed(cs1_val);
-  let inCap = clearTagIf(cs1_val, cond);
+  let cond = capIsSealed(rs1_cap) | capIsMalformed(rs1_cap);
+  let inCap = clearTagIf(rs1_cap, cond);
 
   let old_perms = packPerms(getArchPermsLegalized(inCap), inCap.cl, inCap.sd_perms).bits;
 
@@ -271,7 +271,7 @@ function clause execute(YPERMC(cd, cs1, rs2)) = {
   let (new_arch_perms, new_cl, new_sd_perms) = unpackPerms(struct {bits = new_perms});
   let newCap = { setArchPerms(inCap, new_arch_perms) with cl = new_cl, sd_perms = new_sd_perms };
 
-  Y(cd) = newCap;
+  Y(rd) = newCap;
   RETIRE_SUCCESS
 }
 
@@ -280,23 +280,23 @@ union clause ast = YMODEW : (regidx, regidx, regidx)
  * insnref: ymodew_32bit
  * Capability set CHERI execution mode
  *
- * ymodew cd, cs1, rs2
+ * ymodew rd, rs1, rs2
  *
- * Copy cs1 to cd. Clear cd.tag if cs1 is sealed. Update the M-bit of cd
+ * Copy rs1 to rd. Clear rd.tag if rs1 is sealed. Update the M-bit of rd
  * to the least significant bit of rs2 if the two following conditions
  * are met, otherwise do not update it:
  * . X-permission is set
  * . The existing permissions can be produced by YPERMC
  */
-function clause execute(YMODEW(cd, cs1, rs2)) = {
-  let cap = Y(cs1);
+function clause execute(YMODEW(rd, rs1, rs2)) = {
+  let rs1_cap = Y(rs1);
   let mode = execution_mode_encdec(X(rs2)[0 .. 0]);
 
-  let cap = clearTagIf(cap, capIsSealed(cap));
-  let hasMode = not(permsMalformed(cap)) & canX(cap);
-  let newCap = if hasMode then setCapMode(cap, mode) else cap;
+  let rs1_cap = clearTagIf(rs1_cap, capIsSealed(rs1_cap));
+  let hasMode = not(permsMalformed(rs1_cap)) & canX(rs1_cap);
+  let newCap = if hasMode then setCapMode(rs1_cap, mode) else rs1_cap;
 
-  Y(cd) = newCap;
+  Y(rd) = newCap;
   RETIRE_SUCCESS
 }
 
@@ -334,24 +334,24 @@ union clause ast = ADDY : (regidx, regidx, regidx)
  * insnref: addy_32bit
  * Capability pointer increment
  *
- * addy cd, cs1, rs2
- * addiy cd, cs1, imm
+ * addy rd, rs1, rs2
+ * addiy rd, rs1, imm
  *
- * Increment the address field of the capability cs1  and write the
- * result to cd . The tag bit of the output capability is 0 if cs1  did
- * not have its tag set to 1, the incremented address is outside cs1's
- * Representable Range or cs1  is sealed.
+ * Increment the address field of the capability rs1  and write the
+ * result to rd . The tag bit of the output capability is 0 if rs1  did
+ * not have its tag set to 1, the incremented address is outside rs1's
+ * Representable Range or rs1  is sealed.
  *
  * For ADDY, the address is incremented by the value in rs2 .
  * For ADDIY, the address is incremented by the immediate value imm.
  */
-function clause execute (ADDY(cd, cs1, rs2)) = {
-  let cs1_val = Y(cs1);
+function clause execute (ADDY(rd, rs1, rs2)) = {
+  let rs1_cap = Y(rs1);
   let rs2_val = X(rs2);
 
-  let newCap = incCapAddrChecked(cs1_val, rs2_val);
+  let newCap = incCapAddrChecked(rs1_cap, rs2_val);
 
-  Y(cd) = newCap;
+  Y(rd) = newCap;
   RETIRE_SUCCESS
 }
 
@@ -360,24 +360,24 @@ union clause ast = ADDIY : (regidx, regidx, bits(12))
  * insnref: addy_32bit
  * Capability pointer increment
  *
- * addy cd, cs1, rs2
- * addiy cd, cs1, imm
+ * addy rd, rs1, rs2
+ * addiy rd, rs1, imm
  *
- * Increment the address field of the capability cs1  and write the
- * result to cd . The tag bit of the output capability is 0 if cs1  did
- * not have its tag set to 1, the incremented address is outside cs1's
- * Representable Range or cs1  is sealed.
+ * Increment the address field of the capability rs1  and write the
+ * result to rd . The tag bit of the output capability is 0 if rs1  did
+ * not have its tag set to 1, the incremented address is outside rs1's
+ * Representable Range or rs1  is sealed.
  *
  * For ADDY, the address is incremented by the value in rs2 .
  * For ADDIY, the address is incremented by the immediate value imm.
  */
-function clause execute (ADDIY(cd, cs1, imm)) = {
-  let cs1_val = Y(cs1);
+function clause execute (ADDIY(rd, rs1, imm)) = {
+  let rs1_cap = Y(rs1);
   let immBits : xlenbits = sign_extend(imm);
 
-  let newCap = incCapAddrChecked(cs1_val, immBits);
+  let newCap = incCapAddrChecked(rs1_cap, immBits);
 
-  Y(cd) = newCap;
+  Y(rd) = newCap;
   RETIRE_SUCCESS
 }
 
@@ -386,15 +386,15 @@ union clause ast = YADDRW : (regidx, regidx, regidx)
  * insnref: yaddrw_32bit
  * Capability set address
  *
- * yaddrw cd, cs1, rs2
+ * yaddrw rd, rs1, rs2
  *
- * Set the address field of capability cs1 to rs2 and write the output
- * capability to cd. The tag bit of the output capability is 0 if cs1 did
+ * Set the address field of capability rs1 to rs2 and write the output
+ * capability to rd. The tag bit of the output capability is 0 if rs1 did
  * not have its tag set to 1, rs2 is outside the Representable Range of
- * cs1 or if cs1 is sealed.
+ * rs1 or if rs1 is sealed.
  */
-function clause execute (YADDRW(cd, cs1, rs2)) = {
-  Y(cd) = setCapAddrChecked(Y(cs1), X(rs2));
+function clause execute (YADDRW(rd, rs1, rs2)) = {
+  Y(rd) = setCapAddrChecked(Y(rs1), X(rs2));
   RETIRE_SUCCESS
 }
 
@@ -403,28 +403,28 @@ union clause ast = YBNDSRW : (regidx, regidx, regidx)
  * insnref: ybndsrw_32bit
  * Capability set bounds, rounding up if necessary
  *
- * ybndsrw cd, cs1, rs2
+ * ybndsrw rd, rs1, rs2
  *
- * Capability register cd  is set to capability register cs1  with the
- * base address of its bounds replaced with the value of cs1.address
+ * Capability register rd  is set to capability register rs1  with the
+ * base address of its bounds replaced with the value of rs1.address
  * field and the length of its bounds set to rs2. The base is rounded
  * down and the length is rounded up by the smallest amount needed to
  * form a representable capability covering the requested bounds. In all
- * cases, cd.tag is set to 0 if its bounds exceed cs1's bounds, cs1's tag
- * is 0 or cs1  is sealed.
+ * cases, rd.tag is set to 0 if its bounds exceed rs1's bounds, rs1's tag
+ * is 0 or rs1  is sealed.
  */
-function clause execute (YBNDSRW(cd, cs1, rs2)) = {
-  let cs1_val = Y(cs1);
+function clause execute (YBNDSRW(rd, rs1, rs2)) = {
+  let rs1_cap = Y(rs1);
   let length = X(rs2);
-  let newBase = cs1_val.address;
+  let newBase = rs1_cap.address;
   let newTop : CapLenBits = zero_extend(newBase) + zero_extend(length);
   // inCapBoundsNoWrap returns false if the input bounds are malformed.
-  let inBounds = inCapBoundsNoWrap(cs1_val, newBase, unsigned(length));
-  let (_, newCap) : (bool, Capability) = setCapBounds(cs1_val, newBase, newTop);
+  let inBounds = inCapBoundsNoWrap(rs1_cap, newBase, unsigned(length));
+  let (_, newCap) : (bool, Capability) = setCapBounds(rs1_cap, newBase, newTop);
   let cond = not(inBounds) |
              capIsMalformed(newCap) |
              capIsSealed(newCap);
-  Y(cd) = clearTagIf(newCap, cond);
+  Y(rd) = clearTagIf(newCap, cond);
   RETIRE_SUCCESS
 }
 
@@ -433,31 +433,31 @@ union clause ast = YBNDSWI : (regidx, regidx, bits(1), bits(5))
  * insnref: ybndsw_32bit
  * Capability set bounds
  *
- * ybndsw cd, cs1, rs2
- * ybndswi cd, cs1, uimm
+ * ybndsw rd, rs1, rs2
+ * ybndswi rd, rs1, uimm
  *
- * Capability register cd  is set to capability register cs1  with the
- * base address of its bounds replaced with the value of cs1.address and
+ * Capability register rd  is set to capability register rs1  with the
+ * base address of its bounds replaced with the value of rs1.address and
  * the length of its bounds set to rs2  (or imm). If the resulting
- * capability cannot be represented exactly then set cd.tag to 0. In all
- * cases, cd.tag is set to 0 if its bounds exceed cs1's bounds, cs1's tag
- * is 0  or cs1 is sealed.
+ * capability cannot be represented exactly then set rd.tag to 0. In all
+ * cases, rd.tag is set to 0 if its bounds exceed rs1's bounds, rs1's tag
+ * is 0  or rs1 is sealed.
  * YBNDSWI uses the s bit to scale the immediate by 4 places
  * immediate = ZeroExtend(s ? uimm<<4 : uimm)
  */
-function clause execute (YBNDSWI(cd, cs1, s, uimm5)) = {
-  let cs1_val = Y(cs1);
+function clause execute (YBNDSWI(rd, rs1, s, uimm5)) = {
+  let rs1_cap = Y(rs1);
   let length = if s == 0b1 then uimm5 @ 0b0000 else 0b0000 @ uimm5;
-  let newBase = cs1_val.address;
+  let newBase = rs1_cap.address;
   let newTop : CapLenBits = zero_extend(newBase) + zero_extend(length);
   // inCapBoundsNoWrap returns false if the input bounds are malformed.
-  let inBounds = inCapBoundsNoWrap(cs1_val, newBase, unsigned(length));
-  let (exact, newCap) : (bool, Capability) = setCapBounds(cs1_val, newBase, newTop);
+  let inBounds = inCapBoundsNoWrap(rs1_cap, newBase, unsigned(length));
+  let (exact, newCap) : (bool, Capability) = setCapBounds(rs1_cap, newBase, newTop);
   assert(exact, "YBNDSWI immediate too small for non-exact lengths");
   let cond = not(inBounds) |
              capIsMalformed(newCap) |
              capIsSealed(newCap);
-  Y(cd) = clearTagIf(newCap, cond);
+  Y(rd) = clearTagIf(newCap, cond);
   RETIRE_SUCCESS
 }
 
@@ -466,30 +466,30 @@ union clause ast = YBNDSW : (regidx, regidx, regidx)
  * insnref: ybndsw_32bit
  * Capability set bounds
  *
- * ybndsw cd, cs1, rs2
- * ybndswi cd, cs1, uimm
+ * ybndsw rd, rs1, rs2
+ * ybndswi rd, rs1, uimm
  *
- * Capability register cd  is set to capability register cs1  with the
- * base address of its bounds replaced with the value of cs1.address and
+ * Capability register rd  is set to capability register rs1  with the
+ * base address of its bounds replaced with the value of rs1.address and
  * the length of its bounds set to rs2  (or imm). If the resulting
- * capability cannot be represented exactly then set cd.tag to 0. In all
- * cases, cd.tag is set to 0 if its bounds exceed cs1's bounds, cs1's tag
- * is 0  or cs1 is sealed.
+ * capability cannot be represented exactly then set rd.tag to 0. In all
+ * cases, rd.tag is set to 0 if its bounds exceed rs1's bounds, rs1's tag
+ * is 0  or rs1 is sealed.
  * YBNDSWI uses the s bit to scale the immediate by 4 places
  * immediate = ZeroExtend(s ? uimm<<4 : uimm)
  */
-function clause execute (YBNDSW(cd, cs1, rs2)) = {
-  let cs1_val = Y(cs1);
+function clause execute (YBNDSW(rd, rs1, rs2)) = {
+  let rs1_cap = Y(rs1);
   let length = X(rs2);
-  let newBase = cs1_val.address;
+  let newBase = rs1_cap.address;
   let newTop : CapLenBits = zero_extend(newBase) + zero_extend(length);
   // inCapBoundsNoWrap returns false if the input bounds are malformed.
-  let inBounds = inCapBoundsNoWrap(cs1_val, newBase, unsigned(length));
-  let (exact, newCap) : (bool, Capability) = setCapBounds(cs1_val, newBase, newTop);
+  let inBounds = inCapBoundsNoWrap(rs1_cap, newBase, unsigned(length));
+  let (exact, newCap) : (bool, Capability) = setCapBounds(rs1_cap, newBase, newTop);
   let cond = not(inBounds & exact) |
              capIsMalformed(newCap) |
              capIsSealed(newCap);
-  Y(cd) = clearTagIf(newCap, cond);
+  Y(rd) = clearTagIf(newCap, cond);
   RETIRE_SUCCESS
 }
 
@@ -498,13 +498,13 @@ union clause ast = YMV : (regidx, regidx)
  * insnref: ymv_32bit
  * Capability move
  *
- * ymv cd, cs1
+ * ymv rd, rs1
  *
- * The contents of capability register cs1  are written to capability
- * register cd. YMV unconditionally moves the whole capability to cd .
+ * The contents of capability register rs1  are written to capability
+ * register rd. YMV unconditionally moves the whole capability to rd .
  */
-function clause execute (YMV(cd, cs1)) = {
-  Y(cd) = Y(cs1);
+function clause execute (YMV(rd, rs1)) = {
+  Y(rd) = Y(rs1);
   RETIRE_SUCCESS
 }
 
@@ -513,34 +513,34 @@ union clause ast = YBLD : (regidx, regidx, regidx)
  * insnref: ybld_32bit
  * Capability build
  *
- * ybld cd, cs1, cs2
+ * ybld rd, rs1, rs2
  *
- * Copy cs2 to cd and set cd.tag to 1 if
+ * Copy rs2 to rd and set rd.tag to 1 if
  *
- * . cs1.tag is set, and
- * . cs1's bounds are not malformed, and all reserved fields are zero,
+ * . rs1.tag is set, and
+ * . rs1's bounds are not malformed, and all reserved fields are zero,
  * and
- * . cs1's permissions could have been legally produced by YPERMC, and
- * . cs1 is not sealed, and
- * . cs2's permissions and bounds are equal to or a subset of cs1's, and
- * . cs2's bounds are not malformed, and all reserved fields are zero,
+ * . rs1's permissions could have been legally produced by YPERMC, and
+ * . rs1 is not sealed, and
+ * . rs2's permissions and bounds are equal to or a subset of rs1's, and
+ * . rs2's bounds are not malformed, and all reserved fields are zero,
  * and
- * . cs2's permissions could have been legally produced by YPERMC, and
- * . All reserved bits in cs2's metadata are 0;
- * Otherwise, copy cs2 to cd and clear cd's tag.
+ * . rs2's permissions could have been legally produced by YPERMC, and
+ * . All reserved bits in rs2's metadata are 0;
+ * Otherwise, copy rs2 to rd and clear rd's tag.
  * YBLD is typically used alongside PACKY to build capabilities from
  * integer values.
  */
-function clause execute (YBLD(cd, cs1, cs2)) = {
-  let cs1_val = Y(cs1);
-  let cs2_val = Y(cs2);
+function clause execute (YBLD(rd, rs1, rs2)) = {
+  let rs1_cap = Y(rs1);
+  let rs2_cap = Y(rs2);
 
-  let tag = cs1_val.tag &
-            not(capIsSealed(cs1_val)) &
-            capIsSubset(cs2_val, cs1_val); /* Subset checks for malformed bounds,
+  let tag = rs1_cap.tag &
+            not(capIsSealed(rs1_cap)) &
+            capIsSubset(rs2_cap, rs1_cap); /* Subset checks for malformed bounds,
                                               perms, and reserved bits */
 
-  Y(cd) = { cs2_val with tag = tag };
+  Y(rd) = { rs2_cap with tag = tag };
   RETIRE_SUCCESS
 }
 
@@ -566,24 +566,24 @@ union clause ast = YLT : (regidx, regidx, regidx)
  * insnref: ylt_32bit
  * Capability test subset
  *
- * ylt rd, cs1, cs2
+ * ylt rd, rs1, rs2
  *
- * rd is set to 1 if the tag of capabilities cs1 and cs2 are equal and
- * the bounds and permissions of cs2 are a subset of those of cs1.
- * If either cs1 or cs2:
+ * rd is set to 1 if the tag of capabilities rs1 and rs2 are equal and
+ * the bounds and permissions of rs2 are a subset of those of rs1.
+ * If either rs1 or rs2:
  *
  * . Have bounds which are malformed, or
  * . Have any bits set in reserved fields, or
  * . Have permissions that could not have been legally produced by YPERMC
  * then the instruction returns zero.
  */
-function clause execute (YLT(rd, cs1, cs2)) = {
-  let cs1_val = Y(cs1);
-  let cs2_val = Y(cs2);
+function clause execute (YLT(rd, rs1, rs2)) = {
+  let rs1_cap = Y(rs1);
+  let rs2_cap = Y(rs2);
 
   X(rd) = zero_extend(bool_bits(
-    (cs1_val.tag == cs2_val.tag) &
-    capIsSubset(cs2_val, cs1_val) /* capIsSubset returns false if either input
+    (rs1_cap.tag == rs2_cap.tag) &
+    capIsSubset(rs2_cap, rs1_cap) /* capIsSubset returns false if either input
                                      has malformed bounds, perms, or non-zero
                                      reserved bits */
   ));
@@ -595,15 +595,15 @@ union clause ast = SYEQ : (regidx, regidx, regidx)
  * insnref: syeq_32bit
  * Set if Capabilities are EQual
  *
- * syeq rd, cs1, cs2
+ * syeq rd, rs1, rs2
  *
  * rd is set to 1 if all bits (i.e. YLEN bits and the tag) of
- * capabilities cs1 and cs2  are equal, otherwise rd is set to 0.
+ * capabilities rs1 and rs2  are equal, otherwise rd is set to 0.
  */
-function clause execute (SYEQ(rd, cs1, cs2)) = {
-  let cs1_val = Y(cs1);
-  let cs2_val = Y(cs2);
-  X(rd) = zero_extend(bool_to_bits(cs1_val == cs2_val));
+function clause execute (SYEQ(rd, rs1, rs2)) = {
+  let rs1_cap = Y(rs1);
+  let rs2_cap = Y(rs2);
+  X(rd) = zero_extend(bool_to_bits(rs1_cap == rs2_cap));
   RETIRE_SUCCESS
 }
 
@@ -612,15 +612,15 @@ union clause ast = YSENTRY : (regidx, regidx)
  * insnref: ysentry_32bit
  * Seal capability as sealed entry.
  *
- * ysentry cd, cs1
+ * ysentry rd, rs1
  *
- * Capability `cd` is written with the capability in `cs1` with its type bit set to 1.
- * Attempting to seal an already sealed capability will lead to the tag of `cd` being set to 0.
+ * Capability `rd` is written with the capability in `rs1` with its type bit set to 1.
+ * Attempting to seal an already sealed capability will lead to the tag of `rd` being set to 0.
  */
-function clause execute (YSENTRY(cd, cs1)) = {
-  let cs1_val = Y(cs1);
-  let inCap = clearTagIf(cs1_val, capIsSealed(cs1_val));
-  Y(cd) = sealCap(inCap);
+function clause execute (YSENTRY(rd, rs1)) = {
+  let rs1_cap = Y(rs1);
+  let inCap = clearTagIf(rs1_cap, capIsSealed(rs1_cap));
+  Y(rd) = sealCap(inCap);
   RETIRE_SUCCESS
 }
 
@@ -666,14 +666,10 @@ union clause ast = LoadResCap : (regidx, regidx, bool, bool)
  * insnref: load_res_cap_32bit modedep
  * Load Reserved Capability (LR.Y), 32-bit encodings
  *
- * Capability Pointer Mode:
- * lr.y cd, 0(cs1)
- *
- * Integer Pointer Mode:
- * lr.y cd, 0(rs1)
+ * lr.y rd, 0(rs1)
  *
  * Capability Pointer Mode:
- * Load reserved instructions, authorised by the capability in cs1. All
+ * Load reserved instructions, authorised by the capability in rs1. All
  * misaligned load reservations cause a load address misaligned exception
  * to allow software emulation (Zam extension, see citation).
  *
@@ -682,8 +678,8 @@ union clause ast = LoadResCap : (regidx, regidx, bool, bool)
  * misaligned load reservations cause a load address misaligned exception
  * to allow software emulation (Zam extension, see citation).
  */
-function clause execute (LoadResCap(cd, rs1_cs1, aq, rl)) = {
-  let (auth_val, vaddr) = get_cheri_mode_cap_addr(rs1_cs1, zeros());
+function clause execute (LoadResCap(rd, rs1, aq, rl)) = {
+  let (auth_val, vaddr) = get_cheri_mode_cap_addr(rs1, zeros());
 
   match cap_mem_standard_errors(auth_val, vaddr, Cap_Read) {
     Some(r) => r,
@@ -702,7 +698,7 @@ function clause execute (LoadResCap(cd, rs1_cs1, aq, rl)) = {
               } else {
                 load_reservation(physaddr_bits(addr));
                 let cr = clearTagIf(v, ext_ptw.tagged_load_behaviour == TaggedLoadClear | not(canC(auth_val)));
-                Y(cd) = legalizeLoadedPermissions(cr, auth_val);
+                Y(rd) = legalizeLoadedPermissions(cr, auth_val);
                 RETIRE_SUCCESS
               }
             },
@@ -723,29 +719,29 @@ union clause ast = LoadCapImm : (regidx, regidx, bits(12))
  * Load capability
  *
  * Capability Pointer Mode:
- * ly cd, offset(cs1)
+ * ly rd, offset(rs1)
  *
  * Integer Pointer Mode:
- * ly cd, offset(rs1)
+ * ly rd, offset(rs1)
  *
  * Capability Pointer Mode:
- * Load a YLEN+1 bit value from memory and writes it to cd. The
- * capability in cs1 authorizes the operation. The effective address of
- * the memory access is obtained by adding the address of cs1 to the
- * sign-extended 12-bit offset. The tag value written to cd is 0 if the
- * tag of the memory location loaded is 0 or cs1 does not grant
+ * Load a YLEN+1 bit value from memory and writes it to rd. The
+ * capability in rs1 authorizes the operation. The effective address of
+ * the memory access is obtained by adding the address of rs1 to the
+ * sign-extended 12-bit offset. The tag value written to rd is 0 if the
+ * tag of the memory location loaded is 0 or rs1 does not grant
  * C-permission.
  *
  * Integer Pointer Mode:
- * Loads a YLEN+1 bit value from memory and writes it to cd. The
+ * Loads a YLEN+1 bit value from memory and writes it to rd. The
  * capability authorising the operation is ddc. The effective address of
  * the memory access is obtained by adding rs1 to the sign-extended
- * 12-bit offset. The tag value written to cd is 0 if the tag of the
+ * 12-bit offset. The tag value written to rd is 0 if the tag of the
  * memory location loaded is 0 or ddc does not grant C-permission.
  */
-function clause execute LoadCapImm(cd, rs1_cs1, imm) = {
+function clause execute LoadCapImm(rd, rs1, imm) = {
   let offset : xlenbits = sign_extend(imm);
-  let (auth_val, vaddr) = get_cheri_mode_cap_addr(rs1_cs1, offset);
+  let (auth_val, vaddr) = get_cheri_mode_cap_addr(rs1, offset);
 
   match cap_mem_standard_errors(auth_val, vaddr, Cap_Read) {
     Some(r) => r,
@@ -764,7 +760,7 @@ function clause execute LoadCapImm(cd, rs1_cs1, imm) = {
                 RETIRE_FAIL
               } else {
                 let cr = clearTagIf(v, ext_ptw.tagged_load_behaviour == TaggedLoadClear | not(canC(auth_val)));
-                Y(cd) = legalizeLoadedPermissions(cr, auth_val);
+                Y(rd) = legalizeLoadedPermissions(cr, auth_val);
                 RETIRE_SUCCESS
               }
             },
@@ -784,38 +780,34 @@ union clause ast = StoreCapImm : (regidx, regidx, bits(12))
  * insnref: store_32bit_cap modedep
  * Store capability
  *
- * Capability Pointer Mode:
- * sy cs2, offset(cs1)
- *
- * Integer Pointer Mode:
- * sy cs2, offset(rs1)
+ * sy rs2, offset(rs1)
  *
  * Capability Pointer Mode:
- * Store the YLEN+1 bit value in cs2 to memory. The capability in cs1
+ * Store the YLEN+1 bit value in rs2 to memory. The capability in rs1
  * authorizes the operation. The effective address of the memory access
- * is obtained by adding the address of cs1 to the sign-extended 12-bit
+ * is obtained by adding the address of rs1 to the sign-extended 12-bit
  * offset. The capability written to memory has the tag set to 0 if the
- * tag of cs2 is 0 or cs1 does not grant C-permission.
+ * tag of rs2 is 0 or rs1 does not grant C-permission.
  *
  * Integer Pointer Mode:
- * Store the YLEN+1 bit value in cs2 to memory. The capability
+ * Store the YLEN+1 bit value in rs2 to memory. The capability
  * authorising the operation is ddc. The effective address of the memory
  * access is obtained by adding rs1 to the sign-extended 12-bit offset.
- * The capability written to memory has the tag set to 0 if cs2's tag is
+ * The capability written to memory has the tag set to 0 if rs2's tag is
  * 0 or ddc does not grant C-permission.
  */
-function clause execute StoreCapImm(cs2, rs1_cs1, imm) = {
+function clause execute StoreCapImm(rs2, rs1, imm) = {
   let offset : xlenbits = sign_extend(imm);
-  let (auth_val, vaddr) = get_cheri_mode_cap_addr(rs1_cs1, offset);
+  let (auth_val, vaddr) = get_cheri_mode_cap_addr(rs1, offset);
 
   match cap_mem_standard_errors(auth_val, vaddr, Cap_Write) {
     Some(r) => r,
     None() => {
-      let cs2_val = Y(cs2);
-      let cs2_val = clearTagIf(cs2_val, not(canC(auth_val)));
-      let cs2_val = legalizeStoredPermissions(cs2_val, auth_val);
+      let rs2_cap = Y(rs2);
+      let rs2_cap = clearTagIf(rs2_cap, not(canC(auth_val)));
+      let rs2_cap = legalizeStoredPermissions(rs2_cap, auth_val);
 
-      match translateAddr(vaddr, Write(if cs2_val.tag then Tagged else Data)) {
+      match translateAddr(vaddr, Write(if rs2_cap.tag then Tagged else Data)) {
         TR_Failure(e, _) => { handle_translate_exception(vaddr, e); RETIRE_FAIL },
         TR_Address(addr, pbmt, _) => {
           let aq = false;
@@ -823,7 +815,7 @@ function clause execute StoreCapImm(cs2, rs1_cs1, imm) = {
           match mem_write_ea_cap(addr, aq & rl, rl, false) {
             Err(e) => { handle_mem_exception(vaddr, e); RETIRE_FAIL },
             Ok(_)  => {
-              match mem_write_cap(addr, pbmt, cs2_val, aq & rl, rl, false) {
+              match mem_write_cap(addr, pbmt, rs2_cap, aq & rl, rl, false) {
                 Ok(true)  => RETIRE_SUCCESS,
                 Ok(false) => internal_error(__FILE__, __LINE__, "store got false from mem_write_value"),
                 Err(e)    => { handle_mem_exception(vaddr, e); RETIRE_FAIL }
@@ -841,14 +833,10 @@ union clause ast = StoreCondCap : (regidx, regidx, regidx, bool, bool)
  * insnref: store_cond_cap_32bit modedep
  * Store Conditional (SC.Y), 32-bit encoding
  *
- * Capability Pointer Mode:
- * sc.y rd, cs2, 0(cs1)
- *
- * Integer Pointer Mode:
- * sc.y rd, cs2, 0(rs1)
+ * sc.y rd, rs2, 0(rs1)
  *
  * Capability Pointer Mode:
- * Store conditional instructions, authorised by the capability in cs1.
+ * Store conditional instructions, authorised by the capability in rs1.
  * All misaligned store conditionals cause a store/AMO address misaligned
  * exception to allow software emulation (Zam extension, see citation).
  *
@@ -857,17 +845,17 @@ union clause ast = StoreCondCap : (regidx, regidx, regidx, bool, bool)
  * All misaligned store conditionals cause a store/AMO address misaligned
  * exception to allow software emulation (Zam extension, see citation).
  */
-function clause execute StoreCondCap(rd, cs2, rs1_cs1, aq, rl) = {
-  let (auth_val, vaddr) = get_cheri_mode_cap_addr(rs1_cs1, zeros());
+function clause execute StoreCondCap(rd, rs2, rs1, aq, rl) = {
+  let (auth_val, vaddr) = get_cheri_mode_cap_addr(rs1, zeros());
 
   match cap_mem_standard_errors(auth_val, vaddr, Cap_Write) {
     Some(r) => r,
     None() => {
-      let cs2_val = Y(cs2);
-      let cs2_val = clearTagIf(cs2_val, not(canC(auth_val)));
-      let cs2_val = legalizeStoredPermissions(cs2_val, auth_val);
+      let rs2_cap = Y(rs2);
+      let rs2_cap = clearTagIf(rs2_cap, not(canC(auth_val)));
+      let rs2_cap = legalizeStoredPermissions(rs2_cap, auth_val);
 
-      match translateAddr(vaddr, Write(if cs2_val.tag then Tagged else Data)) {
+      match translateAddr(vaddr, Write(if rs2_cap.tag then Tagged else Data)) {
         TR_Failure(e, _) => { handle_translate_exception(vaddr, e); RETIRE_FAIL },
         TR_Address(addr, pbmt, _) => {
           if not(match_reservation(physaddr_bits(addr))) then {
@@ -879,7 +867,7 @@ function clause execute StoreCondCap(rd, cs2, rs1_cs1, aq, rl) = {
             match mem_write_ea_cap(addr, aq & rl, rl, false) {
               Err(e) => { handle_mem_exception(vaddr, e); RETIRE_FAIL },
               Ok(_)  => {
-                match mem_write_cap(addr, pbmt, cs2_val, aq & rl, rl, false) {
+                match mem_write_cap(addr, pbmt, rs2_cap, aq & rl, rl, false) {
                   Ok(true) => {
                     X(rd) = zero_extend(0b0);
                     cancel_reservation();
@@ -909,29 +897,25 @@ union clause ast = AMOSwapCap : (regidx, regidx, regidx, bool, bool)
  * insnref: amoswap_32bit_cap modedep
  * Atomic Operation (AMOSWAP.Y), 32-bit encoding
  *
- * Capability Pointer Mode:
- * amoswap.y cd, cs2, offset(cs1)
- *
- * Integer Pointer Mode:
- * amoswap.y cd, cs2, offset(rs1)
+ * amoswap.y rd, rs2, offset(rs1)
  *
  * Capability Pointer Mode:
- * Atomic swap of capability type, authorised by the capability in cs1.
+ * Atomic swap of capability type, authorised by the capability in rs1.
  *
  * Integer Pointer Mode:
  * Atomic swap of capability type, authorised by the capability in ddc.
  */
-function clause execute AMOSwapCap(cd, cs2, rs1_cs1, aq, rl) = {
-  let (auth_val, vaddr) = get_cheri_mode_cap_addr(rs1_cs1, zeros());
+function clause execute AMOSwapCap(rd, rs2, rs1, aq, rl) = {
+  let (auth_val, vaddr) = get_cheri_mode_cap_addr(rs1, zeros());
 
   match cap_mem_standard_errors(auth_val, vaddr, Cap_ReadWrite) {
     Some(r) => r,
     None() => {
-      let cs2_val = Y(cs2);
-      let cs2_val = clearTagIf(cs2_val, not(canC(auth_val)));
-      let cs2_val = legalizeStoredPermissions(cs2_val, auth_val);
+      let rs2_cap = Y(rs2);
+      let rs2_cap = clearTagIf(rs2_cap, not(canC(auth_val)));
+      let rs2_cap = legalizeStoredPermissions(rs2_cap, auth_val);
 
-      match translateAddr(vaddr, ReadWrite(if canC(auth_val) then Tagged else Data, if cs2_val.tag then Tagged else Data)) {
+      match translateAddr(vaddr, ReadWrite(if canC(auth_val) then Tagged else Data, if rs2_cap.tag then Tagged else Data)) {
         TR_Failure(e, _) => { handle_translate_exception(vaddr, e); RETIRE_FAIL },
         TR_Address(addr, pbmt, ext_ptw) => {
           match mem_write_ea_cap(addr, aq & rl, rl, false) {
@@ -939,14 +923,14 @@ function clause execute AMOSwapCap(cd, cs2, rs1_cs1, aq, rl) = {
             Ok(_)  => {
               match mem_read_cap(addr, pbmt, aq, aq & rl, false) {
                 Ok(v) => {
-                  match mem_write_cap(addr, pbmt, cs2_val, aq & rl, rl, false) {
+                  match mem_write_cap(addr, pbmt, rs2_cap, aq & rl, rl, false) {
                     Ok(_) => {
                       if v.tag & ext_ptw.tagged_load_behaviour == TaggedLoadTrap then {
                         handle_translate_exception(vaddr, E_Load_Page_Fault());
                         RETIRE_FAIL
                       } else {
                         let cr = clearTagIf(v, ext_ptw.tagged_load_behaviour == TaggedLoadClear | not(canC(auth_val)));
-                        Y(cd) = legalizeLoadedPermissions(cr, auth_val);
+                        Y(rd) = legalizeLoadedPermissions(cr, auth_val);
                         RETIRE_SUCCESS
                       }
                     },
@@ -985,120 +969,120 @@ mapping clause assembly = YMODESW(mode) <-> "ymodesw." ^ execution_mode_mnemonic
 
 /* Two arg */
 
-mapping clause encdec = YMODER(rd, cs1)                                          if cheri_registers_enabled()
-  <-> 0b0001000 @ 0b00011 @ encdec_reg(cs1) @ 0b000 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
-mapping clause encdec = YTYPER(rd, cs1)                                          if cheri_registers_enabled()
-  <-> 0b0001000 @ 0b00010 @ encdec_reg(cs1) @ 0b000 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
-mapping clause encdec = YPERMR(rd, cs1)                                          if cheri_registers_enabled()
-  <-> 0b0001000 @ 0b00001 @ encdec_reg(cs1) @ 0b000 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
-mapping clause encdec = YBASER(rd, cs1)                                          if cheri_registers_enabled()
-  <-> 0b0001000 @ 0b00101 @ encdec_reg(cs1) @ 0b000 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
-mapping clause encdec = YLENR(rd, cs1)                                           if cheri_registers_enabled()
-  <-> 0b0001000 @ 0b00110 @ encdec_reg(cs1) @ 0b000 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
-mapping clause encdec = YTAGR(rd, cs1)                                           if cheri_registers_enabled()
-  <-> 0b0001000 @ 0b00000 @ encdec_reg(cs1) @ 0b000 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
+mapping clause encdec = YMODER(rd, rs1)                                          if cheri_registers_enabled()
+  <-> 0b0001000 @ 0b00011 @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
+mapping clause encdec = YTYPER(rd, rs1)                                          if cheri_registers_enabled()
+  <-> 0b0001000 @ 0b00010 @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
+mapping clause encdec = YPERMR(rd, rs1)                                          if cheri_registers_enabled()
+  <-> 0b0001000 @ 0b00001 @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
+mapping clause encdec = YBASER(rd, rs1)                                          if cheri_registers_enabled()
+  <-> 0b0001000 @ 0b00101 @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
+mapping clause encdec = YLENR(rd, rs1)                                           if cheri_registers_enabled()
+  <-> 0b0001000 @ 0b00110 @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
+mapping clause encdec = YTAGR(rd, rs1)                                           if cheri_registers_enabled()
+  <-> 0b0001000 @ 0b00000 @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
 
-mapping clause encdec = SRLIY(rd, cs1)                                           if cheri_registers_enabled() & xlen == 64
-  <-> 0b00000 @ 0b1000000 @ encdec_reg(cs1) @ 0b101 @ encdec_reg(rd) @ 0b0010011 if cheri_registers_enabled() & xlen == 64
-mapping clause encdec = SRLIY(rd, cs1)                                           if cheri_registers_enabled() & xlen == 32
-  <-> 0b00000 @ 0b0100000 @ encdec_reg(cs1) @ 0b101 @ encdec_reg(rd) @ 0b0010011 if cheri_registers_enabled() & xlen == 32
+mapping clause encdec = SRLIY(rd, rs1)                                           if cheri_registers_enabled() & xlen == 64
+  <-> 0b00000 @ 0b1000000 @ encdec_reg(rs1) @ 0b101 @ encdec_reg(rd) @ 0b0010011 if cheri_registers_enabled() & xlen == 64
+mapping clause encdec = SRLIY(rd, rs1)                                           if cheri_registers_enabled() & xlen == 32
+  <-> 0b00000 @ 0b0100000 @ encdec_reg(rs1) @ 0b101 @ encdec_reg(rd) @ 0b0010011 if cheri_registers_enabled() & xlen == 32
 
-mapping clause encdec = YMV(cd, cs1)                                             if cheri_registers_enabled()
-  <-> 0b0000110 @ 0b00000 @ encdec_reg(cs1) @ 0b000 @ encdec_reg(cd) @ 0b0110011 if cheri_registers_enabled()
-mapping clause encdec = YSENTRY(cd, cs1)                                         if cheri_registers_enabled()
-  <-> 0b0001000 @ 0b01000 @ encdec_reg(cs1) @ 0b000 @ encdec_reg(cd) @ 0b0110011 if cheri_registers_enabled()
+mapping clause encdec = YMV(rd, rs1)                                             if cheri_registers_enabled()
+  <-> 0b0000110 @ 0b00000 @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
+mapping clause encdec = YSENTRY(rd, rs1)                                         if cheri_registers_enabled()
+  <-> 0b0001000 @ 0b01000 @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
 
 mapping clause encdec = YAMASK(rd, rs1)                                          if cheri_registers_enabled()
   <-> 0b0001000 @ 0b00111 @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
 
-mapping clause assembly = YMODER(rd, cs1)  <-> "ymoder"  ^ spc() ^ reg_name(rd)     ^ sep() ^ cap_reg_name(cs1)
-mapping clause assembly = YTYPER(rd, cs1)  <-> "ytyper"  ^ spc() ^ reg_name(rd)     ^ sep() ^ cap_reg_name(cs1)
-mapping clause assembly = YPERMR(rd, cs1)  <-> "ypermr"  ^ spc() ^ reg_name(rd)     ^ sep() ^ cap_reg_name(cs1)
-mapping clause assembly = YBASER(rd, cs1)  <-> "ybaser"  ^ spc() ^ reg_name(rd)     ^ sep() ^ cap_reg_name(cs1)
-mapping clause assembly = YLENR(rd, cs1)   <-> "ylenr"   ^ spc() ^ reg_name(rd)     ^ sep() ^ cap_reg_name(cs1)
-mapping clause assembly = YTAGR(rd, cs1)   <-> "ytagr"   ^ spc() ^ reg_name(rd)     ^ sep() ^ cap_reg_name(cs1)
-mapping clause assembly = SRLIY(rd, cs1)                                              if xlen == 32
-  <-> "srliy"   ^ spc() ^ reg_name(rd)     ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ "32" if xlen == 32
-mapping clause assembly = SRLIY(rd, cs1)                                              if xlen == 64
-  <-> "srliy"   ^ spc() ^ reg_name(rd)     ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ "64" if xlen == 64
+mapping clause assembly = YMODER(rd, rs1)  <-> "ymoder"  ^ spc() ^ reg_name(rd)     ^ sep() ^ reg_name(rs1)
+mapping clause assembly = YTYPER(rd, rs1)  <-> "ytyper"  ^ spc() ^ reg_name(rd)     ^ sep() ^ reg_name(rs1)
+mapping clause assembly = YPERMR(rd, rs1)  <-> "ypermr"  ^ spc() ^ reg_name(rd)     ^ sep() ^ reg_name(rs1)
+mapping clause assembly = YBASER(rd, rs1)  <-> "ybaser"  ^ spc() ^ reg_name(rd)     ^ sep() ^ reg_name(rs1)
+mapping clause assembly = YLENR(rd, rs1)   <-> "ylenr"   ^ spc() ^ reg_name(rd)     ^ sep() ^ reg_name(rs1)
+mapping clause assembly = YTAGR(rd, rs1)   <-> "ytagr"   ^ spc() ^ reg_name(rd)     ^ sep() ^ reg_name(rs1)
+mapping clause assembly = SRLIY(rd, rs1)                                              if xlen == 32
+  <-> "srliy"   ^ spc() ^ reg_name(rd)     ^ sep() ^ reg_name(rs1) ^ sep() ^ "32" if xlen == 32
+mapping clause assembly = SRLIY(rd, rs1)                                              if xlen == 64
+  <-> "srliy"   ^ spc() ^ reg_name(rd)     ^ sep() ^ reg_name(rs1) ^ sep() ^ "64" if xlen == 64
 
-mapping clause assembly = YMV(cd, cs1)     <-> "ymv"     ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1)
-mapping clause assembly = YSENTRY(cd, cs1) <-> "ysentry" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1)
+mapping clause assembly = YMV(rd, rs1)     <-> "ymv"     ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1)
+mapping clause assembly = YSENTRY(rd, rs1) <-> "ysentry" ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1)
 
 mapping clause assembly = YAMASK(rd, rs1)  <-> "yamask"  ^ spc() ^ reg_name(rd)     ^ sep() ^ reg_name(rs1)
 
 /* Three arg */
 
-mapping clause encdec = YPERMC(cd, cs1, rs2)                                             if cheri_registers_enabled()
-  <-> 0b0000110 @ encdec_reg(rs2) @ encdec_reg(cs1) @ 0b010 @ encdec_reg(cd) @ 0b0110011 if cheri_registers_enabled()
-mapping clause encdec = YMODEW(cd, cs1, rs2)                                             if cheri_registers_enabled()
-  <-> 0b0000110 @ encdec_reg(rs2) @ encdec_reg(cs1) @ 0b111 @ encdec_reg(cd) @ 0b0110011 if cheri_registers_enabled()
-mapping clause encdec = YADDRW(cd, cs1, rs2)                                             if cheri_registers_enabled()
-  <-> 0b0000110 @ encdec_reg(rs2) @ encdec_reg(cs1) @ 0b001 @ encdec_reg(cd) @ 0b0110011 if cheri_registers_enabled()
-mapping clause encdec = PACKY(cd, cs1, rs2)                                              if cheri_registers_enabled()
-  <-> 0b0000100 @ encdec_reg(rs2) @ encdec_reg(cs1) @ 0b011 @ encdec_reg(cd) @ 0b0110011 if cheri_registers_enabled()
-mapping clause encdec = ADDY(cd, cs1, rs2)                                               if cheri_registers_enabled() & (rs2 != zreg)
-  <-> 0b0000110 @ encdec_reg(rs2) @ encdec_reg(cs1) @ 0b000 @ encdec_reg(cd) @ 0b0110011 if cheri_registers_enabled() & (rs2 != zreg)
-mapping clause encdec = YBNDSRW(cd, cs1, rs2)                                            if cheri_registers_enabled()
-  <-> 0b0000111 @ encdec_reg(rs2) @ encdec_reg(cs1) @ 0b001 @ encdec_reg(cd) @ 0b0110011 if cheri_registers_enabled()
-mapping clause encdec = YBNDSW(cd, cs1, rs2)                                             if cheri_registers_enabled()
-  <-> 0b0000111 @ encdec_reg(rs2) @ encdec_reg(cs1) @ 0b000 @ encdec_reg(cd) @ 0b0110011 if cheri_registers_enabled()
-mapping clause encdec = YBLD(cd, cs1, cs2)                                               if cheri_registers_enabled()
-  <-> 0b0000110 @ encdec_reg(cs2) @ encdec_reg(cs1) @ 0b101 @ encdec_reg(cd) @ 0b0110011 if cheri_registers_enabled()
+mapping clause encdec = YPERMC(rd, rs1, rs2)                                             if cheri_registers_enabled()
+  <-> 0b0000110 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b010 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
+mapping clause encdec = YMODEW(rd, rs1, rs2)                                             if cheri_registers_enabled()
+  <-> 0b0000110 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b111 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
+mapping clause encdec = YADDRW(rd, rs1, rs2)                                             if cheri_registers_enabled()
+  <-> 0b0000110 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b001 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
+mapping clause encdec = PACKY(rd, rs1, rs2)                                              if cheri_registers_enabled()
+  <-> 0b0000100 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b011 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
+mapping clause encdec = ADDY(rd, rs1, rs2)                                               if cheri_registers_enabled() & (rs2 != zreg)
+  <-> 0b0000110 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled() & (rs2 != zreg)
+mapping clause encdec = YBNDSRW(rd, rs1, rs2)                                            if cheri_registers_enabled()
+  <-> 0b0000111 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b001 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
+mapping clause encdec = YBNDSW(rd, rs1, rs2)                                             if cheri_registers_enabled()
+  <-> 0b0000111 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
+mapping clause encdec = YBLD(rd, rs1, rs2)                                               if cheri_registers_enabled()
+  <-> 0b0000110 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b101 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
 
-mapping clause encdec = SYEQ(rd, cs1, cs2)                                               if cheri_registers_enabled()
-  <-> 0b0000110 @ encdec_reg(cs2) @ encdec_reg(cs1) @ 0b100 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
-mapping clause encdec = YLT(rd, cs1, cs2)                                                if cheri_registers_enabled()
-  <-> 0b0000110 @ encdec_reg(cs2) @ encdec_reg(cs1) @ 0b110 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
+mapping clause encdec = SYEQ(rd, rs1, rs2)                                               if cheri_registers_enabled()
+  <-> 0b0000110 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b100 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
+mapping clause encdec = YLT(rd, rs1, rs2)                                                if cheri_registers_enabled()
+  <-> 0b0000110 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b110 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
 
-mapping clause encdec = ADDIY(cd, cs1, imm12)                                 if cheri_registers_enabled()
-  <-> imm12 : bits(12) @ encdec_reg(cs1) @ 0b010 @ encdec_reg(cd) @ 0b0011011 if cheri_registers_enabled()
-mapping clause encdec = YBNDSWI(cd, cs1, s, uimm5)                                                    if cheri_registers_enabled() & not(s == 0b1 & uimm5 <=_u 0b00001)
-  <-> 0b000100 @ s : bits(1) @ uimm5 : bits(5) @ encdec_reg(cs1) @ 0b101 @ encdec_reg(cd) @ 0b0010011 if cheri_registers_enabled() & not(s == 0b1 & uimm5 <=_u 0b00001)
+mapping clause encdec = ADDIY(rd, rs1, imm12)                                 if cheri_registers_enabled()
+  <-> imm12 : bits(12) @ encdec_reg(rs1) @ 0b010 @ encdec_reg(rd) @ 0b0011011 if cheri_registers_enabled()
+mapping clause encdec = YBNDSWI(rd, rs1, s, uimm5)                                                    if cheri_registers_enabled() & not(s == 0b1 & uimm5 <=_u 0b00001)
+  <-> 0b000100 @ s : bits(1) @ uimm5 : bits(5) @ encdec_reg(rs1) @ 0b101 @ encdec_reg(rd) @ 0b0010011 if cheri_registers_enabled() & not(s == 0b1 & uimm5 <=_u 0b00001)
 
-mapping clause assembly = YPERMC(cd, cs1, rs2)  <-> "ypermc"  ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ reg_name(rs2)
-mapping clause assembly = YMODEW(cd, cs1, rs2)  <-> "ymodew"  ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ reg_name(rs2)
-mapping clause assembly = YADDRW(cd, cs1, rs2)  <-> "yaddrw"  ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ reg_name(rs2)
-mapping clause assembly = PACKY(cd, cs1, rs2)   <-> "packy"   ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ reg_name(rs2)
-mapping clause assembly = ADDY(cd, cs1, rs2)    <-> "addy"    ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ reg_name(rs2)
-mapping clause assembly = YBNDSRW(cd, cs1, rs2) <-> "ybndsrw" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ reg_name(rs2)
-mapping clause assembly = YBNDSW(cd, cs1, rs2)  <-> "ybndsw"  ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ reg_name(rs2)
-mapping clause assembly = YBLD(cd, cs1, cs2)    <-> "ybld"    ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ cap_reg_name(cs2)
+mapping clause assembly = YPERMC(rd, rs1, rs2)  <-> "ypermc"  ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
+mapping clause assembly = YMODEW(rd, rs1, rs2)  <-> "ymodew"  ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
+mapping clause assembly = YADDRW(rd, rs1, rs2)  <-> "yaddrw"  ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
+mapping clause assembly = PACKY(rd, rs1, rs2)   <-> "packy"   ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
+mapping clause assembly = ADDY(rd, rs1, rs2)    <-> "addy"    ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
+mapping clause assembly = YBNDSRW(rd, rs1, rs2) <-> "ybndsrw" ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
+mapping clause assembly = YBNDSW(rd, rs1, rs2)  <-> "ybndsw"  ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
+mapping clause assembly = YBLD(rd, rs1, rs2)    <-> "ybld"    ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
 
-mapping clause assembly = SYEQ(rd, cs1, cs2)    <-> "syeq"    ^ spc() ^ reg_name(rd)     ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ cap_reg_name(cs2)
-mapping clause assembly = YLT(rd, cs1, cs2)     <-> "ylt"     ^ spc() ^ reg_name(rd)     ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ cap_reg_name(cs2)
+mapping clause assembly = SYEQ(rd, rs1, rs2)    <-> "syeq"    ^ spc() ^ reg_name(rd)     ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
+mapping clause assembly = YLT(rd, rs1, rs2)     <-> "ylt"     ^ spc() ^ reg_name(rd)     ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
 
-mapping clause assembly = ADDIY(cd, cs1, imm12) <-> "addiy"   ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ hex_bits_12(imm12)
+mapping clause assembly = ADDIY(rd, rs1, imm12) <-> "addiy"   ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ hex_bits_12(imm12)
 
-mapping clause assembly = YBNDSWI(cd, cs1, 0b0, uimm5) <-> "ybndswi" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ hex_bits_12(0b0000000 @ uimm5)
-mapping clause assembly = YBNDSWI(cd, cs1, 0b1, uimm5) <-> "ybndswi" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ hex_bits_12(0b000 @ uimm5 @ 0b0000)
+mapping clause assembly = YBNDSWI(rd, rs1, 0b0, uimm5) <-> "ybndswi" ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ hex_bits_12(0b0000000 @ uimm5)
+mapping clause assembly = YBNDSWI(rd, rs1, 0b1, uimm5) <-> "ybndswi" ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ hex_bits_12(0b000 @ uimm5 @ 0b0000)
 
 /* Loads and stores */
 
 let haveRV128 = xlen >= 128
 let haveRV64  = xlen >= 64
 
-mapping clause encdec = LoadCapImm(cd, rs1, offset)                 if cheri_registers_enabled()  /* ly */
-  <-> offset @ encdec_reg(rs1) @ 0b100 @ encdec_reg(cd) @ 0b0001111 if cheri_registers_enabled()
+mapping clause encdec = LoadCapImm(rd, rs1, offset)                 if cheri_registers_enabled()  /* ly */
+  <-> offset @ encdec_reg(rs1) @ 0b100 @ encdec_reg(rd) @ 0b0001111 if cheri_registers_enabled()
 
-mapping clause encdec = StoreCapImm(cs2, rs1, off7 @ off5)                                    if cheri_registers_enabled()
-  <-> off7 : bits(7) @ encdec_reg(cs2) @ encdec_reg(rs1) @ 0b100 @ off5 : bits(5) @ 0b0100011 if cheri_registers_enabled() /* sy */
+mapping clause encdec = StoreCapImm(rs2, rs1, off7 @ off5)                                    if cheri_registers_enabled()
+  <-> off7 : bits(7) @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b100 @ off5 : bits(5) @ 0b0100011 if cheri_registers_enabled() /* sy */
 
-mapping clause assembly = LoadCapImm(cd, rs1, offset)   <-> "ly" ^ spc() ^ cap_reg_name(cd)  ^ sep() ^ hex_bits_12(offset) ^ opt_spc() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
-mapping clause assembly = StoreCapImm(cs2, rs1, offset) <-> "sy" ^ spc() ^ cap_reg_name(cs2) ^ sep() ^ hex_bits_12(offset) ^ opt_spc() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
+mapping clause assembly = LoadCapImm(rd, rs1, offset)   <-> "ly" ^ spc() ^ reg_name(rd)  ^ sep() ^ hex_bits_12(offset) ^ opt_spc() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
+mapping clause assembly = StoreCapImm(rs2, rs1, offset) <-> "sy" ^ spc() ^ reg_name(rs2) ^ sep() ^ hex_bits_12(offset) ^ opt_spc() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
 
-mapping clause encdec = LoadResCap(cd, rs1, aq, rl)                                                            if cheri_registers_enabled() & extensionEnabled(Ext_Zalrsc)
-  <-> 0b00010 @ bool_bits(aq) @ bool_bits(rl) @ 0b00000 @ encdec_reg(rs1) @ 0b100 @ encdec_reg(cd) @ 0b0101111 if cheri_registers_enabled() & extensionEnabled(Ext_Zalrsc) /* lr.y */
+mapping clause encdec = LoadResCap(rd, rs1, aq, rl)                                                            if cheri_registers_enabled() & extensionEnabled(Ext_Zalrsc)
+  <-> 0b00010 @ bool_bits(aq) @ bool_bits(rl) @ 0b00000 @ encdec_reg(rs1) @ 0b100 @ encdec_reg(rd) @ 0b0101111 if cheri_registers_enabled() & extensionEnabled(Ext_Zalrsc) /* lr.y */
 
-mapping clause encdec = StoreCondCap(rd, cs2, rs1, aq, rl)                                                             if cheri_registers_enabled() & extensionEnabled(Ext_Zalrsc)
-  <-> 0b00011 @ bool_bits(aq) @ bool_bits(rl) @ encdec_reg(cs2) @ encdec_reg(rs1) @ 0b100 @ encdec_reg(rd) @ 0b0101111 if cheri_registers_enabled() & extensionEnabled(Ext_Zalrsc) /* sc.y */
+mapping clause encdec = StoreCondCap(rd, rs2, rs1, aq, rl)                                                             if cheri_registers_enabled() & extensionEnabled(Ext_Zalrsc)
+  <-> 0b00011 @ bool_bits(aq) @ bool_bits(rl) @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b100 @ encdec_reg(rd) @ 0b0101111 if cheri_registers_enabled() & extensionEnabled(Ext_Zalrsc) /* sc.y */
 
-mapping clause encdec = AMOSwapCap(cd, cs2, rs1, aq, rl)                                                               if cheri_registers_enabled() & extensionEnabled(Ext_Zaamo)
-  <-> 0b00001 @ bool_bits(aq) @ bool_bits(rl) @ encdec_reg(cs2) @ encdec_reg(rs1) @ 0b100 @ encdec_reg(cd) @ 0b0101111 if cheri_registers_enabled() & extensionEnabled(Ext_Zaamo) /* amoswap.y */
+mapping clause encdec = AMOSwapCap(rd, rs2, rs1, aq, rl)                                                               if cheri_registers_enabled() & extensionEnabled(Ext_Zaamo)
+  <-> 0b00001 @ bool_bits(aq) @ bool_bits(rl) @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b100 @ encdec_reg(rd) @ 0b0101111 if cheri_registers_enabled() & extensionEnabled(Ext_Zaamo) /* amoswap.y */
 
-mapping clause assembly = LoadResCap(cd, rs1, aq, rl)        <-> "lr.y"      ^ maybe_aq(aq) ^ maybe_rl(rl) ^ spc() ^ cap_reg_name(cd) ^ sep() ^ reg_name(rs1)
-mapping clause assembly = StoreCondCap(rd, cs2, rs1, aq, rl) <-> "sc.y"      ^ maybe_aq(aq) ^ maybe_rl(rl) ^ spc() ^ reg_name(rd)     ^ sep() ^ cap_reg_name(cs2) ^ sep() ^ reg_name(rs1)
-mapping clause assembly = AMOSwapCap(cd, cs2, rs1, aq, rl)   <-> "amoswap.y" ^ maybe_aq(aq) ^ maybe_rl(rl) ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs2) ^ sep() ^ reg_name(rs1)
+mapping clause assembly = LoadResCap(rd, rs1, aq, rl)        <-> "lr.y"      ^ maybe_aq(aq) ^ maybe_rl(rl) ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1)
+mapping clause assembly = StoreCondCap(rd, rs2, rs1, aq, rl) <-> "sc.y"      ^ maybe_aq(aq) ^ maybe_rl(rl) ^ spc() ^ reg_name(rd)     ^ sep() ^ reg_name(rs2) ^ sep() ^ reg_name(rs1)
+mapping clause assembly = AMOSwapCap(rd, rs2, rs1, aq, rl)   <-> "amoswap.y" ^ maybe_aq(aq) ^ maybe_rl(rl) ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs2) ^ sep() ^ reg_name(rs1)
 
 /*
   CHERI really needs sub word atomic operations because bounds checks mean you
@@ -1118,19 +1102,19 @@ mapping clause encdec = STORECON(aq, rl, rs2, rs1, size, rd)                    
  * include loads/stores since they are not decoded differently, but instead
  * use hooks for semantic differences.
  */
-mapping clause encdec_capmode = AUIPC_capmode(imm, cd)
-  <-> imm @ encdec_reg(cd) @ 0b0010111
-mapping clause assembly = AUIPC_capmode(imm, cd)
-  <-> "auipc" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ hex_bits_20(imm)
-mapping clause encdec_capmode = JALR_capmode(imm, cs1, cd)
-  <-> imm @ encdec_reg(cs1) @ 0b000 @ encdec_reg(cd) @ 0b1100111
-mapping clause assembly = JALR_capmode(imm, cs1, cd)
-  <-> "jalr" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ hex_bits_12(imm)
+mapping clause encdec_capmode = AUIPC_capmode(imm, rd)
+  <-> imm @ encdec_reg(rd) @ 0b0010111
+mapping clause assembly = AUIPC_capmode(imm, rd)
+  <-> "auipc" ^ spc() ^ reg_name(rd) ^ sep() ^ hex_bits_20(imm)
+mapping clause encdec_capmode = JALR_capmode(imm, rs1, rd)
+  <-> imm @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b1100111
+mapping clause assembly = JALR_capmode(imm, rs1, rd)
+  <-> "jalr" ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ hex_bits_12(imm)
 /* See `mapping clause encdec = RISCV_JAL` for why we have to use this syntax */
-mapping clause encdec_capmode = JAL_capmode(imm_19 @ imm_7_0 @ imm_8 @ imm_18_13 @ imm_12_9 @ 0b0, cd)
-  <-> imm_19 : bits(1) @ imm_18_13 : bits(6) @ imm_12_9 : bits(4) @ imm_8 : bits(1) @ imm_7_0 : bits(8) @ encdec_reg(cd) @ 0b1101111
-mapping clause assembly = JAL_capmode(imm, cd)
-  <-> "jal" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ hex_bits_21(imm)
+mapping clause encdec_capmode = JAL_capmode(imm_19 @ imm_7_0 @ imm_8 @ imm_18_13 @ imm_12_9 @ 0b0, rd)
+  <-> imm_19 : bits(1) @ imm_18_13 : bits(6) @ imm_12_9 : bits(4) @ imm_8 : bits(1) @ imm_7_0 : bits(8) @ encdec_reg(rd) @ 0b1101111
+mapping clause assembly = JAL_capmode(imm, rd)
+  <-> "jal" ^ spc() ^ reg_name(rd) ^ sep() ^ hex_bits_21(imm)
 
 mapping clause encdec_capmode = BEQ_reserved_capmode(imm7_6 @ imm5_0 @ imm7_5_0 @ imm5_4_1 @ 0b0, rs2, rs1)                                 if encdec_reg(rs1) >=_u encdec_reg(rs2)
   <-> imm7_6 : bits(1) @ imm7_5_0 : bits(6) @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b000 @ imm5_4_1 : bits(4) @ imm5_0 : bits(1) @ 0b1100011 if encdec_reg(rs1) >=_u encdec_reg(rs2)

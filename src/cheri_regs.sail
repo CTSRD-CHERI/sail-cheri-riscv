@@ -97,17 +97,6 @@ function wY_bits(r: regidx, v: regtype) -> unit = wY(regidx_to_regno(r), v)
 
 overload Y = {rY_bits, wY_bits, rY, wY}
 
-/* mappings for assembly */
-
-mapping cap_reg_name : regidx <-> string = {
-    Regidx(0b00000) <-> "cnull",
-    r               <-> "c" ^ reg_name(r)
-}
-
-mapping cap_creg_name : cregidx <-> string = {
-  r <-> "c" ^ creg_name(r)
-}
-
 // Implementations are allowed to choose whether to clear the tag
 // when invalid address legalisation does not modify the address
 let sys_cheri_accurate_tag_clearing = false

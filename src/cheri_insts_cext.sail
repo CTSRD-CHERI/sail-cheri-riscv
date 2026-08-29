@@ -11,64 +11,64 @@ union clause ast = C_LY : (cregidx, cregidx, bits(9))
 
 // This instruction is only available in capability encoding mode.
 // For RV32 this replaces the encoding of [C.FLW], RV64 uses [C.FLD].
-mapping clause encdec_compressed_capmode = C_LY(cdc, csc1, ui8 @ ui76 @ ui54 @ 0b0000)                              if xlen == 64
-  <-> 0b001 @ ui54 : bits(2) @ ui8 : bits(1) @ encdec_creg(csc1) @ ui76 : bits(2) @ encdec_creg(cdc) @ 0b00 if xlen == 64
-mapping clause encdec_compressed_capmode = C_LY(cdc, csc1, 0b0 @ ui76 @ ui53 @ 0b000)               if xlen == 32
-  <-> 0b011 @ ui53 : bits(3) @ encdec_creg(csc1) @ ui76 : bits(2) @ encdec_creg(cdc) @ 0b00 if xlen == 32
-mapping clause assembly = C_LY(cdc, csc1, uimm)
-  <-> "c.ly" ^ spc() ^ cap_creg_name(cdc) ^ sep() ^ cap_creg_name(csc1) ^ sep() ^ hex_bits_9(uimm)
+mapping clause encdec_compressed_capmode = C_LY(rdc, rsc1, ui8 @ ui76 @ ui54 @ 0b0000)                              if xlen == 64
+  <-> 0b001 @ ui54 : bits(2) @ ui8 : bits(1) @ encdec_creg(rsc1) @ ui76 : bits(2) @ encdec_creg(rdc) @ 0b00 if xlen == 64
+mapping clause encdec_compressed_capmode = C_LY(rdc, rsc1, 0b0 @ ui76 @ ui53 @ 0b000)               if xlen == 32
+  <-> 0b011 @ ui53 : bits(3) @ encdec_creg(rsc1) @ ui76 : bits(2) @ encdec_creg(rdc) @ 0b00 if xlen == 32
+mapping clause assembly = C_LY(rdc, rsc1, uimm)
+  <-> "c.ly" ^ spc() ^ creg_name(rdc) ^ sep() ^ creg_name(rsc1) ^ sep() ^ hex_bits_9(uimm)
 
 /*!
  * insnref: load_16bit_cap_sprel capmode
  * Capability loads (C.LY, C.LYSP), 16-bit encodings
  *
- * c.ly cd', offset(cs1')
- * c.ly cd', offset(csp)
+ * c.ly rd', offset(rs1')
+ * c.ly rd', offset(sp)
  *
  * Expansion:
- * ly cd', offset(cs1')
- * ly cd', offset(csp)
+ * ly rd', offset(rs1')
+ * ly rd', offset(sp)
  *
- * Load capability instruction, authorised by the capability in cs1. Take
+ * Load capability instruction, authorised by the capability in rs1. Take
  * a load address misaligned exception if not naturally aligned.
  */
-function clause execute(C_LY(cdc, csc1, uimm)) = {
-  let cd = creg2reg_idx(cdc) in
-  let cs1 = creg2reg_idx(csc1) in
-  execute(LoadCapImm(cd, cs1, zero_extend(uimm)))
+function clause execute(C_LY(rdc, rsc1, uimm)) = {
+  let rd = creg2reg_idx(rdc) in
+  let rs1 = creg2reg_idx(rsc1) in
+  execute(LoadCapImm(rd, rs1, zero_extend(uimm)))
 }
 
 union clause ast = C_LYSP : (regidx, bits(10))
 
 // This instruction is only available in capability encoding mode.
 // For RV32 this replaces the encoding of [C.FLWSP], RV64 uses [C.FLDSP].
-// The encoding with `cd == 0` is reserved and will raise an illegal instruction trap.
-mapping clause encdec_compressed_capmode = C_LYSP(cd, ui96 @ ui5 @ ui4 @ 0b0000)     if xlen == 64 & cd != zreg
-  <-> 0b001 @ ui5 : bits(1) @ encdec_reg(cd) @ ui4 : bits(1) @ ui96 : bits(4) @ 0b10 if xlen == 64 & cd != zreg
-mapping clause encdec_compressed_capmode = C_LYSP(cd, 0b0 @ ui86 @ ui5 @ ui43 @ 0b000) if xlen == 32 & cd != zreg
-  <-> 0b011 @ ui5 : bits(1) @ encdec_reg(cd) @ ui43 : bits(2) @ ui86 : bits(3) @ 0b10  if xlen == 32 & cd != zreg
-mapping clause assembly = C_LYSP(cd, uimm)
-  <-> "c.lysp" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ hex_bits_10(uimm)
+// The encoding with `rd == 0` is reserved and will raise an illegal instruction trap.
+mapping clause encdec_compressed_capmode = C_LYSP(rd, ui96 @ ui5 @ ui4 @ 0b0000)     if xlen == 64 & rd != zreg
+  <-> 0b001 @ ui5 : bits(1) @ encdec_reg(rd) @ ui4 : bits(1) @ ui96 : bits(4) @ 0b10 if xlen == 64 & rd != zreg
+mapping clause encdec_compressed_capmode = C_LYSP(rd, 0b0 @ ui86 @ ui5 @ ui43 @ 0b000) if xlen == 32 & rd != zreg
+  <-> 0b011 @ ui5 : bits(1) @ encdec_reg(rd) @ ui43 : bits(2) @ ui86 : bits(3) @ 0b10  if xlen == 32 & rd != zreg
+mapping clause assembly = C_LYSP(rd, uimm)
+  <-> "c.lysp" ^ spc() ^ reg_name(rd) ^ sep() ^ hex_bits_10(uimm)
 
 /*!
  * insnref: load_16bit_cap_sprel capmode
  * Capability loads (C.LY, C.LYSP), 16-bit encodings
  *
- * c.ly cd', offset(cs1')
- * c.ly cd', offset(csp)
+ * c.ly rd', offset(rs1')
+ * c.ly rd', offset(sp)
  *
  * Expansion:
- * ly cd', offset(cs1')
- * ly cd', offset(csp)
+ * ly rd', offset(rs1')
+ * ly rd', offset(sp)
  *
- * Load capability instruction, authorised by the capability in cs1. Take
+ * Load capability instruction, authorised by the capability in rs1. Take
  * a load address misaligned exception if not naturally aligned.
  */
-function clause execute(C_LYSP(cd, uimm)) =
-  execute(LoadCapImm(cd, sp, zero_extend(uimm)))
+function clause execute(C_LYSP(rd, uimm)) =
+  execute(LoadCapImm(rd, sp, zero_extend(uimm)))
 
 /*
- * The c.lysp encoding with cd == 0 should raise an illegal instruction trap
+ * The c.lysp encoding with rd == 0 should raise an illegal instruction trap
  * instead of falling back to the non-capmode (legal) instruction
  * `c.flwsp/fldsp f0` so we need an explicit capmode illegal match clause.
  */
@@ -81,62 +81,58 @@ union clause ast = C_SY : (cregidx, cregidx, bits(9))
 
 // This instruction is only available in capability encoding mode.
 // For RV32 this replaces the encoding of [C.FSW], RV64 uses [C.FSD].
-mapping clause encdec_compressed_capmode = C_SY(csc2, csc1, ui8 @ ui76 @ ui54 @ 0b0000)                      if xlen == 64
-  <-> 0b101 @ ui54 : bits(2) @ ui8 : bits(1) @ encdec_creg(csc1) @ ui76 : bits(2) @ encdec_creg(csc2) @ 0b00 if xlen == 64
-mapping clause encdec_compressed_capmode = C_SY(csc2, csc1, 0b0 @ ui76 @ ui53 @ 0b000)       if xlen == 32
-  <-> 0b111 @ ui53 : bits(3) @ encdec_creg(csc1) @ ui76 : bits(2) @ encdec_creg(csc2) @ 0b00 if xlen == 32
-mapping clause assembly = C_SY(csc2, csc1, uimm)
-  <-> "c.sy" ^ spc() ^ cap_creg_name(csc2) ^ sep() ^ cap_creg_name(csc1) ^ sep() ^ hex_bits_9(uimm)
+mapping clause encdec_compressed_capmode = C_SY(rsc2, rsc1, ui8 @ ui76 @ ui54 @ 0b0000)                      if xlen == 64
+  <-> 0b101 @ ui54 : bits(2) @ ui8 : bits(1) @ encdec_creg(rsc1) @ ui76 : bits(2) @ encdec_creg(rsc2) @ 0b00 if xlen == 64
+mapping clause encdec_compressed_capmode = C_SY(rsc2, rsc1, 0b0 @ ui76 @ ui53 @ 0b000)       if xlen == 32
+  <-> 0b111 @ ui53 : bits(3) @ encdec_creg(rsc1) @ ui76 : bits(2) @ encdec_creg(rsc2) @ 0b00 if xlen == 32
+mapping clause assembly = C_SY(rsc2, rsc1, uimm)
+  <-> "c.sy" ^ spc() ^ creg_name(rsc2) ^ sep() ^ creg_name(rsc1) ^ sep() ^ hex_bits_9(uimm)
 
 /*!
  * insnref: store_16bit_cap_sprel capmode
  * Stores (C.SY, C.SYSP), 16-bit encodings
  *
- * c.sy cs2', offset(cs1')
- * c.sy cs2', offset(csp)
+ * c.sy rs2', offset(rs1')
+ * c.sy rs2', offset(sp)
  *
  * Expansion:
- * sy cs2', offset(cs1')
- * sy cs2', offset(csp)
+ * sy rs2', offset(rs1')
+ * sy rs2', offset(sp)
  *
- * Store capability instruction, authorised by the capability in cs1.
+ * Store capability instruction, authorised by the capability in rs1.
  * Take a store/AMO address misaligned exception if not naturally
  * aligned.
  */
-function clause execute(C_SY(csc2, csc1, uimm)) = {
-  let cs2 = creg2reg_idx(csc2) in
-  let cs1 = creg2reg_idx(csc1) in
-  execute(StoreCapImm(cs2, cs1, zero_extend(uimm)))
+function clause execute(C_SY(rsc2, rsc1, uimm)) = {
+  let rs2 = creg2reg_idx(rsc2) in
+  let rs1 = creg2reg_idx(rsc1) in
+  execute(StoreCapImm(rs2, rs1, zero_extend(uimm)))
 }
 
 union clause ast = C_SYSP : (regidx, bits(10))
 
 // This instruction is only available in capability encoding mode.
 /// For RV32 this replaces the encoding of [C.FSWSP], RV64 uses [C.FSDSP].
-mapping clause encdec_compressed_capmode = C_SYSP(cs2, ui96 @ ui54 @ 0b0000) if xlen == 64
-  <-> 0b101 @ ui54 : bits(2) @ ui96 : bits(4) @ encdec_reg(cs2) @ 0b10       if xlen == 64
-mapping clause encdec_compressed_capmode = C_SYSP(cs2, 0b0 @ ui86 @ ui53 @ 0b000) if xlen == 32
-  <-> 0b111 @ ui53 : bits(3) @ ui86 : bits(3) @ encdec_reg(cs2) @ 0b10            if xlen == 32
-mapping clause assembly = C_SYSP(cs2, uimm)
-  <-> "c.sysp" ^ spc() ^ cap_reg_name(cs2) ^ sep() ^ hex_bits_10(uimm)
+mapping clause encdec_compressed_capmode = C_SYSP(rs2, ui96 @ ui54 @ 0b0000) if xlen == 64
+  <-> 0b101 @ ui54 : bits(2) @ ui96 : bits(4) @ encdec_reg(rs2) @ 0b10       if xlen == 64
+mapping clause encdec_compressed_capmode = C_SYSP(rs2, 0b0 @ ui86 @ ui53 @ 0b000) if xlen == 32
+  <-> 0b111 @ ui53 : bits(3) @ ui86 : bits(3) @ encdec_reg(rs2) @ 0b10            if xlen == 32
+mapping clause assembly = C_SYSP(rs2, uimm)
+  <-> "c.sysp" ^ spc() ^ reg_name(rs2) ^ sep() ^ hex_bits_10(uimm)
 
 /*!
  * insnref: store_16bit_cap_sprel capmode
  * Stores (C.SY, C.SYSP), 16-bit encodings
  *
- * c.sy cs2', offset(cs1')
- * c.sy cs2', offset(csp)
+ * c.sy rs2', offset(rs1')
+ * c.sy rs2', offset(sp)
  *
- * Expansion:
- * sy cs2', offset(cs1')
- * sy cs2', offset(csp)
- *
- * Store capability instruction, authorised by the capability in cs1.
+ * Store capability instruction, authorised by the capability in rs1.
  * Take a store/AMO address misaligned exception if not naturally
  * aligned.
  */
-function clause execute(C_SYSP(cs2, uimm)) =
-  execute(StoreCapImm(cs2, sp, zero_extend(uimm)))
+function clause execute(C_SYSP(rs2, uimm)) =
+  execute(StoreCapImm(rs2, sp, zero_extend(uimm)))
 
 /* Capability arithmetic instructions */
 union clause ast = C_ADDI16SP_capmode : (bits(10))
@@ -157,12 +153,12 @@ mapping clause assembly = C_ADDI16SP_capmode(nzimm) if nzimm != 0b0000000000
  * c.addi16sp imm
  *
  * Expansion:
- * addy csp, csp, imm
+ * addy sp, sp, imm
  *
  * Add the non-zero sign-extended 6-bit immediate to the value in the
- * stack pointer (csp=c2), where the immediate is scaled to represent
+ * stack pointer (sp=x2), where the immediate is scaled to represent
  * multiples of 16 in the range (-512,496). Clear the tag if the
- * resulting capability is unrepresentable or csp is sealed.
+ * resulting capability is unrepresentable or sp is sealed.
  */
 function clause execute(C_ADDI16SP_capmode(nzimm)) =
   execute(ADDIY(sp, sp, sign_extend(nzimm)))
@@ -171,30 +167,30 @@ union clause ast = C_ADDI4SPN_capmode : (cregidx, bits(10))
 
 // This instruction is only available in capability encoding mode.
 // This instruction replaces the encoding of [C.ADDI4SPN].
-mapping clause encdec_compressed_capmode = C_ADDI4SPN_capmode(cdc, nz96 @ nz54 @ nz3 @ nz2 @ 0b00)
+mapping clause encdec_compressed_capmode = C_ADDI4SPN_capmode(rdc, nz96 @ nz54 @ nz3 @ nz2 @ 0b00)
       if nz96 @ nz54 @ nz3 @ nz2 != 0b00000000
-  <-> 0b000 @ nz54 : bits(2) @ nz96 : bits(4) @ nz2 : bits(1) @ nz3 : bits(1) @ encdec_creg(cdc) @ 0b00
+  <-> 0b000 @ nz54 : bits(2) @ nz96 : bits(4) @ nz2 : bits(1) @ nz3 : bits(1) @ encdec_creg(rdc) @ 0b00
       if nz96 @ nz54 @ nz3 @ nz2 != 0b00000000
-mapping clause assembly = C_ADDI4SPN_capmode(cdc, nzuimm)                     if nzuimm != 0b0000000000
-  <-> "c.addi4spn" ^ spc() ^ cap_creg_name(cdc) ^ sep() ^ hex_bits_10(nzuimm) if nzuimm != 0b0000000000
+mapping clause assembly = C_ADDI4SPN_capmode(rdc, nzuimm)                     if nzuimm != 0b0000000000
+  <-> "c.addi4spn" ^ spc() ^ creg_name(rdc) ^ sep() ^ hex_bits_10(nzuimm) if nzuimm != 0b0000000000
 
 /*!
  * insnref: addi4spn_16bit capmode
  * Stack pointer increment in blocks of 4 (C.ADDI4SPN), 16-bit encoding
  *
- * c.addi4spn cd', uimm
+ * c.addi4spn rd', uimm
  *
  * Expansion:
- * addy cd', csp, uimm
+ * addy rd', sp, uimm
  *
  * Add a zero-extended non-zero immediate, scaled by 4, to the stack
- * pointer, csp, and writes the result to cd'. This instruction is used
+ * pointer, sp, and writes the result to rd'. This instruction is used
  * to generate pointers to stack-allocated variables. Clear the tag if
- * the resulting capability is unrepresentable or csp is sealed.
+ * the resulting capability is unrepresentable or sp is sealed.
  */
-function clause execute(C_ADDI4SPN_capmode(cdc, nzuimm)) = {
-  let cd = creg2reg_idx(cdc) in
-  execute(ADDIY(cd, sp, zero_extend(nzuimm)))
+function clause execute(C_ADDI4SPN_capmode(rdc, nzuimm)) = {
+  let rd = creg2reg_idx(rdc) in
+  execute(ADDIY(rd, sp, zero_extend(nzuimm)))
 }
 
 /* Control flow */
@@ -202,47 +198,47 @@ union clause ast = C_JALR_capmode : (regidx)
 
 // This instruction is only available in capability encoding mode.
 // This instruction replaces the encoding of [C.JALR].
-mapping clause encdec_compressed_capmode = C_JALR_capmode(cs1) if cs1 != zreg
-  <-> 0b100 @ 0b1 @ encdec_reg(cs1) @ 0b00000 @ 0b10           if cs1 != zreg
-mapping clause assembly = C_JALR_capmode(cs1)              if cs1 != zreg
-  <-> "c.jalr" ^ spc() ^ "cra" ^ sep() ^ cap_reg_name(cs1) if cs1 != zreg
+mapping clause encdec_compressed_capmode = C_JALR_capmode(rs1) if rs1 != zreg
+  <-> 0b100 @ 0b1 @ encdec_reg(rs1) @ 0b00000 @ 0b10           if rs1 != zreg
+mapping clause assembly = C_JALR_capmode(rs1)              if rs1 != zreg
+  <-> "c.jalr" ^ spc() ^ "ra" ^ sep() ^ reg_name(rs1) if rs1 != zreg
 
 /*!
  * insnref: jalr_16bit capmode
  * Jump register with link, 16-bit encodings
  *
- * c.jalr c1, cs1
+ * c.jalr ra, rs1
  *
  * Expansion:
- * jalr c1, 0(cs1)
+ * jalr ra, 0(rs1)
  *
  * See JALR for execution of the expanded instruction as shown above.
  * Note that the offset is zero in the expansion.
  */
-function clause execute(C_JALR_capmode(cs1)) = execute(JALR_capmode(zeros(), cs1, ra))
+function clause execute(C_JALR_capmode(rs1)) = execute(JALR_capmode(zeros(), rs1, ra))
 
 union clause ast = C_JR_capmode : (regidx)
 
 // This instruction is only available in capability encoding mode.
 // This instruction replaces the encoding of [C.JR].
-mapping clause encdec_compressed_capmode = C_JR_capmode(cs1) if cs1 != zreg
-  <-> 0b100 @ 0b0 @ encdec_reg(cs1) @ 0b00000 @ 0b10         if cs1 != zreg
-mapping clause assembly = C_JR_capmode(cs1) if cs1 != zreg
-  <-> "c.jr" ^ spc() ^ cap_reg_name(cs1)    if cs1 != zreg
+mapping clause encdec_compressed_capmode = C_JR_capmode(rs1) if rs1 != zreg
+  <-> 0b100 @ 0b0 @ encdec_reg(rs1) @ 0b00000 @ 0b10         if rs1 != zreg
+mapping clause assembly = C_JR_capmode(rs1) if rs1 != zreg
+  <-> "c.jr" ^ spc() ^ reg_name(rs1)    if rs1 != zreg
 
 /*!
  * insnref: jr_16bit capmode
  * Jump register without link, 16-bit encodings
  *
- * c.jr cs1
+ * c.jr rs1
  *
  * Expansion:
- * jalr c0, 0(cs1)
+ * jalr zero, 0(rs1)
  *
  * See JALR for execution of the expanded instruction as shown above.
  * Note that the offset is zero in the expansion.
  */
-function clause execute(C_JR_capmode(cs1)) = execute(JALR_capmode(zeros(), cs1, zreg))
+function clause execute(C_JR_capmode(rs1)) = execute(JALR_capmode(zeros(), rs1, zreg))
 
 union clause ast = C_JAL_capmode : (bits(12))
 
@@ -253,15 +249,15 @@ mapping clause encdec_compressed_capmode = C_JAL_capmode(i11 @ i10 @ i98 @ i7 @ 
   <-> 0b001 @ i11 : bits(1) @ i4 : bits(1) @ i98 : bits(2) @ i10 : bits(1) @ i6 : bits(1) @ i7 : bits(1) @ i31 : bits(3) @ i5 : bits(1) @ 0b01
       if xlen == 32
 mapping clause assembly = C_JAL_capmode(imm) if xlen == 32
-  <-> "c.jal" ^ spc() ^ "cra" ^ sep() ^ hex_bits_12(imm) if xlen == 32
+  <-> "c.jal" ^ spc() ^ "ra" ^ sep() ^ hex_bits_12(imm) if xlen == 32
 
 /*!
  * insnref: jal_16bit capmode
  * Jump with link, 16-bit encodings
  *
- * c.jal c1, offset
+ * c.jal ra, offset
  *
- * Link the next linear pcc to cd and seal. Jump to pcc.address+offset.
+ * Link the next linear pcc to rd and seal. Jump to pcc.address+offset.
  */
 function clause execute(C_JAL_capmode(imm)) = execute(JAL_capmode(sign_extend(imm), ra))
 
@@ -269,25 +265,25 @@ union clause ast = C_YMV : (regidx, regidx)
 
 // This instruction is only available in capability encoding mode.
 // This instruction replaces the encoding of [C.MV].
-mapping clause encdec_compressed_capmode = C_YMV(cd, cs2)
-  if cd != zreg & cs2 != zreg
-    <-> 0b100 @ 0b0 @ encdec_reg(cd) @ encdec_reg(cs2) @ 0b10
-  if cd != zreg & cs2 != zreg
+mapping clause encdec_compressed_capmode = C_YMV(rd, rs2)
+  if rd != zreg & rs2 != zreg
+    <-> 0b100 @ 0b0 @ encdec_reg(rd) @ encdec_reg(rs2) @ 0b10
+  if rd != zreg & rs2 != zreg
 
 /*!
  * insnref: ymv_16bit capmode
  * Capability move (C.MV), 16-bit encoding
  *
- * c.ymv cd, cs2
+ * c.ymv rd, rs2
  *
  * Expansion:
- * ymv cd, cs2
+ * ymv rd, rs2
  *
- * Capability register cd is replaced with the contents of cs2.
+ * Capability register rd is replaced with the contents of rs2.
  */
-function clause execute(C_YMV(cd, cs2)) = execute(YMV(cd, cs2))
+function clause execute(C_YMV(rd, rs2)) = execute(YMV(rd, rs2))
 
-mapping clause assembly = C_YMV(cd, cs2)
-  if cd != zreg & cs2 != zreg
-    <-> "c.ymv" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs2)
-  if cd != zreg & cs2 != zreg
+mapping clause assembly = C_YMV(rd, rs2)
+  if rd != zreg & rs2 != zreg
+    <-> "c.ymv" ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs2)
+  if rd != zreg & rs2 != zreg
