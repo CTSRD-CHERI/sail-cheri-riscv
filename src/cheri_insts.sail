@@ -266,7 +266,7 @@ function clause execute(YPERMC(cd, cs1, rs2)) = {
 
   let old_perms = packPerms(getArchPermsLegalized(inCap), inCap.cl, inCap.sd_perms).bits;
 
-  let new_perms = old_perms & rs2_val;
+  let new_perms = old_perms & ~(rs2_val);
 
   let (new_arch_perms, new_cl, new_sd_perms) = unpackPerms(struct {bits = new_perms});
   let newCap = { setArchPerms(inCap, new_arch_perms) with cl = new_cl, sd_perms = new_sd_perms };

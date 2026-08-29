@@ -480,7 +480,7 @@ function test_cheri_malformed() -> unit = {
 
     // YPERMC legalises the *perms*. Clears tag if any fields malformed
     let instr = YPERMC(outR, capR, otherR);
-    X(otherR) = ones();
+    X(otherR) = zeros();
     assert_behaviour(badBoundsCap  , capR, outR, instr, None(), true, {badBoundsCap with ap_m = zeros(), tag=false}   , undefined);
     assert_behaviour(badPermsCap   , capR, outR, instr, None(), true, {badPermsCap with ap_m = zeros(), tag=false}    , undefined);
     assert_behaviour(badReservedCap, capR, outR, instr, None(), true, {badReservedCap with ap_m = zeros(), tag=false} , undefined);
