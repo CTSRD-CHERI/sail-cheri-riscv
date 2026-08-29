@@ -113,18 +113,18 @@ function test_cheri_nofastrep () -> unit = {
     assert(not(Y(outR).tag));
 }
 
-val test_cheri_zba_mode : (bitvector(32), regidx) -> unit
-function test_cheri_zba_mode(instBits, resR) = {
+val test_cheri_zba_mode : (bitvector(32), regidx, bool) -> unit
+function test_cheri_zba_mode(instBits, resR, isCap) = {
     // Check that integer mode uses integer instructions
     PCC = {setCapMode(PCC, IntPtrMode)};
     let ast = ext_decode(instBits);
     assert(execute(ast) == RETIRE_SUCCESS);
-    assert(not(Y(resR).tag));
-    // Check that cap mode uses capability instructions
+    assert(Y(resR).tag == isCap);
+    // Check that cap mode doesn't change the decoding (it did in previous spec!)
     PCC = {setCapMode(PCC, CapPtrMode)};
     let ast = ext_decode(instBits);
     assert(execute(ast) == RETIRE_SUCCESS);
-    assert(Y(resR).tag)
+    assert(Y(resR).tag == isCap)
 }
 
 function test_cheri_zba() -> unit = {
@@ -134,16 +134,26 @@ function test_cheri_zba() -> unit = {
     Y(capR) = infinite_cap;
     X(indR) = to_bits(xlen, 1);
     Y(resR) = infinite_cap;
-    test_cheri_zba_mode(encdec(ZBA_RTYPE(capR, indR, resR, RISCV_SH1ADD)), resR);
-    test_cheri_zba_mode(encdec(ZBA_RTYPE(capR, indR, resR, RISCV_SH2ADD)), resR);
-    test_cheri_zba_mode(encdec(ZBA_RTYPE(capR, indR, resR, RISCV_SH3ADD)), resR);
+    // Test integer versions of instructions
+    test_cheri_zba_mode(encdec(ZBA_RTYPE(capR, indR, resR, RISCV_SH1ADD)), resR, false);
+    test_cheri_zba_mode(encdec(ZBA_RTYPE(capR, indR, resR, RISCV_SH2ADD)), resR, false);
+    test_cheri_zba_mode(encdec(ZBA_RTYPE(capR, indR, resR, RISCV_SH3ADD)), resR, false);
     if xlen == 32 then () else {
-        test_cheri_zba_mode(encdec(ZBA_RTYPEUW(capR, indR, resR, RISCV_ADDUW)), resR);
-        test_cheri_zba_mode(encdec(ZBA_RTYPEUW(capR, indR, resR, RISCV_SH1ADDUW)), resR);
-        test_cheri_zba_mode(encdec(ZBA_RTYPEUW(capR, indR, resR, RISCV_SH2ADDUW)), resR);
-        test_cheri_zba_mode(encdec(ZBA_RTYPEUW(capR, indR, resR, RISCV_SH3ADDUW)), resR);
-        test_cheri_zba_mode(encdec(ZBA_SH4ADD(capR, indR, resR)), resR);
-        test_cheri_zba_mode(encdec(ZBA_SH4ADDUW(capR, indR, resR)), resR);
+        test_cheri_zba_mode(encdec(ZBA_RTYPEUW(capR, indR, resR, RISCV_ADDUW)), resR, false);
+        test_cheri_zba_mode(encdec(ZBA_RTYPEUW(capR, indR, resR, RISCV_SH1ADDUW)), resR, false);
+        test_cheri_zba_mode(encdec(ZBA_RTYPEUW(capR, indR, resR, RISCV_SH2ADDUW)), resR, false);
+        test_cheri_zba_mode(encdec(ZBA_RTYPEUW(capR, indR, resR, RISCV_SH3ADDUW)), resR, false);
+    };
+    // Test CHERI versions of instructions
+    test_cheri_zba_mode(encdec(ZBA_Y_RTYPE(capR, indR, resR, RISCV_YSH1ADD)), resR, true);
+    test_cheri_zba_mode(encdec(ZBA_Y_RTYPE(capR, indR, resR, RISCV_YSH2ADD)), resR, true);
+    test_cheri_zba_mode(encdec(ZBA_Y_RTYPE(capR, indR, resR, RISCV_YSH3ADD)), resR, true);
+    if xlen == 32 then () else {
+        test_cheri_zba_mode(encdec(ZBA_Y_RTYPEUW(capR, indR, resR, RISCV_YSH1ADDUW)), resR, true);
+        test_cheri_zba_mode(encdec(ZBA_Y_RTYPEUW(capR, indR, resR, RISCV_YSH2ADDUW)), resR, true);
+        test_cheri_zba_mode(encdec(ZBA_Y_RTYPEUW(capR, indR, resR, RISCV_YSH3ADDUW)), resR, true);
+        test_cheri_zba_mode(encdec(ZBA_Y_RTYPEUW(capR, indR, resR, RISCV_YSH4ADDUW)), resR, true);
+        test_cheri_zba_mode(encdec(ZBA_Y_RTYPE(capR, indR, resR, RISCV_YSH4ADD)), resR, true);
     }
 }
 

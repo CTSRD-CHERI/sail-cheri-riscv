@@ -88,3 +88,6 @@ function ext_exc_type_to_str(e) =
 /* CHERI fetch address checks */
 
 type ext_fetch_addr_error = unit
+
+enum bropw_zba_y = {RISCV_YSH1ADDUW, RISCV_YSH2ADDUW, RISCV_YSH3ADDUW, RISCV_YSH4ADDUW}
+enum brop_zba_y = {RISCV_YSH1ADD, RISCV_YSH2ADD, RISCV_YSH3ADD, RISCV_YSH4ADD}
