@@ -114,9 +114,10 @@ union clause ast = YPERMR : (regidx, regidx)
 union clause ast = YBASER : (regidx, regidx)
 union clause ast = YLENR  : (regidx, regidx)
 union clause ast = YTAGR  : (regidx, regidx)
-union clause ast = YHIR   : (regidx, regidx)
 union clause ast = YMODER : (regidx, regidx)
 union clause ast = YTYPER : (regidx, regidx)
+
+union clause ast = SRLIY  : (regidx, regidx)
 
 /*!
  * insnref: ymoder_32bit brief
@@ -181,33 +182,33 @@ function clause execute (YBASER(rd, cs1)) = {
 }
 
 /*!
- * insnref: yhir_32bit
+ * insnref: srliy_32bit
  * Capability get metadata
  *
- * yhir rd, cs1
+ * srliy rd, cs1
  *
  * Copy the metadata (bits [YLEN-1:MXLEN]) of capability cs1 into rd.
  */
-function clause execute (YHIR(rd, cs1)) = {
+function clause execute (SRLIY(rd, cs1)) = {
   let capVal = Y(cs1);
   X(rd) = capToMetadataBits(capVal).bits;
   RETIRE_SUCCESS
 }
 
-union clause ast = YHIW : (regidx, regidx, regidx)
+union clause ast = PACKY : (regidx, regidx, regidx)
 /*!
- * insnref: yhiw_32bit
+ * insnref: packy_32bit
  * Capability set metadata
  *
- * yhiw cd, cs1, rs2
+ * packy cd, rs1, rs2
  *
- * Copy cs1  to cd , replace the capability metadata (i.e. bits
- * [YLEN-1:MXLEN]) with rs2  and set cd.tag to 0.
+ * Packs the least-significant XLEN-bits of rs1 and rs2 into
+ * rd, and set rd.tag=0.
  */
-function clause execute (YHIW(cd, cs1, rs2)) = {
-  let capVal = Y(cs1);
-  let intVal = X(rs2);
-  let newCap = bitsToCap(false, intVal @ capVal.address);
+function clause execute (PACKY(cd, rs1, rs2)) = {
+  let lo = X(rs1);
+  let hi = X(rs2);
+  let newCap = bitsToCap(false, hi @ lo);
   Y(cd) = newCap;
   RETIRE_SUCCESS
 }
@@ -527,7 +528,7 @@ union clause ast = YBLD : (regidx, regidx, regidx)
  * . cs2's permissions could have been legally produced by YPERMC, and
  * . All reserved bits in cs2's metadata are 0;
  * Otherwise, copy cs2 to cd and clear cd's tag.
- * YBLD is typically used alongside YHIW to build capabilities from
+ * YBLD is typically used alongside PACKY to build capabilities from
  * integer values.
  */
 function clause execute (YBLD(cd, cs1, cs2)) = {
@@ -996,8 +997,11 @@ mapping clause encdec = YLENR(rd, cs1)                                          
   <-> 0b0001000 @ 0b00110 @ encdec_reg(cs1) @ 0b000 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
 mapping clause encdec = YTAGR(rd, cs1)                                           if cheri_registers_enabled()
   <-> 0b0001000 @ 0b00000 @ encdec_reg(cs1) @ 0b000 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
-mapping clause encdec = YHIR(rd, cs1)                                            if cheri_registers_enabled()
-  <-> 0b0001000 @ 0b00100 @ encdec_reg(cs1) @ 0b000 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
+
+mapping clause encdec = SRLIY(rd, cs1)                                           if cheri_registers_enabled() & xlen == 64
+  <-> 0b00000 @ 0b1000000 @ encdec_reg(cs1) @ 0b101 @ encdec_reg(rd) @ 0b0010011 if cheri_registers_enabled() & xlen == 64
+mapping clause encdec = SRLIY(rd, cs1)                                           if cheri_registers_enabled() & xlen == 32
+  <-> 0b00000 @ 0b0100000 @ encdec_reg(cs1) @ 0b101 @ encdec_reg(rd) @ 0b0010011 if cheri_registers_enabled() & xlen == 32
 
 mapping clause encdec = YMV(cd, cs1)                                             if cheri_registers_enabled()
   <-> 0b0000110 @ 0b00000 @ encdec_reg(cs1) @ 0b000 @ encdec_reg(cd) @ 0b0110011 if cheri_registers_enabled()
@@ -1013,7 +1017,10 @@ mapping clause assembly = YPERMR(rd, cs1)  <-> "ypermr"  ^ spc() ^ reg_name(rd) 
 mapping clause assembly = YBASER(rd, cs1)  <-> "ybaser"  ^ spc() ^ reg_name(rd)     ^ sep() ^ cap_reg_name(cs1)
 mapping clause assembly = YLENR(rd, cs1)   <-> "ylenr"   ^ spc() ^ reg_name(rd)     ^ sep() ^ cap_reg_name(cs1)
 mapping clause assembly = YTAGR(rd, cs1)   <-> "ytagr"   ^ spc() ^ reg_name(rd)     ^ sep() ^ cap_reg_name(cs1)
-mapping clause assembly = YHIR(rd, cs1)    <-> "yhir"    ^ spc() ^ reg_name(rd)     ^ sep() ^ cap_reg_name(cs1)
+mapping clause assembly = SRLIY(rd, cs1)                                              if xlen == 32
+  <-> "srliy"   ^ spc() ^ reg_name(rd)     ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ "32" if xlen == 32
+mapping clause assembly = SRLIY(rd, cs1)                                              if xlen == 64
+  <-> "srliy"   ^ spc() ^ reg_name(rd)     ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ "64" if xlen == 64
 
 mapping clause assembly = YMV(cd, cs1)     <-> "ymv"     ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1)
 mapping clause assembly = YSENTRY(cd, cs1) <-> "ysentry" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1)
@@ -1028,8 +1035,8 @@ mapping clause encdec = YMODEW(cd, cs1, rs2)                                    
   <-> 0b0000110 @ encdec_reg(rs2) @ encdec_reg(cs1) @ 0b111 @ encdec_reg(cd) @ 0b0110011 if cheri_registers_enabled()
 mapping clause encdec = YADDRW(cd, cs1, rs2)                                             if cheri_registers_enabled()
   <-> 0b0000110 @ encdec_reg(rs2) @ encdec_reg(cs1) @ 0b001 @ encdec_reg(cd) @ 0b0110011 if cheri_registers_enabled()
-mapping clause encdec = YHIW(cd, cs1, rs2)                                               if cheri_registers_enabled()
-  <-> 0b0000110 @ encdec_reg(rs2) @ encdec_reg(cs1) @ 0b011 @ encdec_reg(cd) @ 0b0110011 if cheri_registers_enabled()
+mapping clause encdec = PACKY(cd, cs1, rs2)                                              if cheri_registers_enabled()
+  <-> 0b0000100 @ encdec_reg(rs2) @ encdec_reg(cs1) @ 0b011 @ encdec_reg(cd) @ 0b0110011 if cheri_registers_enabled()
 mapping clause encdec = ADDY(cd, cs1, rs2)                                               if cheri_registers_enabled() & (rs2 != zreg)
   <-> 0b0000110 @ encdec_reg(rs2) @ encdec_reg(cs1) @ 0b000 @ encdec_reg(cd) @ 0b0110011 if cheri_registers_enabled() & (rs2 != zreg)
 mapping clause encdec = YBNDSRW(cd, cs1, rs2)                                            if cheri_registers_enabled()
@@ -1052,7 +1059,7 @@ mapping clause encdec = YBNDSIW(cd, cs1, s, uimm5)                              
 mapping clause assembly = YPERMC(cd, cs1, rs2)  <-> "ypermc"  ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ reg_name(rs2)
 mapping clause assembly = YMODEW(cd, cs1, rs2)  <-> "ymodew"  ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ reg_name(rs2)
 mapping clause assembly = YADDRW(cd, cs1, rs2)  <-> "yaddrw"  ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ reg_name(rs2)
-mapping clause assembly = YHIW(cd, cs1, rs2)    <-> "yhiw"    ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ reg_name(rs2)
+mapping clause assembly = PACKY(cd, cs1, rs2)   <-> "packy"   ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ reg_name(rs2)
 mapping clause assembly = ADDY(cd, cs1, rs2)    <-> "addy"    ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ reg_name(rs2)
 mapping clause assembly = YBNDSRW(cd, cs1, rs2) <-> "ybndsrw" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ reg_name(rs2)
 mapping clause assembly = YBNDSW(cd, cs1, rs2)  <-> "ybndsw"  ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ reg_name(rs2)
