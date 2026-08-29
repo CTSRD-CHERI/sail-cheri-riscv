@@ -428,13 +428,13 @@ function clause execute (YBNDSRW(cd, cs1, rs2)) = {
   RETIRE_SUCCESS
 }
 
-union clause ast = YBNDSIW : (regidx, regidx, bits(1), bits(5))
+union clause ast = YBNDSWI : (regidx, regidx, bits(1), bits(5))
 /*!
  * insnref: ybndsw_32bit
  * Capability set bounds
  *
  * ybndsw cd, cs1, rs2
- * ybndsiw cd, cs1, uimm
+ * ybndswi cd, cs1, uimm
  *
  * Capability register cd  is set to capability register cs1  with the
  * base address of its bounds replaced with the value of cs1.address and
@@ -442,10 +442,10 @@ union clause ast = YBNDSIW : (regidx, regidx, bits(1), bits(5))
  * capability cannot be represented exactly then set cd.tag to 0. In all
  * cases, cd.tag is set to 0 if its bounds exceed cs1's bounds, cs1's tag
  * is 0  or cs1 is sealed.
- * YBNDSIW uses the s bit to scale the immediate by 4 places
+ * YBNDSWI uses the s bit to scale the immediate by 4 places
  * immediate = ZeroExtend(s ? uimm<<4 : uimm)
  */
-function clause execute (YBNDSIW(cd, cs1, s, uimm5)) = {
+function clause execute (YBNDSWI(cd, cs1, s, uimm5)) = {
   let cs1_val = Y(cs1);
   let length = if s == 0b1 then uimm5 @ 0b0000 else 0b0000 @ uimm5;
   let newBase = cs1_val.address;
@@ -453,7 +453,7 @@ function clause execute (YBNDSIW(cd, cs1, s, uimm5)) = {
   // inCapBoundsNoWrap returns false if the input bounds are malformed.
   let inBounds = inCapBoundsNoWrap(cs1_val, newBase, unsigned(length));
   let (exact, newCap) : (bool, Capability) = setCapBounds(cs1_val, newBase, newTop);
-  assert(exact, "YBNDSIW immediate too small for non-exact lengths");
+  assert(exact, "YBNDSWI immediate too small for non-exact lengths");
   let cond = not(inBounds) |
              capIsMalformed(newCap) |
              capIsSealed(newCap);
@@ -467,7 +467,7 @@ union clause ast = YBNDSW : (regidx, regidx, regidx)
  * Capability set bounds
  *
  * ybndsw cd, cs1, rs2
- * ybndsiw cd, cs1, uimm
+ * ybndswi cd, cs1, uimm
  *
  * Capability register cd  is set to capability register cs1  with the
  * base address of its bounds replaced with the value of cs1.address and
@@ -475,7 +475,7 @@ union clause ast = YBNDSW : (regidx, regidx, regidx)
  * capability cannot be represented exactly then set cd.tag to 0. In all
  * cases, cd.tag is set to 0 if its bounds exceed cs1's bounds, cs1's tag
  * is 0  or cs1 is sealed.
- * YBNDSIW uses the s bit to scale the immediate by 4 places
+ * YBNDSWI uses the s bit to scale the immediate by 4 places
  * immediate = ZeroExtend(s ? uimm<<4 : uimm)
  */
 function clause execute (YBNDSW(cd, cs1, rs2)) = {
@@ -1053,7 +1053,7 @@ mapping clause encdec = YLT(rd, cs1, cs2)                                       
 
 mapping clause encdec = ADDIY(cd, cs1, imm12)                                 if cheri_registers_enabled()
   <-> imm12 : bits(12) @ encdec_reg(cs1) @ 0b010 @ encdec_reg(cd) @ 0b0011011 if cheri_registers_enabled()
-mapping clause encdec = YBNDSIW(cd, cs1, s, uimm5)                                                    if cheri_registers_enabled() & not(s == 0b1 & uimm5 <=_u 0b00001)
+mapping clause encdec = YBNDSWI(cd, cs1, s, uimm5)                                                    if cheri_registers_enabled() & not(s == 0b1 & uimm5 <=_u 0b00001)
   <-> 0b000100 @ s : bits(1) @ uimm5 : bits(5) @ encdec_reg(cs1) @ 0b101 @ encdec_reg(cd) @ 0b0010011 if cheri_registers_enabled() & not(s == 0b1 & uimm5 <=_u 0b00001)
 
 mapping clause assembly = YPERMC(cd, cs1, rs2)  <-> "ypermc"  ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ reg_name(rs2)
@@ -1070,8 +1070,8 @@ mapping clause assembly = YLT(rd, cs1, cs2)     <-> "ylt"     ^ spc() ^ reg_name
 
 mapping clause assembly = ADDIY(cd, cs1, imm12) <-> "addiy"   ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ hex_bits_12(imm12)
 
-mapping clause assembly = YBNDSIW(cd, cs1, 0b0, uimm5) <-> "ybndsiw" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ hex_bits_12(0b0000000 @ uimm5)
-mapping clause assembly = YBNDSIW(cd, cs1, 0b1, uimm5) <-> "ybndsiw" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ hex_bits_12(0b000 @ uimm5 @ 0b0000)
+mapping clause assembly = YBNDSWI(cd, cs1, 0b0, uimm5) <-> "ybndswi" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ hex_bits_12(0b0000000 @ uimm5)
+mapping clause assembly = YBNDSWI(cd, cs1, 0b1, uimm5) <-> "ybndswi" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ hex_bits_12(0b000 @ uimm5 @ 0b0000)
 
 /* Loads and stores */
 

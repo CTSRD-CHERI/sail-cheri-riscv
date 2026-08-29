@@ -244,10 +244,10 @@ function test_cheri_rounding() -> unit = {
     // Check that YBNDSRW rounds
     let _ = execute(YBNDSRW(outR, capR, lenR));
     assert(Y(outR).tag);
-    // Check that YBNDSIW doesn't assert with max requested len
-    let _ = execute(YBNDSIW(outR, capR, 0b0, ones()));
+    // Check that YBNDSWI doesn't assert with max requested len
+    let _ = execute(YBNDSWI(outR, capR, 0b0, ones()));
     assert(Y(outR).tag);
-    let _ = execute(YBNDSIW(outR, capR, 0b1, ones()));
+    let _ = execute(YBNDSWI(outR, capR, 0b1, ones()));
     assert(Y(outR).tag);
 }
 
