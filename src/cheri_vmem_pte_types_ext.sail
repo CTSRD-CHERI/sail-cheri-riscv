@@ -11,9 +11,12 @@ bitfield PTE_Ext : pte_ext_bits = {
   N        : 9,
   // Page based memory types.
   PBMT     : 8 .. 7,
+  res_hi   : 6 .. 5,
   // CHERI Capability Write.
-  CW       : 6,
+  CW       : 4,
   // CHERI Capability Read Generation.
-  CRG      : 5,
-  reserved : 4 .. 0,
+  CRG      : 3,
+  // CHERI Capability Dirty.
+  CD       : 2,
+  res_lo   : 1 .. 0,
 }

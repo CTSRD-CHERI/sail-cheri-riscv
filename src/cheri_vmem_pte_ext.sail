@@ -23,23 +23,22 @@ function pte_permission_ok(
   // CHERI PTE features only supported on RV64.
   match ext {
     Some(ext) => {
-      if isTaggedWrite(ac) &
-        ext[CW] == 0b0 &
-        (ext[CRG] == 0b0 | not(plat_enable_dirty_update())) then {
-        cheri_page_fault = Some(CheriPage_St);
+      if isTaggedWrite(ac) then {
+        if ext[CW] == 0b0 then {
+          cheri_page_fault = Some(CheriPage_St);
+        }
+        // CD checks carried out in "update_pte"
       } else if isTaggedRead(ac) then {
-        match (ext[CW], ext[CRG]) {
-          // Clear loaded tag.
-          (0b0, _) => tagged_load_behaviour = TaggedLoadClear,
-          // Page fault, or page fault if tag set.
-          (0b1, crg) if crg != mstatus[UCRG] & (pte[U] == 0b1) => {
+        if (ext[CW] == 0b0) then {
+          tagged_load_behaviour = TaggedLoadClear
+        } else {
+          if ext[CRG] != mstatus[UCRG] & (pte[U] == 0b1) then {
             if sys_cheri_pte_crg_exception_check_tag() then {
               tagged_load_behaviour = TaggedLoadTrap;
             } else {
               cheri_page_fault = Some(CheriPage_Ld);
             }
-          },
-          (0b1, _) => (),
+          }
         }
       }
     },
@@ -66,10 +65,11 @@ function pte_permission_ok(
 val updated_cheri_pte_bits : forall 'pte_size, 'pte_size in {32, 64} . (bits('pte_size), AccessType(ext_access_type)) -> option(bits('pte_size))
 function updated_cheri_pte_bits(pte, ac) =
   match ext_bits_of_PTE(pte) {
-    Some(ext) if isTaggedWrite(ac) & ext[CW] == 0b0 & ext[CRG] == 0b1 => {
+    // TODO consider "reserved" case of CW=1, CD=0, CRG=1. This is clarified in a later version of the spec
+    Some(ext) if isTaggedWrite(ac) & ext[CW] == 0b1 & ext[CD] == 0b0 => {
       // CHERI PTEs & PTE ext bits only exist with 64-bit PTEs.
       assert('pte_size == 64);
-      Some([pte with 63 .. 54 = [ext with CW = 0b1, CRG = mstatus[UCRG]].bits])
+      Some([pte with 63 .. 54 = [ext with CD = 0b1].bits])
     },
     _ => None(),
   }
