@@ -187,7 +187,7 @@ function clause execute (YBASER(rd, rs1)) = {
  *
  * srliy rd, rs1
  *
- * Copy the metadata (bits [YLEN-1:MXLEN]) of capability rs1 into rd.
+ * Copy the metadata (bits [YLEN-1:XLEN]) of capability rs1 into rd.
  */
 function clause execute (SRLIY(rd, rs1)) = {
   let rs1_cap = Y(rs1);
@@ -223,8 +223,8 @@ function clause execute (PACKY(rd, rs1, rs2)) = {
  * length is defined as the difference between the decoded bounds' top
  * and base addresses i.e. top - base. It is not required that the input
  * capability rs1  has its tag set to 1. YLENR outputs 0 if rs1's bounds
- * are malformed (see Malformed Capability Bounds), and 2^MXLEN^-1 if the
- * length of rs1 is 2^MXLEN^.
+ * are malformed (see Malformed Capability Bounds), and 2^XLEN^-1 if the
+ * length of rs1 is 2^XLEN^.
  */
 function clause execute (YLENR(rd, rs1)) = {
   let rs1_cap = Y(rs1);
