@@ -13,7 +13,7 @@ bitfield PTE_Ext : pte_ext_bits = {
   PBMT     : 8 .. 7,
   res_hi   : 6 .. 5,
   // CHERI Capability Write.
-  CW       : 4,
+  CRW      : 4,
   // CHERI Capability Read Generation.
   CRG      : 3,
   // CHERI Capability Dirty.

@@ -13,7 +13,7 @@
  * (well, tag-dependent) behaviors by the instructions.
  */
 
-// If set then loads with CW=1, CRG!=mstatus[UCRG] will only trap if the
+// If set then loads with CRW=1, CRG!=mstatus[UCRG] will only trap if the
 // loaded capability tag is set. Otherwise they will always trap.
 function sys_cheri_pte_crg_exception_check_tag() -> bool = false
 
