@@ -544,6 +544,45 @@ function clause execute (YBLD(rd, rs1, rs2)) = {
   RETIRE_SUCCESS
 }
 
+union clause ast = YSUNSEAL : (regidx, regidx, regidx)
+/*!
+ * insnref: ysunseal_32bit
+ * Unseal by superset reconstruction
+ *
+ * ysunseal rd, rs1, rs2
+ *
+ * Copy rs2 to rd.
+ *
+ * Set rd's sealed field to 0.
+ *
+ * Set rd.tag to 1 if
+ *
+ * . rs1.tag is set, and
+ * . rs1 passes all integrity checks, and
+ * . rs1 is not sealed, and
+ * . rs2.tag is set, and
+ * . rs2 passes all integrity checks, and
+ * . rs2 is sealed
+ * . rs2's permissions and bounds are equal to or a subset of rs1's
+ * Otherwise, clear rd's tag.
+ */
+function clause execute (YSUNSEAL(rd, rs1, rs2)) = {
+  let rs1_cap = Y(rs1);
+  let rs2_cap = Y(rs2);
+
+  let new_cap = { rs2_cap with sealed=false };
+
+  let tag = rs1_cap.tag &
+            new_cap.tag &
+            not(capIsSealed(rs1_cap)) &
+            capIsSealed(new_cap) &
+            capIsSubset(new_cap, rs1_cap); /* Subset checks for malformed bounds,
+                                              perms, and reserved bits */
+
+  Y(rd) = { new_cap with tag = tag };
+  RETIRE_SUCCESS
+}
+
 union clause ast = YAMASK : (regidx, regidx)
 /*!
  * insnref: yamask_32bit
@@ -1029,6 +1068,8 @@ mapping clause encdec = YBNDSW(rd, rs1, rs2)                                    
   <-> 0b0000111 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
 mapping clause encdec = YBLD(rd, rs1, rs2)                                               if cheri_registers_enabled()
   <-> 0b0000110 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b101 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
+mapping clause encdec = YSUNSEAL(rd, rs1, rs2)                                           if cheri_registers_enabled()
+  <-> 0b0000111 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b010 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
 
 mapping clause encdec = SYEQ(rd, rs1, rs2)                                               if cheri_registers_enabled()
   <-> 0b0000110 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b100 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
@@ -1040,14 +1081,15 @@ mapping clause encdec = ADDIY(rd, rs1, imm12)                                 if
 mapping clause encdec = YBNDSWI(rd, rs1, s, uimm5)                                                    if cheri_registers_enabled() & not(s == 0b1 & uimm5 <=_u 0b00001)
   <-> 0b000100 @ s : bits(1) @ uimm5 : bits(5) @ encdec_reg(rs1) @ 0b101 @ encdec_reg(rd) @ 0b0010011 if cheri_registers_enabled() & not(s == 0b1 & uimm5 <=_u 0b00001)
 
-mapping clause assembly = YPERMC(rd, rs1, rs2)  <-> "ypermc"  ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
-mapping clause assembly = YMODEW(rd, rs1, rs2)  <-> "ymodew"  ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
-mapping clause assembly = YADDRW(rd, rs1, rs2)  <-> "yaddrw"  ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
-mapping clause assembly = PACKY(rd, rs1, rs2)   <-> "packy"   ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
-mapping clause assembly = ADDY(rd, rs1, rs2)    <-> "addy"    ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
-mapping clause assembly = YBNDSRW(rd, rs1, rs2) <-> "ybndsrw" ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
-mapping clause assembly = YBNDSW(rd, rs1, rs2)  <-> "ybndsw"  ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
-mapping clause assembly = YBLD(rd, rs1, rs2)    <-> "ybld"    ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
+mapping clause assembly = YPERMC(rd, rs1, rs2)   <-> "ypermc"   ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
+mapping clause assembly = YMODEW(rd, rs1, rs2)   <-> "ymodew"   ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
+mapping clause assembly = YADDRW(rd, rs1, rs2)   <-> "yaddrw"   ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
+mapping clause assembly = PACKY(rd, rs1, rs2)    <-> "packy"    ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
+mapping clause assembly = ADDY(rd, rs1, rs2)     <-> "addy"     ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
+mapping clause assembly = YBNDSRW(rd, rs1, rs2)  <-> "ybndsrw"  ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
+mapping clause assembly = YBNDSW(rd, rs1, rs2)   <-> "ybndsw"   ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
+mapping clause assembly = YBLD(rd, rs1, rs2)     <-> "ybld"     ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
+mapping clause assembly = YSUNSEAL(rd, rs1, rs2) <-> "ysunseal" ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
 
 mapping clause assembly = SYEQ(rd, rs1, rs2)    <-> "syeq"    ^ spc() ^ reg_name(rd)     ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
 mapping clause assembly = YLT(rd, rs1, rs2)     <-> "ylt"     ^ spc() ^ reg_name(rd)     ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
