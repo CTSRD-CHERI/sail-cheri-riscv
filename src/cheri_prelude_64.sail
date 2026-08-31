@@ -42,7 +42,7 @@ bitfield EncMetadata : bits(32) = {
   // Architectural Permissions and Mode (encoded together).
   AP_M       : 29 .. 25,
   // Capability Level
-  CL         : 24,
+  GL         : 24,
   // Upper reserved area doesn't exist but Sail's syntax doesn't allow zero width
   // fields here, so just steal a bit from the other one.
   reserved_1 : 23,
