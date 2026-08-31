@@ -5,6 +5,8 @@ bitfield Mstatus : bits(64) = {
   // It is set explicitly only in the methods below
   UCRG : xlen - 3,
 
+  CRGE : xlen - 4,
+
   //MDT  : 42,
   //MPELP: 41,
 
@@ -43,6 +45,7 @@ bitfield Mstatus : bits(64) = {
 bitfield Sstatus : bits(64) = {
   SD   : xlen - 1,
   UCRG : xlen - 3,
+  CRGE : xlen - 4,
 
   UXL   : 33 .. 32,
 //  SDT   : 24,
@@ -58,13 +61,13 @@ bitfield Sstatus : bits(64) = {
 }
 
 function ext_legalize_mstatus(m : Mstatus, v : Mstatus) -> Mstatus = {
-  if xlen == 64 then [m with UCRG = v[UCRG]] else m;
+  if xlen == 64 then [m with UCRG = v[UCRG], CRGE = v[CRGE]] else m;
 }
 
 function ext_lower_mstatus(m : Mstatus, s : Sstatus) -> Sstatus = {
-  if xlen == 64 then [s with UCRG = m[UCRG]] else s;
+  if xlen == 64 then [s with UCRG = m[UCRG], CRGE = m[CRGE]] else s;
 }
 
 function ext_lift_sstatus(m : Mstatus, s : Sstatus) -> Mstatus = {
-  if xlen == 64 then [m with UCRG = s[UCRG]] else m;
+  if xlen == 64 then [m with UCRG = s[UCRG], CRGE = s[CRGE]] else m;
 }
