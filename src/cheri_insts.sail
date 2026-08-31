@@ -112,6 +112,7 @@ function clause execute(BNE_reserved_capmode(_, _, _)) = {
 
 union clause ast = YPERMR : (regidx, regidx)
 union clause ast = YBASER : (regidx, regidx)
+union clause ast = YTOPR  : (regidx, regidx)
 union clause ast = YLENR  : (regidx, regidx)
 union clause ast = YTAGR  : (regidx, regidx)
 union clause ast = YMODER : (regidx, regidx)
@@ -178,6 +179,27 @@ function clause execute (YBASER(rd, rs1)) = {
     None() => zeros(),
     Some(base, _) => base
   };
+  RETIRE_SUCCESS
+}
+
+/*!
+ * insnref: ytopr_32bit
+ * Capability get top address
+ *
+ * ytopr rd, rs1
+ *
+ * Decode the top integer address from rs1's bounds and write the result
+ * to rd, saturated to XLEN bits. It is not required that the input
+ * capability rs1  has its tag set to 1.
+ */
+
+function clause execute (YTOPR(rd, rs1)) = {
+  let rs1_cap = Y(rs1);
+  let top : CapLenInt = match getCapBounds(rs1_cap) {
+    None() => 0,
+    Some(_, top) => top
+  };
+  X(rd) = to_bits(xlen, if top > cap_max_addr then cap_max_addr else top) ;
   RETIRE_SUCCESS
 }
 
@@ -1027,6 +1049,8 @@ mapping clause encdec = YPERMR(rd, rs1)                                         
   <-> 0b0001000 @ 0b00001 @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
 mapping clause encdec = YBASER(rd, rs1)                                          if cheri_registers_enabled()
   <-> 0b0001000 @ 0b00101 @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
+mapping clause encdec = YTOPR(rd, rs1)                                           if cheri_registers_enabled()
+  <-> 0b0001000 @ 0b00100 @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
 mapping clause encdec = YLENR(rd, rs1)                                           if cheri_registers_enabled()
   <-> 0b0001000 @ 0b00110 @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
 mapping clause encdec = YTAGR(rd, rs1)                                           if cheri_registers_enabled()
@@ -1049,6 +1073,7 @@ mapping clause assembly = YMODER(rd, rs1)  <-> "ymoder"  ^ spc() ^ reg_name(rd) 
 mapping clause assembly = YTYPER(rd, rs1)  <-> "ytyper"  ^ spc() ^ reg_name(rd)     ^ sep() ^ reg_name(rs1)
 mapping clause assembly = YPERMR(rd, rs1)  <-> "ypermr"  ^ spc() ^ reg_name(rd)     ^ sep() ^ reg_name(rs1)
 mapping clause assembly = YBASER(rd, rs1)  <-> "ybaser"  ^ spc() ^ reg_name(rd)     ^ sep() ^ reg_name(rs1)
+mapping clause assembly = YTOPR(rd, rs1)   <-> "ytopr"   ^ spc() ^ reg_name(rd)     ^ sep() ^ reg_name(rs1)
 mapping clause assembly = YLENR(rd, rs1)   <-> "ylenr"   ^ spc() ^ reg_name(rd)     ^ sep() ^ reg_name(rs1)
 mapping clause assembly = YTAGR(rd, rs1)   <-> "ytagr"   ^ spc() ^ reg_name(rd)     ^ sep() ^ reg_name(rs1)
 mapping clause assembly = SRLIY(rd, rs1)                                              if xlen == 32
