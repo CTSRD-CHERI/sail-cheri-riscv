@@ -317,8 +317,8 @@ function clause execute(YMODEW(rd, rs1, rs2)) = {
   let cond = capIsSealed(rs1_cap) | capIsMalformed(rs1_cap);
   let rs1_cap = clearTagIf(rs1_cap, cond);
 
-  let hasMode = not(capIsMalformed(rs1_cap)) & canX(rs1_cap);
-  let newCap = if hasMode then setCapMode(rs1_cap, mode) else rs1_cap;
+  let hasMode = canX(rs1_cap);
+  let newCap = if hasMode & not(cond) then setCapMode(rs1_cap, mode) else rs1_cap;
 
   Y(rd) = newCap;
   RETIRE_SUCCESS
