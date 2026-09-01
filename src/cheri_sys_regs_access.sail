@@ -161,3 +161,23 @@ function set_menvcfg(v : bits(64)) -> unit = {
 function set_senvcfg(v : xlenbits) -> unit = {
   senvcfg = legalize_senvcfg(senvcfg, v);
 }
+
+/******************************* misa **********************************/
+
+function is_root (c : Capability) -> bool = {
+  c.tag &
+  not(c.sealed) &
+  capBoundsInfinite(c) &
+  c.sd_perms == ones() &
+  c.gl == ones() &
+  c.ap_p == root_ap_p
+}
+
+function ext_allow_disable_Y () -> bool = {
+  is_root(PCC) &
+  is_root(ddc) &
+  is_root(mepc_y) &
+  is_root(mtvec_y) &
+  is_root(sepc_y) &
+  is_root(stvec_y)
+}
