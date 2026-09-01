@@ -1,37 +1,39 @@
 enum CSRLen = {
   // Standard RISC-V CSR
   Standard,
-  // YLEN CSR
-  Ylen,
+  // XLEN CSR extended to YLEN
+  YlenExtended,
+  // New YLEN CSR
+  YlenNew,
 }
 
 function csr_type(csr : csreg) -> CSRLen = match csr {
-  0x7b1 => Ylen, // dpc
-  0x7b2 => Ylen, // dscratch0
-  0x7b3 => Ylen, // dscratch1
+  0x7b1 => YlenExtended, // dpc
+  0x7b2 => YlenExtended, // dscratch0
+  0x7b3 => YlenExtended, // dscratch1
 
-  0x305 => Ylen, // mtvec
-  0x340 => Ylen, // mscratch
-  0x341 => Ylen, // mepc
+  0x305 => YlenExtended, // mtvec
+  0x340 => YlenExtended, // mscratch
+  0x341 => YlenExtended, // mepc
 
-  0x105 => Ylen, // stvec
-  0x140 => Ylen, // sscratch
-  0x141 => Ylen, // sepc
+  0x105 => YlenExtended, // stvec
+  0x140 => YlenExtended, // sscratch
+  0x141 => YlenExtended, // sepc
 
-  0x780 => Ylen, // mtid
-  0x580 => Ylen, // stid
-  0x480 => Ylen, // utid
+  0x780 => YlenExtended, // mtid
+  0x580 => YlenExtended, // stid
+  0x480 => YlenExtended, // utid
 
-  0x7bc => Ylen, // dddc
-  0x7bd => Ylen, // drootc
+  0x7bc => YlenNew, // dddc
+  0x7bd => YlenNew, // dinfc
 
-  0x416 => Ylen, // ddc
+  0x416 => YlenNew, // ddc
 
   _ => Standard,
 }
 
 // Return true if this is a YLEN-width CSR.
-function is_ylen_csr(csr : csreg) -> bool = csr_type(csr) == Ylen
+function is_ylen_csr(csr : csreg) -> bool = csr_type(csr) == YlenExtended | csr_type(csr) == YlenNew
 
 // Write a capability CSR (is_ylen_csr(csr) is true) with a Capability.
 // It may undergo invalid address conversion.
@@ -53,7 +55,7 @@ function write_ylen_csr(csr : csreg, value : Capability) -> unit = {
     0x140 => {set_sscratch_y(value); sscratch_y},
     0x141 => {set_sepc_y(value); sepc_y},
 
-    0x416 => {set_ddc_y(value); ddc_y},
+    0x416 => {set_ddc(value); ddc},
 
     0x780 => {set_mtid_y(value); mtid_y},
     0x580 => {set_stid_y(value); stid_y},
@@ -83,7 +85,7 @@ function write_ylen_csr_with_xlen(csr : csreg, value : xlenbits) -> unit = {
     0x140 => {set_sscratch(value); sscratch_y},
     0x141 => {set_sepc(value); sepc_y},
 
-    0x416 => {set_ddc_xlen(value); ddc_y},
+    0x416 => {set_ddc_xlen(value); ddc},
 
     0x780 => {set_mtid(value); mtid_y},
     0x580 => {set_stid(value); stid_y},
@@ -112,7 +114,7 @@ function read_ylen_csr(csr : csreg, write_val : Capability) -> Capability = matc
   0x140 => sscratch_y,
   0x141 => sepc_y,
 
-  0x416 => ddc_y,
+  0x416 => ddc,
 
   0x780 => mtid_y,
   0x580 => stid_y,
@@ -128,7 +130,7 @@ function handle_csr_op(csr, rs1, rd, is_imm, op, isWrite, isRead) = {
     // The only way to write metadata is with `csrrw`.
     // For extended CSRs, it also has to be in CapPtrMode mode.
     // Note `op == CSRRW` means `csrrw` or` csrrwi` which is why we also check `not(is_imm)`.
-    let ylen_write = (effective_cheri_mode() == CapPtrMode) & op == CSRRW & not(is_imm);
+    let ylen_write = (effective_cheri_mode() == CapPtrMode | csr_type(csr) == YlenNew) & op == CSRRW & not(is_imm);
     let write_val = if is_imm then {null_cap with address = zero_extend(regidx_bits(rs1))}
       else if ylen_write then Y(rs1)
       else {null_cap with address = X(rs1)};
@@ -146,7 +148,7 @@ function handle_csr_op(csr, rs1, rd, is_imm, op, isWrite, isRead) = {
         write_ylen_csr_with_xlen(csr, new_val);
       };
     };
-    if effective_cheri_mode() == CapPtrMode then {
+    if effective_cheri_mode() == CapPtrMode | csr_type(csr) == YlenNew then {
       Y(rd) = csr_val;
     } else {
       X(rd) = csr_val.address;

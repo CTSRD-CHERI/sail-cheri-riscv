@@ -84,7 +84,7 @@ val get_cheri_mode_cap_addr : (regidx, xlenbits) -> (Capability, virtaddr)
 function get_cheri_mode_cap_addr (base_reg : regidx, offset : xlenbits) =
   match effective_cheri_mode() {
     CapPtrMode => (Y(base_reg), virtaddr(Y(base_reg).address + offset)),
-    IntPtrMode => (ddc_y, virtaddr(X(base_reg) + offset)),
+    IntPtrMode => (ddc, virtaddr(X(base_reg) + offset)),
   }
 
 function ext_data_get_addr(base_reg : regidx, offset : xlenbits, acc : AccessType(ext_access_type), width : range(0, max_mem_access))

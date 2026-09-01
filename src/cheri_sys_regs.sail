@@ -15,8 +15,8 @@
 // override that for CHERI to return `PCC.address`. See get_mepc() for example.
 register PCC       : Capability
 register nextPCC   : Capability
+register ddc       : Capability
 
-register ddc_y      : Capability
 register stvec_y    : Capability
 register sscratch_y : Capability = null_cap
 register sepc_y     : Capability

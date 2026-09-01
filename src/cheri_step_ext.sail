@@ -9,7 +9,7 @@
 function ext_cheri_reset() -> unit = {
   PCC = root_cap;
   nextPCC = root_cap;
-  ddc_y = root_cap;
+  ddc = root_cap;
 
   // The address bits may have been initialised by the non-CHERI reset to a non-zero value.
   stvec_y = {root_cap with address = stvec.bits};
