@@ -452,17 +452,13 @@ function clause execute (YBNDSRW(rd, rs1, rs2)) = {
   RETIRE_SUCCESS
 }
 
-union clause ast = YBNDSWI : (regidx, regidx, bits(10))
+union clause ast = YBNDSWI : (regidx, regidx, bits(9))
 
-mapping encdec_ybndsw_imm : bits(10) <-> bits(12) = {
-  forwards 0b00 @ uimm => (0b0000 @ uimm) + 0x001,
-  backwards len if len >_u 0x000 & len <=_u 0x100                      => 0b00 @ (len - 0x001)[ 7..0],
-  forwards 0b01 @ uimm => (0b000 @ uimm @ 0b0) + 0x102,
-  backwards len if len >_u 0x100 & len <=_u 0x300 & len[0]    == 0b0   => 0b01 @ (len - 0x102)[ 8..1],
-  forwards 0b10 @ uimm => (0b00 @ uimm @ 0b00) + 0x304,
-  backwards len if len >_u 0x300 & len <=_u 0x700 & len[1..0] == 0b00  => 0b10 @ (len - 0x304)[ 9..2],
-  forwards 0b11 @ uimm => (0b0 @ uimm @ 0b000) + 0x708,
-  backwards len if len >_u 0x700 & len <=_u 0xf00 & len[2..0] == 0b000 => 0b11 @ (len - 0x708)[10..3],
+mapping encdec_ybndsw_imm : bits(9) <-> bits(13) = {
+  0b0_0000_0000                                <-> 0b1_0000_0000_0000,
+  0b0 @ i7_0                  if i7_0 != 0x00  <-> 0b0_0000 @ i7_0              if i7_0 != 0x00,
+  0b1_000 @ i4 @ i3_0:bits(4)                  <-> 0b0_0001 @ i3_0 @ i4 @ 0b000,
+  0b1 @ i7_5 @ i4_0:bits(5)   if i7_5 != 0b000 <-> 0b0 @ i7_5 @ i4_0 @ 0b0000   if i7_5 != 0b000,
 }
 /*!
  * insnref: ybndsw_32bit
@@ -480,9 +476,9 @@ mapping encdec_ybndsw_imm : bits(10) <-> bits(12) = {
  * YBNDSWI uses the top two bits of the immediate to determine decoding
  * of the remaining bits
  */
-function clause execute (YBNDSWI(rd, rs1, uimm10)) = {
+function clause execute (YBNDSWI(rd, rs1, uimm9)) = {
   let rs1_cap = Y(rs1);
-  let length : CapLenBits = zero_extend(encdec_ybndsw_imm(uimm10));
+  let length : CapLenBits = zero_extend(encdec_ybndsw_imm(uimm9));
   let newBase = rs1_cap.address;
   let newTop : CapLenBits = zero_extend(newBase) + length;
   // inCapBoundsNoWrap returns false if the input bounds are malformed.
@@ -1026,13 +1022,13 @@ function clause execute AMOSwapCap(rd, rs2, rs1, aq, rl) = {
 
 /* Zero arg */
 
-mapping pointer_mode_funct7 : PointerMode <-> bits(7) = {
-  CapPtrMode <-> 0b0001001,
-  IntPtrMode <-> 0b0001010,
+mapping pointer_mode_funct5 : PointerMode <-> bits(5) = {
+  CapPtrMode <-> 0b00000,
+  IntPtrMode <-> 0b00001,
 }
 
-mapping clause encdec = YMODESW(mode)                                             if cheri_registers_enabled()
-  <-> pointer_mode_funct7(mode) @ 0b00000 @ 0b00000 @ 0b001 @ 0b00000 @ 0b0110011 if cheri_registers_enabled()
+mapping clause encdec = YMODESW(mode)                                               if cheri_registers_enabled()
+  <-> 0b0101011 @ pointer_mode_funct5(mode) @ 0b00000 @ 0b000 @ 0b00000 @ 0b1111011 if cheri_registers_enabled()
 
 mapping pointer_mode_mnemonic : PointerMode <-> string = {
   CapPtrMode <-> "y",
@@ -1044,32 +1040,32 @@ mapping clause assembly = YMODESW(mode) <-> "ymodesw." ^ pointer_mode_mnemonic(m
 /* Two arg */
 
 mapping clause encdec = YMODER(rd, rs1)                                          if cheri_registers_enabled()
-  <-> 0b0001000 @ 0b00011 @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
+  <-> 0b1111010 @ 0b00111 @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b1111011 if cheri_registers_enabled()
 mapping clause encdec = YTYPER(rd, rs1)                                          if cheri_registers_enabled()
-  <-> 0b0001000 @ 0b00010 @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
+  <-> 0b1111010 @ 0b00101 @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b1111011 if cheri_registers_enabled()
 mapping clause encdec = YPERMR(rd, rs1)                                          if cheri_registers_enabled()
-  <-> 0b0001000 @ 0b00001 @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
+  <-> 0b1111010 @ 0b00001 @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b1111011 if cheri_registers_enabled()
 mapping clause encdec = YBASER(rd, rs1)                                          if cheri_registers_enabled()
-  <-> 0b0001000 @ 0b00101 @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
+  <-> 0b1111010 @ 0b00000 @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b1111011 if cheri_registers_enabled()
 mapping clause encdec = YTOPR(rd, rs1)                                           if cheri_registers_enabled()
-  <-> 0b0001000 @ 0b00100 @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
+  <-> 0b1111010 @ 0b00010 @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b1111011 if cheri_registers_enabled()
 mapping clause encdec = YLENR(rd, rs1)                                           if cheri_registers_enabled()
-  <-> 0b0001000 @ 0b00110 @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
+  <-> 0b1111010 @ 0b00011 @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b1111011 if cheri_registers_enabled()
 mapping clause encdec = YTAGR(rd, rs1)                                           if cheri_registers_enabled()
-  <-> 0b0001000 @ 0b00000 @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
+  <-> 0b1111010 @ 0b00100 @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b1111011 if cheri_registers_enabled()
 
 mapping clause encdec = SRLIY(rd, rs1)                                           if cheri_registers_enabled() & xlen == 64
-  <-> 0b00000 @ 0b1000000 @ encdec_reg(rs1) @ 0b101 @ encdec_reg(rd) @ 0b0010011 if cheri_registers_enabled() & xlen == 64
+  <-> 0b00000 @ 0b1000000 @ encdec_reg(rs1) @ 0b101 @ encdec_reg(rd) @ 0b1111011 if cheri_registers_enabled() & xlen == 64
 mapping clause encdec = SRLIY(rd, rs1)                                           if cheri_registers_enabled() & xlen == 32
-  <-> 0b00000 @ 0b0100000 @ encdec_reg(rs1) @ 0b101 @ encdec_reg(rd) @ 0b0010011 if cheri_registers_enabled() & xlen == 32
+  <-> 0b00000 @ 0b0100000 @ encdec_reg(rs1) @ 0b101 @ encdec_reg(rd) @ 0b1111011 if cheri_registers_enabled() & xlen == 32
 
 mapping clause encdec = YMV(rd, rs1)                                             if cheri_registers_enabled()
-  <-> 0b0000110 @ 0b00000 @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
+  <-> 0b0000011 @ 0b00000 @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b1111011 if cheri_registers_enabled()
 mapping clause encdec = YSENTRY(rd, rs1)                                         if cheri_registers_enabled()
-  <-> 0b0001000 @ 0b01000 @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
+  <-> 0b1111011 @ 0b00000 @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b1111011 if cheri_registers_enabled()
 
 mapping clause encdec = YAMASK(rd, rs1)                                          if cheri_registers_enabled()
-  <-> 0b0001000 @ 0b00111 @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
+  <-> 0b1111000 @ 0b00000 @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b1111011 if cheri_registers_enabled()
 
 mapping clause assembly = YMODER(rd, rs1)  <-> "ymoder"  ^ spc() ^ reg_name(rd)     ^ sep() ^ reg_name(rs1)
 mapping clause assembly = YTYPER(rd, rs1)  <-> "ytyper"  ^ spc() ^ reg_name(rd)     ^ sep() ^ reg_name(rs1)
@@ -1091,33 +1087,33 @@ mapping clause assembly = YAMASK(rd, rs1)  <-> "yamask"  ^ spc() ^ reg_name(rd) 
 /* Three arg */
 
 mapping clause encdec = YPERMC(rd, rs1, rs2)                                             if cheri_registers_enabled()
-  <-> 0b0000110 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b010 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
+  <-> 0b0010011 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b1111011 if cheri_registers_enabled()
 mapping clause encdec = YMODEW(rd, rs1, rs2)                                             if cheri_registers_enabled()
-  <-> 0b0000110 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b111 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
+  <-> 0b0101011 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b1111011 if cheri_registers_enabled()
 mapping clause encdec = YADDRW(rd, rs1, rs2)                                             if cheri_registers_enabled()
-  <-> 0b0000110 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b001 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
+  <-> 0b0001011 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b1111011 if cheri_registers_enabled()
 mapping clause encdec = PACKY(rd, rs1, rs2)                                              if cheri_registers_enabled()
-  <-> 0b0000100 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b011 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
+  <-> 0b0000001 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b1111011 if cheri_registers_enabled()
 mapping clause encdec = YADD(rd, rs1, rs2)                                               if cheri_registers_enabled() & (rs2 != zreg)
-  <-> 0b0000110 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled() & (rs2 != zreg)
+  <-> 0b0000011 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b1111011 if cheri_registers_enabled() & (rs2 != zreg)
 mapping clause encdec = YBNDSRW(rd, rs1, rs2)                                            if cheri_registers_enabled()
-  <-> 0b0000111 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b001 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
+  <-> 0b0100011 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b1111011 if cheri_registers_enabled()
 mapping clause encdec = YBNDSW(rd, rs1, rs2)                                             if cheri_registers_enabled()
-  <-> 0b0000111 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
+  <-> 0b0011011 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b1111011 if cheri_registers_enabled()
 mapping clause encdec = YBLD(rd, rs1, rs2)                                               if cheri_registers_enabled()
-  <-> 0b0000110 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b101 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
+  <-> 0b0001111 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b1111011 if cheri_registers_enabled()
 mapping clause encdec = YSUNSEAL(rd, rs1, rs2)                                           if cheri_registers_enabled()
-  <-> 0b0000111 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b010 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
+  <-> 0b0000111 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b1111011 if cheri_registers_enabled()
 
 mapping clause encdec = YEQ(rd, rs1, rs2)                                                if cheri_registers_enabled()
-  <-> 0b0000110 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b100 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
+  <-> 0b0000110 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b1111011 if cheri_registers_enabled()
 mapping clause encdec = YSS(rd, rs1, rs2)                                                if cheri_registers_enabled()
-  <-> 0b0000110 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b110 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
+  <-> 0b0001110 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b1111011 if cheri_registers_enabled()
 
 mapping clause encdec = YADDI(rd, rs1, imm12)                                 if cheri_registers_enabled()
-  <-> imm12 : bits(12) @ encdec_reg(rs1) @ 0b010 @ encdec_reg(rd) @ 0b0011011 if cheri_registers_enabled()
-mapping clause encdec = YBNDSWI(rd, rs1, uimm10)                                      if cheri_registers_enabled() & rd == rs1
-  <-> 0b00 @ uimm10 : bits(10) @ encdec_reg(rs1) @ 0b011 @ encdec_reg(rd) @ 0b0011011 if cheri_registers_enabled() & rd == rs1
+  <-> imm12 : bits(12) @ encdec_reg(rs1) @ 0b100 @ encdec_reg(rd) @ 0b1111011 if cheri_registers_enabled()
+mapping clause encdec = YBNDSWI(rd, rs1, uimm9)                                      if cheri_registers_enabled()
+  <-> 0b111 @ uimm9 : bits(9) @ encdec_reg(rs1) @ 0b101 @ encdec_reg(rd) @ 0b1111011 if cheri_registers_enabled()
 
 mapping clause assembly = YPERMC(rd, rs1, rs2)   <-> "ypermc"   ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
 mapping clause assembly = YMODEW(rd, rs1, rs2)   <-> "ymodew"   ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
@@ -1134,30 +1130,30 @@ mapping clause assembly = YSS(rd, rs1, rs2)     <-> "yss"     ^ spc() ^ reg_name
 
 mapping clause assembly = YADDI(rd, rs1, imm12) <-> "yaddi"   ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ hex_bits_12(imm12)
 
-mapping clause assembly = YBNDSWI(rd, rs1, uimm10) <-> "ybndswi" ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ hex_bits_12(encdec_ybndsw_imm(uimm10))
+mapping clause assembly = YBNDSWI(rd, rs1, uimm9) <-> "ybndswi" ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ hex_bits_16(0b000 @ encdec_ybndsw_imm(uimm9))
 
 /* Loads and stores */
 
 let haveRV128 = xlen >= 128
 let haveRV64  = xlen >= 64
 
-mapping clause encdec = LoadCapImm(rd, rs1, offset)                 if cheri_registers_enabled()  /* ly */
-  <-> offset @ encdec_reg(rs1) @ 0b100 @ encdec_reg(rd) @ 0b0001111 if cheri_registers_enabled()
+mapping clause encdec = LoadCapImm(rd, rs1, offset)                 if cheri_registers_enabled() & (rs1 != zreg) /* ly */
+  <-> offset @ encdec_reg(rs1) @ 0b001 @ encdec_reg(rd) @ 0b1111011 if cheri_registers_enabled() & (rs1 != zreg)
 
-mapping clause encdec = StoreCapImm(rs2, rs1, off7 @ off5)                                    if cheri_registers_enabled()
-  <-> off7 : bits(7) @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b100 @ off5 : bits(5) @ 0b0100011 if cheri_registers_enabled() /* sy */
+mapping clause encdec = StoreCapImm(rs2, rs1, off7 @ off5)                                    if cheri_registers_enabled() & (rs1 != zreg)
+  <-> off7 : bits(7) @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b010 @ off5 : bits(5) @ 0b1111011 if cheri_registers_enabled() & (rs1 != zreg) /* sy */
 
 mapping clause assembly = LoadCapImm(rd, rs1, offset)   <-> "ly" ^ spc() ^ reg_name(rd)  ^ sep() ^ hex_bits_12(offset) ^ opt_spc() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
 mapping clause assembly = StoreCapImm(rs2, rs1, offset) <-> "sy" ^ spc() ^ reg_name(rs2) ^ sep() ^ hex_bits_12(offset) ^ opt_spc() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
 
-mapping clause encdec = LoadResCap(rd, rs1, aq, rl)                                                            if cheri_registers_enabled() & extensionEnabled(Ext_Zalrsc)
-  <-> 0b00010 @ bool_bits(aq) @ bool_bits(rl) @ 0b00000 @ encdec_reg(rs1) @ 0b100 @ encdec_reg(rd) @ 0b0101111 if cheri_registers_enabled() & extensionEnabled(Ext_Zalrsc) /* lr.y */
+mapping clause encdec = LoadResCap(rd, rs1, aq, rl)                                                            if cheri_registers_enabled() & extensionEnabled(Ext_Zalrsc) & (rs1 != zreg)
+  <-> 0b00010 @ bool_bits(aq) @ bool_bits(rl) @ 0b00000 @ encdec_reg(rs1) @ 0b011 @ encdec_reg(rd) @ 0b1111011 if cheri_registers_enabled() & extensionEnabled(Ext_Zalrsc) & (rs1 != zreg) /* lr.y */
 
-mapping clause encdec = StoreCondCap(rd, rs2, rs1, aq, rl)                                                             if cheri_registers_enabled() & extensionEnabled(Ext_Zalrsc)
-  <-> 0b00011 @ bool_bits(aq) @ bool_bits(rl) @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b100 @ encdec_reg(rd) @ 0b0101111 if cheri_registers_enabled() & extensionEnabled(Ext_Zalrsc) /* sc.y */
+mapping clause encdec = StoreCondCap(rd, rs2, rs1, aq, rl)                                                             if cheri_registers_enabled() & extensionEnabled(Ext_Zalrsc) & (rs1 != zreg)
+  <-> 0b00011 @ bool_bits(aq) @ bool_bits(rl) @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b011 @ encdec_reg(rd) @ 0b1111011 if cheri_registers_enabled() & extensionEnabled(Ext_Zalrsc) & (rs1 != zreg) /* sc.y */
 
 mapping clause encdec = AMOSwapCap(rd, rs2, rs1, aq, rl)                                                               if cheri_registers_enabled() & extensionEnabled(Ext_Zaamo)
-  <-> 0b00001 @ bool_bits(aq) @ bool_bits(rl) @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b100 @ encdec_reg(rd) @ 0b0101111 if cheri_registers_enabled() & extensionEnabled(Ext_Zaamo) /* amoswap.y */
+  <-> 0b00001 @ bool_bits(aq) @ bool_bits(rl) @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b011 @ encdec_reg(rd) @ 0b1111011 if cheri_registers_enabled() & extensionEnabled(Ext_Zaamo) /* amoswap.y */
 
 mapping clause assembly = LoadResCap(rd, rs1, aq, rl)        <-> "lr.y"      ^ maybe_aq(aq) ^ maybe_rl(rl) ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1)
 mapping clause assembly = StoreCondCap(rd, rs2, rs1, aq, rl) <-> "sc.y"      ^ maybe_aq(aq) ^ maybe_rl(rl) ^ spc() ^ reg_name(rd)     ^ sep() ^ reg_name(rs2) ^ sep() ^ reg_name(rs1)

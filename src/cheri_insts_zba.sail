@@ -10,13 +10,13 @@
 union clause ast = ZBA_Y_RTYPEUW : (regidx, regidx, regidx, bropw_zba_y)
 
 mapping clause encdec = ZBA_Y_RTYPEUW(rs2, rs1, rd, RISCV_YSH1ADDUW)                      if cheri_registers_enabled() & extensionEnabled(Ext_Zba) & xlen == 64
-  <-> 0b0010000 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b011 @ encdec_reg(rd) @ 0b0111011  if cheri_registers_enabled() & extensionEnabled(Ext_Zba) & xlen == 64
+  <-> 0b0100101 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b1111011  if cheri_registers_enabled() & extensionEnabled(Ext_Zba) & xlen == 64
 mapping clause encdec = ZBA_Y_RTYPEUW(rs2, rs1, rd, RISCV_YSH2ADDUW)                      if cheri_registers_enabled() & extensionEnabled(Ext_Zba) & xlen == 64
-  <-> 0b0010000 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b101 @ encdec_reg(rd) @ 0b0111011  if cheri_registers_enabled() & extensionEnabled(Ext_Zba) & xlen == 64
+  <-> 0b0101101 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b1111011  if cheri_registers_enabled() & extensionEnabled(Ext_Zba) & xlen == 64
 mapping clause encdec = ZBA_Y_RTYPEUW(rs2, rs1, rd, RISCV_YSH3ADDUW)                      if cheri_registers_enabled() & extensionEnabled(Ext_Zba) & xlen == 64
-  <-> 0b0010000 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b0111011  if cheri_registers_enabled() & extensionEnabled(Ext_Zba) & xlen == 64
+  <-> 0b0110101 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b1111011  if cheri_registers_enabled() & extensionEnabled(Ext_Zba) & xlen == 64
 mapping clause encdec = ZBA_Y_RTYPEUW(rs2, rs1, rd, RISCV_YSH4ADDUW)                      if cheri_registers_enabled() & extensionEnabled(Ext_Zba) & xlen == 64
-  <-> 0b0010000 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b111 @ encdec_reg(rd) @ 0b0111011  if cheri_registers_enabled() & extensionEnabled(Ext_Zba) & xlen == 64
+  <-> 0b0111101 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b1111011  if cheri_registers_enabled() & extensionEnabled(Ext_Zba) & xlen == 64
 
 mapping zba_y_rtypeuw_mnemonic : bropw_zba_y <-> string = {
   RISCV_YSH1ADDUW <-> "ysh1add.uw",
@@ -59,13 +59,13 @@ function clause execute (ZBA_Y_RTYPEUW(rs2, rs1, rd, op)) = {
 union clause ast = ZBA_Y_RTYPE : (regidx, regidx, regidx, brop_zba_y)
 
 mapping clause encdec = ZBA_Y_RTYPE(rs2, rs1, rd, RISCV_YSH1ADD)                         if cheri_registers_enabled() & extensionEnabled(Ext_Zba)
-  <-> 0b0010000 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b011 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled() & extensionEnabled(Ext_Zba)
+  <-> 0b0000101 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b1111011 if cheri_registers_enabled() & extensionEnabled(Ext_Zba)
 mapping clause encdec = ZBA_Y_RTYPE(rs2, rs1, rd, RISCV_YSH2ADD)                         if cheri_registers_enabled() & extensionEnabled(Ext_Zba)
-  <-> 0b0010000 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b101 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled() & extensionEnabled(Ext_Zba)
+  <-> 0b0001101 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b1111011 if cheri_registers_enabled() & extensionEnabled(Ext_Zba)
 mapping clause encdec = ZBA_Y_RTYPE(rs2, rs1, rd, RISCV_YSH3ADD)                         if cheri_registers_enabled() & extensionEnabled(Ext_Zba)
-  <-> 0b0010000 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled() & extensionEnabled(Ext_Zba)
+  <-> 0b0010101 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b1111011 if cheri_registers_enabled() & extensionEnabled(Ext_Zba)
 mapping clause encdec = ZBA_Y_RTYPE(rs2, rs1, rd, RISCV_YSH4ADD)                         if cheri_registers_enabled() & extensionEnabled(Ext_Zba) & xlen == 64
-  <-> 0b0010000 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b111 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled() & extensionEnabled(Ext_Zba) & xlen == 64
+  <-> 0b0011101 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b1111011 if cheri_registers_enabled() & extensionEnabled(Ext_Zba) & xlen == 64
 
 mapping zba_y_rtype_mnemonic : brop_zba_y <-> string = {
   RISCV_YSH1ADD <-> "ysh1add",

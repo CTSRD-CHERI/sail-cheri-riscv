@@ -584,7 +584,7 @@ function test_cheri_feature_enables(priv : Privilege, cheri_allowed : bool, expe
     set_cur_privilege(priv);
     // CHERI-only mode-independent instructions are allowed iff not prevented by some cre
     let resR = regidx_bits(resR);
-    let instEnc = 0b0001000 @ 0b00001 @ resR @ 0b000 @ resR @ 0b0110011; // ypermr manually encoded as encdec depends on mode!
+    let instEnc = 0b1111010 @ 0b00001 @ resR @ 0b000 @ resR @ 0b1111011; // ypermr manually encoded as encdec depends on mode!
     assert(execute(ext_decode(instEnc)) == (if cheri_allowed then RETIRE_SUCCESS else RETIRE_FAIL));
 }
 
