@@ -37,10 +37,10 @@ let cap_use_L8 : bool = false
 
 // Capability format metadata completely compressed. Tag is out of band.
 bitfield EncMetadata : bits(64) = {
-  // Upper reserved area (64-bit only).
-  reserved_1 : 63 .. 57,
   // Software Defined Permissions.
-  SDP        : 56 .. 53,
+  SDP        : 63 .. 60,
+  // Upper reserved area (64-bit only).
+  reserved_1 : 59 .. 53,
   // Architectural Permissions and Mode (encoded together).
   AP_P       : 52 .. 44,
   // Capability Level
