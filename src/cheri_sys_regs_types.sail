@@ -4,14 +4,14 @@ bitfield MEnvcfg : bits(64) = {
   // Page Based Memory Types Extension
   PBMTE  : 62,
   // Reserved WPRI bits.
-  wpri_2 : 61 .. 29,
+  wpri_2 : 61 .. 10,
   // CHERI Register Enable
   // Controls whether less privileged levels can perform explicit accesses to
   // CHERI registers. Less priviledged levels can read and write CHERI
   // registers when Y=1 and can't when Y=0.
-  Y      : 28,
+  Y      : 9,
   // Reserved WPRI bits.
-  wpri_1 : 27 .. 8,
+  wpri_1 : 8,
   // Cache Block Zero instruction Enable
   CBZE   : 7,
   // Cache Block Clean and Flush instruction Enable
@@ -29,7 +29,7 @@ bitfield SEnvcfg : xlenbits = {
   // Controls whether less privileged levels can perform explicit accesses to
   // CHERI registers. Less priviledged levels can read and write CHERI
   // registers when Y=1 and can't when Y=0.
-  Y      : 28,
+  Y      : 9,
   // Cache Block Zero instruction Enable
   CBZE   : 7,
   // Cache Block Clean and Flush instruction Enable
