@@ -42,14 +42,14 @@ mapping capchecktype_name : CapCheckType <-> string = {
   CapCheckType_Pte(CheriPage_St) <-> "Store/Amo Page",
 }
 
-// Options for the M mode bit.
-enum ExecutionMode = {
+// Options for the P mode bit.
+enum PointerMode = {
   IntPtrMode,
   CapPtrMode,
 }
 
-// Encoding of the M bit.
-mapping execution_mode_encdec : ExecutionMode <-> bits(1) = {
+// Encoding of the P bit.
+mapping pointer_mode_encdec : PointerMode <-> bits(1) = {
   IntPtrMode <-> 0b1,
   CapPtrMode <-> 0b0,
 }

@@ -259,18 +259,18 @@ function test_cheri_permission_encoding() -> unit = {
     let dstR : regidx = Regidx(0b00011);
     if cap_size == 16 then {
         // Malformed permission combination, but it can be encoded (though is reserved) on RV64.
-        // M=1 (IntPtrMode), LM=0, SL=0, EL=0 ASR=1, X=0, R=1, W=1, C=0
-        let invalid = {null_cap with ap_m = 0b100010110};
+        // P=1 (IntPtrMode), LM=0, SL=0, EL=0 ASR=1, X=0, R=1, W=1, C=0
+        let invalid = {null_cap with ap_p = 0b100010110};
         // We shouldn't be able to change the mode to CapPtrMode because X=0
         // so this should have no effect.
         Y(capR) = invalid;
-        X(modeR) = zero_extend(execution_mode_encdec(CapPtrMode));
+        X(modeR) = zero_extend(pointer_mode_encdec(CapPtrMode));
         assert(execute(YMODEW(dstR, capR, modeR)) == RETIRE_SUCCESS);
         assert(Y(dstR) == invalid)
     };
 
-    // Test that clearing the X permission of a capability with M=1 (IntPtrMode)
-    // clears M (CapPtrMode).
+    // Test that clearing the X permission of a capability with P=1 (IntPtrMode)
+    // clears P (CapPtrMode).
     let intmode_inf = setCapMode(root_cap, IntPtrMode);
     assert(getCapMode(intmode_inf) == IntPtrMode);
     let all_perms_but_x = {getArchPermsLegalized(intmode_inf) with X=false};
@@ -454,7 +454,7 @@ function test_cheri_malformed() -> unit = {
     // Create capabilities that are malformed in various ways
     let badBoundsCap = { root_cap with B = ones() };
     assert(boundsMalformed(badBoundsCap));
-    let badPermsCap = { root_cap with ap_m = (if xlen == 32 then 0b10001 else 0b000010111) };
+    let badPermsCap = { root_cap with ap_p = (if xlen == 32 then 0b10001 else 0b000010111) };
     assert(permsMalformed(badPermsCap));
     let badReservedCap = { root_cap with reserved_0 = ones() };
     assert(not(capReservedValid(badReservedCap)));
@@ -481,9 +481,9 @@ function test_cheri_malformed() -> unit = {
     // YPERMC legalises the *perms*. Clears tag if any fields malformed
     let instr = YPERMC(outR, capR, otherR);
     X(otherR) = zeros();
-    assert_behaviour(badBoundsCap  , capR, outR, instr, None(), true, {badBoundsCap with ap_m = zeros(), tag=false}   , undefined);
-    assert_behaviour(badPermsCap   , capR, outR, instr, None(), true, {badPermsCap with ap_m = zeros(), tag=false}    , undefined);
-    assert_behaviour(badReservedCap, capR, outR, instr, None(), true, {badReservedCap with ap_m = zeros(), tag=false} , undefined);
+    assert_behaviour(badBoundsCap  , capR, outR, instr, None(), true, {badBoundsCap with ap_p = zeros(), tag=false}   , undefined);
+    assert_behaviour(badPermsCap   , capR, outR, instr, None(), true, {badPermsCap with ap_p = zeros(), tag=false}    , undefined);
+    assert_behaviour(badReservedCap, capR, outR, instr, None(), true, {badReservedCap with ap_p = zeros(), tag=false} , undefined);
 
     // YSS checks all the fields.
     let (_, zeroCapTagged) = setCapBounds({ null_cap with tag=true }, zeros(), zeros());
@@ -567,7 +567,7 @@ function test_cheri_invalid_addr() -> unit = {
     assert(mcause[Cause] == zero_extend(ext_exc_type_to_bits(EXC_CHERI(CapCheckType_Ld()))));
 }
 
-function test_cheri_feature_enables(priv : Privilege, cheri_allowed : bool, expected_mode : ExecutionMode) -> unit = {
+function test_cheri_feature_enables(priv : Privilege, cheri_allowed : bool, expected_mode : PointerMode) -> unit = {
     set_cur_privilege(priv);
     let backupPCC = PCC;
     assert(effective_cheri_mode() == expected_mode);

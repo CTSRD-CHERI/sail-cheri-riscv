@@ -8,7 +8,7 @@
 
 /* Returns the current CHERI execution mode */
 
-val effective_cheri_mode : unit -> ExecutionMode
+val effective_cheri_mode : unit -> PointerMode
 function effective_cheri_mode() = {
   // if debug_mode_active then return getCapMode(drootc);
 

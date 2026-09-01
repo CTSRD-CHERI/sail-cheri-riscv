@@ -69,7 +69,7 @@ struct Capability = {
   // Software defined permission bits.
   sd_perms          : bits(cap_sd_perms_width),
   // Compressed architectural permissions and mode
-  ap_m              : bits(cap_AP_M_width),
+  ap_p              : bits(cap_AP_P_width),
   // Capability level
   gl                : bits(lvlbits),
   // Is the cap sealed.
@@ -125,7 +125,7 @@ function bitsToCap(tag : bool, cap_bits : CapBits) -> Capability = {
   struct {
     tag               = tag,
     sd_perms          = meta[SDP],
-    ap_m              = meta[AP_M],
+    ap_p              = meta[AP_P],
     gl                = meta[GL],
     sealed            = bool_bits(meta[CT]),
     internal_exponent = internal_exponent,
@@ -164,7 +164,7 @@ function capToMetadataBits(cap : Capability) -> EncMetadata = {
   let meta = [
     Mk_EncMetadata(zeros()) with
     SDP = cap.sd_perms,
-    AP_M = cap.ap_m,
+    AP_P = cap.ap_p,
     GL = cap.gl,
     CT = bool_bits(cap.sealed),
     EF = internal_exponent_encdec(cap.internal_exponent),
@@ -185,7 +185,7 @@ function capToMetadataBits(cap : Capability) -> EncMetadata = {
 let null_cap : Capability = struct {
   tag               = false,
   sd_perms          = zeros(),
-  ap_m              = null_ap_m,
+  ap_p              = null_ap_p,
   gl                = zeros(),
   sealed            = false,
   internal_exponent = true, // Encodes to 0.
@@ -203,7 +203,7 @@ let root_cap : Capability = {
   tag      = true,
   sd_perms = ones(),
   gl       = ones(),
-  ap_m     = root_ap_m,
+  ap_p     = root_ap_p,
 }
 
 // A capability is malformed if its encoding does not describe a valid capability
@@ -221,7 +221,7 @@ function boundsMalformed(cap : Capability) -> bool = {
 
 // A capability is malformed if it has a reserved permission encoding.
 function permsMalformed(cap : Capability) -> bool =
-  not(ap_m_encdec_forwards_matches(cap.ap_m))
+  not(ap_p_encdec_forwards_matches(cap.ap_p))
 
 function capReservedValid(cap : Capability) -> bool =
   (cap.reserved_0 == zeros()) & (cap.reserved_1 == zeros())
@@ -364,11 +364,11 @@ function unsealCap(cap : Capability) -> Capability =
 
 // Utility field functions.
 
-function getCapPermsAndMode(cap : Capability) -> option((ArchPerms, ExecutionMode)) =
-  if capIsMalformed(cap) then None() else Some(ap_m_encdec(cap.ap_m))
+function getCapPermsAndMode(cap : Capability) -> option((ArchPerms, PointerMode)) =
+  if capIsMalformed(cap) then None() else Some(ap_p_encdec(cap.ap_p))
 
-function setCapPermsAndMode(cap : Capability, (perms, mode): (ArchPerms, ExecutionMode)) -> Capability =
-  {cap with ap_m = ap_m_encdec(legalizePermsAndMode(perms, mode))}
+function setCapPermsAndMode(cap : Capability, (perms, mode): (ArchPerms, PointerMode)) -> Capability =
+  {cap with ap_p = ap_p_encdec(legalizePermsAndMode(perms, mode))}
 
 function getArchPerms(cap : Capability) -> option(ArchPerms) =
   match getCapPermsAndMode(cap) {
@@ -383,16 +383,16 @@ function getArchPermsLegalized(cap : Capability) -> ArchPerms =
   }
 
 // Extract capability mode bit, legalising to integer pointer mode if decoding goes wrong
-function getCapMode(cap : Capability) -> ExecutionMode =
+function getCapMode(cap : Capability) -> PointerMode =
   match getCapPermsAndMode(cap) {
-    None() => execution_mode_encdec(0b0),
+    None() => pointer_mode_encdec(0b0),
     Some(_, mode) => mode,
   }
 
 function setArchPerms(cap : Capability, perms : ArchPerms) -> Capability =
   setCapPermsAndMode(cap, (perms, getCapMode(cap)))
 
-function setCapMode(cap : Capability, mode : ExecutionMode) -> Capability =
+function setCapMode(cap : Capability, mode : PointerMode) -> Capability =
   setCapPermsAndMode(cap, (getArchPermsLegalized(cap), mode))
 
 function canASR(cap : Capability) -> bool = getArchPermsLegalized(cap).ASR

@@ -130,7 +130,7 @@ union clause ast = SRLIY  : (regidx, regidx)
  */
 function clause execute (YMODER(rd, rs1)) = {
   let rs1_cap = Y(rs1);
-  X(rd) = zero_extend(execution_mode_encdec(getCapMode(rs1_cap)));
+  X(rd) = zero_extend(pointer_mode_encdec(getCapMode(rs1_cap)));
   RETIRE_SUCCESS
 }
 
@@ -304,7 +304,7 @@ union clause ast = YMODEW : (regidx, regidx, regidx)
  *
  * ymodew rd, rs1, rs2
  *
- * Copy rs1 to rd. Clear rd.tag if rs1 is sealed. Update the M-bit of rd
+ * Copy rs1 to rd. Clear rd.tag if rs1 is sealed. Update the P-bit of rd
  * to the least significant bit of rs2 if the two following conditions
  * are met, otherwise do not update it:
  * . X-permission is set
@@ -312,7 +312,7 @@ union clause ast = YMODEW : (regidx, regidx, regidx)
  */
 function clause execute(YMODEW(rd, rs1, rs2)) = {
   let rs1_cap = Y(rs1);
-  let mode = execution_mode_encdec(X(rs2)[0 .. 0]);
+  let mode = pointer_mode_encdec(X(rs2)[0 .. 0]);
 
   let cond = capIsSealed(rs1_cap) | capIsMalformed(rs1_cap);
   let rs1_cap = clearTagIf(rs1_cap, cond);
@@ -324,7 +324,7 @@ function clause execute(YMODEW(rd, rs1, rs2)) = {
   RETIRE_SUCCESS
 }
 
-union clause ast = YMODESW : (ExecutionMode)
+union clause ast = YMODESW : (PointerMode)
 /*!
  * insnref: ymodesw_32bit
  * Switch CHERI execution mode
@@ -335,15 +335,15 @@ union clause ast = YMODESW : (ExecutionMode)
  * Set the hart's current CHERI execution mode in <<pcc>>.
  *
  * * YMODESWY: If the current mode in pcc is _Integer Pointer Mode_ (1), then the
- *   M-bit in pcc is set to _Capability Pointer Mode_ (0). Otherwise no effect.
- * * YMODESWI: If the current mode in pcc is _Capability Pointer Mode_ (0), then the M-bit
+ *   P-bit in pcc is set to _Capability Pointer Mode_ (0). Otherwise no effect.
+ * * YMODESWI: If the current mode in pcc is _Capability Pointer Mode_ (0), then the P-bit
  *   in pcc is set to _Integer Pointer Mode_ (1). Otherwise no effect.
  *
  * Executing YMODESWY or YMODESWI from the program buffer in debug mode updates
- * the M-bit of drootc. The M-bit of drootc sets the CHERI execution mode for the execution
+ * the P-bit of drootc. The P-bit of drootc sets the CHERI execution mode for the execution
  * of the next instruction from the program buffer, and is used to control which CHERI
  * execution mode to enter next time debug mode is entered. The CHERI execution mode
- * is only controlled by the M-bit of drootc in debug mode.
+ * is only controlled by the P-bit of drootc in debug mode.
  */
 function clause execute(YMODESW(mode)) = {
   if getCapMode(PCC) != mode then {
@@ -1026,20 +1026,20 @@ function clause execute AMOSwapCap(rd, rs2, rs1, aq, rl) = {
 
 /* Zero arg */
 
-mapping execution_mode_funct7 : ExecutionMode <-> bits(7) = {
+mapping pointer_mode_funct7 : PointerMode <-> bits(7) = {
   CapPtrMode <-> 0b0001001,
   IntPtrMode <-> 0b0001010,
 }
 
-mapping clause encdec = YMODESW(mode)                                               if cheri_registers_enabled()
-  <-> execution_mode_funct7(mode) @ 0b00000 @ 0b00000 @ 0b001 @ 0b00000 @ 0b0110011 if cheri_registers_enabled()
+mapping clause encdec = YMODESW(mode)                                             if cheri_registers_enabled()
+  <-> pointer_mode_funct7(mode) @ 0b00000 @ 0b00000 @ 0b001 @ 0b00000 @ 0b0110011 if cheri_registers_enabled()
 
-mapping execution_mode_mnemonic : ExecutionMode <-> string = {
+mapping pointer_mode_mnemonic : PointerMode <-> string = {
   CapPtrMode <-> "y",
   IntPtrMode <-> "i",
 }
 
-mapping clause assembly = YMODESW(mode) <-> "ymodesw." ^ execution_mode_mnemonic(mode)
+mapping clause assembly = YMODESW(mode) <-> "ymodesw." ^ pointer_mode_mnemonic(mode)
 
 /* Two arg */
 

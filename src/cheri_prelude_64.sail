@@ -29,8 +29,8 @@ type cap_E_width : Int  = 5
 let  cap_E_width = sizeof(cap_E_width)
 
 // Bits required for Architectural Permissions and Mode
-type cap_AP_M_width : Int = 5
-let  cap_AP_M_width = sizeof(cap_AP_M_width)
+type cap_AP_P_width : Int = 5
+let  cap_AP_P_width = sizeof(cap_AP_P_width)
 
 // Whether setbounds can use the L8 bit for extra precision in the implied E=0 case.
 let cap_use_L8 : bool = true
@@ -40,7 +40,7 @@ bitfield EncMetadata : bits(32) = {
   // Software Defined Permissions.
   SDP        : 31 .. 30,
   // Architectural Permissions and Mode (encoded together).
-  AP_M       : 29 .. 25,
+  AP_P       : 29 .. 25,
   // Capability Level
   GL         : 24,
   // Upper reserved area doesn't exist but Sail's syntax doesn't allow zero width
@@ -64,7 +64,7 @@ bitfield EncMetadata : bits(32) = {
   BE         : 1 .. 0,
 }
 
-type CapAP_M = bits(5)
+type CapAP_P = bits(5)
 
 // 32-bit permission encoding/decoding, converting between the the encoded bits compressed into the capability
 // and the architectural fields.
@@ -72,33 +72,33 @@ type CapAP_M = bits(5)
 // checked for outside the function, and the null fields returned.
 // Backwards match failures occur when encoding an unrepresentable combination of fields: this should be
 // prevented by calling legalizeFields when changing the fields.
-mapping ap_m_encdec : bits(cap_AP_M_width) <-> (ArchPerms, ExecutionMode) = {
+mapping ap_p_encdec : bits(cap_AP_P_width) <-> (ArchPerms, Mode) = {
   // Quadrant 0: Non-capability data read/write
-  0b00 @ 0b000     <-> (struct{ R=false, W=false, C=false, LM=false, EL=false, SL=false, X=false, ASR=false }, execution_mode_encdec(0b0)),
-  0b00 @ 0b001     <-> (struct{ R= true, W=false, C=false, LM=false, EL=false, SL=false, X=false, ASR=false }, execution_mode_encdec(0b0)),
-  0b00 @ 0b100     <-> (struct{ R=false, W= true, C=false, LM=false, EL=false, SL=false, X=false, ASR=false }, execution_mode_encdec(0b0)),
-  0b00 @ 0b101     <-> (struct{ R= true, W= true, C=false, LM=false, EL=false, SL=false, X=false, ASR=false }, execution_mode_encdec(0b0)),
+  0b00 @ 0b000     <-> (struct{ R=false, W=false, C=false, LM=false, EL=false, SL=false, X=false, ASR=false }, pointer_mode_encdec(0b0)),
+  0b00 @ 0b001     <-> (struct{ R= true, W=false, C=false, LM=false, EL=false, SL=false, X=false, ASR=false }, pointer_mode_encdec(0b0)),
+  0b00 @ 0b100     <-> (struct{ R=false, W= true, C=false, LM=false, EL=false, SL=false, X=false, ASR=false }, pointer_mode_encdec(0b0)),
+  0b00 @ 0b101     <-> (struct{ R= true, W= true, C=false, LM=false, EL=false, SL=false, X=false, ASR=false }, pointer_mode_encdec(0b0)),
   // Quadrant 1: Executable capabilities
-  0b01 @ 0b00 @ m  <-> (struct{ R= true, W= true, C= true, LM= true, EL= true, SL= true, X= true, ASR= true }, execution_mode_encdec(m)),
-  0b01 @ 0b01 @ m  <-> (struct{ R= true, W=false, C= true, LM= true, EL= true, SL= true, X= true, ASR=false }, execution_mode_encdec(m)),
-  0b01 @ 0b10 @ m  <-> (struct{ R= true, W= true, C= true, LM= true, EL= true, SL= true, X= true, ASR=false }, execution_mode_encdec(m)),
-  0b01 @ 0b11 @ m  <-> (struct{ R= true, W= true, C=false, LM=false, EL=false, SL=false, X= true, ASR=false }, execution_mode_encdec(m)),
+  0b01 @ 0b00 @ p  <-> (struct{ R= true, W= true, C= true, LM= true, EL= true, SL= true, X= true, ASR= true }, pointer_mode_encdec(p)),
+  0b01 @ 0b01 @ p  <-> (struct{ R= true, W=false, C= true, LM= true, EL= true, SL= true, X= true, ASR=false }, pointer_mode_encdec(p)),
+  0b01 @ 0b10 @ p  <-> (struct{ R= true, W= true, C= true, LM= true, EL= true, SL= true, X= true, ASR=false }, pointer_mode_encdec(p)),
+  0b01 @ 0b11 @ p  <-> (struct{ R= true, W= true, C=false, LM=false, EL=false, SL=false, X= true, ASR=false }, pointer_mode_encdec(p)),
   // Quadrant 2: Restricted capability data read/write
-  0b10 @ 0b011     <-> (struct{ R= true, W=false, C= true, LM=false, EL=false, SL=false, X=false, ASR=false }, execution_mode_encdec(0b0)),
-  0b10 @ 0b110     <-> (struct{ R= true, W= true, C= true, LM= true, EL=false, SL= true, X=false, ASR=false }, execution_mode_encdec(0b0)),
-  0b10 @ 0b111     <-> (struct{ R= true, W= true, C= true, LM= true, EL=false, SL=false, X=false, ASR=false }, execution_mode_encdec(0b0)),
+  0b10 @ 0b011     <-> (struct{ R= true, W=false, C= true, LM=false, EL=false, SL=false, X=false, ASR=false }, pointer_mode_encdec(0b0)),
+  0b10 @ 0b110     <-> (struct{ R= true, W= true, C= true, LM= true, EL=false, SL= true, X=false, ASR=false }, pointer_mode_encdec(0b0)),
+  0b10 @ 0b111     <-> (struct{ R= true, W= true, C= true, LM= true, EL=false, SL=false, X=false, ASR=false }, pointer_mode_encdec(0b0)),
   // Quadrant 3: Capability data read/write
-  0b11 @ 0b011     <-> (struct{ R= true, W=false, C= true, LM= true, EL= true, SL=false, X=false, ASR=false }, execution_mode_encdec(0b0)),
-  0b11 @ 0b110     <-> (struct{ R= true, W= true, C= true, LM= true, EL= true, SL= true, X=false, ASR=false }, execution_mode_encdec(0b0)),
-  0b11 @ 0b111     <-> (struct{ R= true, W= true, C= true, LM= true, EL= true, SL=false, X=false, ASR=false }, execution_mode_encdec(0b0)),
+  0b11 @ 0b011     <-> (struct{ R= true, W=false, C= true, LM= true, EL= true, SL=false, X=false, ASR=false }, pointer_mode_encdec(0b0)),
+  0b11 @ 0b110     <-> (struct{ R= true, W= true, C= true, LM= true, EL= true, SL= true, X=false, ASR=false }, pointer_mode_encdec(0b0)),
+  0b11 @ 0b111     <-> (struct{ R= true, W= true, C= true, LM= true, EL= true, SL=false, X=false, ASR=false }, pointer_mode_encdec(0b0)),
 }
 
-// Ideally ap_m_encdec(({null,root}_perms, IntPtrMode)), but spurious incomplete match side-effect at toplevel
-let null_ap_m = 0b00000
-let root_ap_m = 0b01001
+// Ideally ap_p_encdec(({null,root}_perms, IntPtrMode)), but spurious incomplete match side-effect at toplevel
+let null_ap_p = 0b00000
+let root_ap_p = 0b01001
 
 // Perform the XLEN-specific YPERMC legalization.
-function legalizePermsAndMode(perms : ArchPerms, mode : ExecutionMode) -> (ArchPerms, ExecutionMode) = {
+function legalizePermsAndMode(perms : ArchPerms, mode : PointerMode) -> (ArchPerms, PointerMode) = {
   let perms = if perms.R & perms.W & perms.X & perms.ASR & perms.C & perms.LM & perms.EL & perms.SL then perms else {perms with ASR=false};
   let perms = if perms.R | perms.W then perms else {perms with C=false};
   let perms = if perms.R then perms else {perms with C=false};
@@ -113,7 +113,7 @@ function legalizePermsAndMode(perms : ArchPerms, mode : ExecutionMode) -> (ArchP
   let perms = if perms.LM & (perms.X | perms.W) then perms else {perms with SL=false};
   let perms = if perms.C == perms.LM & perms.C == perms.EL & perms.C == perms.SL then perms else {perms with X=false};
   let perms = if perms.X then perms else {perms with ASR=false};
-  let mode  = if perms.X then mode else execution_mode_encdec(0b0);
+  let mode  = if perms.X then mode else pointer_mode_encdec(0b0);
   (perms, mode)
 }
 
