@@ -485,17 +485,17 @@ function test_cheri_malformed() -> unit = {
     assert_behaviour(badPermsCap   , capR, outR, instr, None(), true, {badPermsCap with ap_m = zeros(), tag=false}    , undefined);
     assert_behaviour(badReservedCap, capR, outR, instr, None(), true, {badReservedCap with ap_m = zeros(), tag=false} , undefined);
 
-    // YLT checks all the fields.
+    // YSS checks all the fields.
     let (_, zeroCapTagged) = setCapBounds({ null_cap with tag=true }, zeros(), zeros());
 
     Y(otherR) = zeroCapTagged;
-    let instr = YLT(outR, capR, otherR);
+    let instr = YSS(outR, capR, otherR);
     assert_behaviour(badBoundsCap  , capR, outR, instr, None(), false, undefined, zeros());
     assert_behaviour(badPermsCap   , capR, outR, instr, None(), false, undefined, zeros());
     assert_behaviour(badReservedCap, capR, outR, instr, None(), false, undefined, zeros());
     assert_behaviour(zeroCapTagged , capR, outR, instr, None(), false, undefined, zero_extend(0b1));
     assert_behaviour(root_cap      , capR, outR, instr, None(), false, undefined, zero_extend(0b1));
-    let instr = YLT(outR, otherR, capR);
+    let instr = YSS(outR, otherR, capR);
     assert_behaviour(badBoundsCap  , capR, outR, instr, None(), false, undefined, zeros());
     assert_behaviour(badPermsCap   , capR, outR, instr, None(), false, undefined, zeros());
     assert_behaviour(badReservedCap, capR, outR, instr, None(), false, undefined, zeros());
@@ -503,13 +503,13 @@ function test_cheri_malformed() -> unit = {
     assert_behaviour(root_cap      , capR, outR, instr, None(), false, undefined, zeros());
 
     Y(otherR) = root_cap;
-    let instr = YLT(outR, capR, otherR);
+    let instr = YSS(outR, capR, otherR);
     assert_behaviour(badBoundsCap  , capR, outR, instr, None(), false, undefined, zeros());
     assert_behaviour(badPermsCap   , capR, outR, instr, None(), false, undefined, zeros());
     assert_behaviour(badReservedCap, capR, outR, instr, None(), false, undefined, zeros());
     assert_behaviour(zeroCapTagged , capR, outR, instr, None(), false, undefined, zeros());
     assert_behaviour(root_cap      , capR, outR, instr, None(), false, undefined, zero_extend(0b1));
-    let instr = YLT(outR, otherR, capR);
+    let instr = YSS(outR, otherR, capR);
     assert_behaviour(badBoundsCap  , capR, outR, instr, None(), false, undefined, zeros());
     assert_behaviour(badPermsCap   , capR, outR, instr, None(), false, undefined, zeros());
     assert_behaviour(badReservedCap, capR, outR, instr, None(), false, undefined, zeros());

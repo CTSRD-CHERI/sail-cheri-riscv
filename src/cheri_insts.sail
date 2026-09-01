@@ -635,12 +635,12 @@ function clause execute(YAMASK(rd, rs1)) = {
   RETIRE_SUCCESS
 }
 
-union clause ast = YLT : (regidx, regidx, regidx)
+union clause ast = YSS : (regidx, regidx, regidx)
 /*!
- * insnref: ylt_32bit
+ * insnref: yss_32bit
  * Capability test subset
  *
- * ylt rd, rs1, rs2
+ * yss rd, rs1, rs2
  *
  * rd is set to 1 if the tag of capabilities rs1 and rs2 are equal and
  * the bounds and permissions of rs2 are a subset of those of rs1.
@@ -651,7 +651,7 @@ union clause ast = YLT : (regidx, regidx, regidx)
  * . Have permissions that could not have been legally produced by YPERMC
  * then the instruction returns zero.
  */
-function clause execute (YLT(rd, rs1, rs2)) = {
+function clause execute (YSS(rd, rs1, rs2)) = {
   let rs1_cap = Y(rs1);
   let rs2_cap = Y(rs2);
 
@@ -664,17 +664,17 @@ function clause execute (YLT(rd, rs1, rs2)) = {
   RETIRE_SUCCESS
 }
 
-union clause ast = SYEQ : (regidx, regidx, regidx)
+union clause ast = YEQ : (regidx, regidx, regidx)
 /*!
- * insnref: syeq_32bit
+ * insnref: yeq_32bit
  * Set if Capabilities are EQual
  *
- * syeq rd, rs1, rs2
+ * yeq rd, rs1, rs2
  *
  * rd is set to 1 if all bits (i.e. YLEN bits and the tag) of
  * capabilities rs1 and rs2  are equal, otherwise rd is set to 0.
  */
-function clause execute (SYEQ(rd, rs1, rs2)) = {
+function clause execute (YEQ(rd, rs1, rs2)) = {
   let rs1_cap = Y(rs1);
   let rs2_cap = Y(rs2);
   X(rd) = zero_extend(bool_to_bits(rs1_cap == rs2_cap));
@@ -1109,9 +1109,9 @@ mapping clause encdec = YBLD(rd, rs1, rs2)                                      
 mapping clause encdec = YSUNSEAL(rd, rs1, rs2)                                           if cheri_registers_enabled()
   <-> 0b0000111 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b010 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
 
-mapping clause encdec = SYEQ(rd, rs1, rs2)                                               if cheri_registers_enabled()
+mapping clause encdec = YEQ(rd, rs1, rs2)                                                if cheri_registers_enabled()
   <-> 0b0000110 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b100 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
-mapping clause encdec = YLT(rd, rs1, rs2)                                                if cheri_registers_enabled()
+mapping clause encdec = YSS(rd, rs1, rs2)                                                if cheri_registers_enabled()
   <-> 0b0000110 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b110 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
 
 mapping clause encdec = YADDI(rd, rs1, imm12)                                 if cheri_registers_enabled()
@@ -1129,8 +1129,8 @@ mapping clause assembly = YBNDSW(rd, rs1, rs2)   <-> "ybndsw"   ^ spc() ^ reg_na
 mapping clause assembly = YBLD(rd, rs1, rs2)     <-> "ybld"     ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
 mapping clause assembly = YSUNSEAL(rd, rs1, rs2) <-> "ysunseal" ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
 
-mapping clause assembly = SYEQ(rd, rs1, rs2)    <-> "syeq"    ^ spc() ^ reg_name(rd)     ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
-mapping clause assembly = YLT(rd, rs1, rs2)     <-> "ylt"     ^ spc() ^ reg_name(rd)     ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
+mapping clause assembly = YEQ(rd, rs1, rs2)     <-> "yeq"     ^ spc() ^ reg_name(rd)     ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
+mapping clause assembly = YSS(rd, rs1, rs2)     <-> "yss"     ^ spc() ^ reg_name(rd)     ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
 
 mapping clause assembly = YADDI(rd, rs1, imm12) <-> "yaddi"   ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ hex_bits_12(imm12)
 
