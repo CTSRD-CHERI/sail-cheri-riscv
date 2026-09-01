@@ -8,9 +8,9 @@
 
 function ext_pte_is_invalid(pte_flags : PTE_Flags, pte_ext : option(PTE_Ext)) -> bool =
   match pte_ext {
-    // The CRG/CRW bits must be 0 unless this is a leaf node.
-    // CRGE clear reserves CD and CRG
-    Some(pte_ext) => (pte_ext[CRW] != 0b0 | pte_ext[CRG] != 0b0 | pte_ext[CD] != 0b0) & pte_is_ptr(pte_flags) &
-                     (mstatus[CRGE] == 0b1 | (pte_ext[CD] == 0b0 & pte_ext[CRG] == 0b0)),
+    // The RVY field must be 0 unless this is a leaf node.
+    // YRGE clear reserves all but the Y bit.
+    Some(pte_ext) => ((pte_ext[rvy] != zeros()) & pte_is_ptr(pte_flags)) |
+                     (mstatus[YRGE] == 0b0 & (Mk_PTE_RVY(pte_ext[rvy])[reserved] != zeros())),
     None() => false,
   }

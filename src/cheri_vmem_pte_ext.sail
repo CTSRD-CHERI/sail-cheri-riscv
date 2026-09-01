@@ -23,20 +23,31 @@ function pte_permission_ok(
   // CHERI PTE features only supported on RV64.
   match ext {
     Some(ext) => {
-      if isTaggedWrite(ac) then {
-        if ext[CRW] == 0b0 then {
-          cheri_page_fault = Some(CheriPage_St);
+      if mstatus[YRGE] == 0b0 then {
+        let pte_rvy = Mk_PTE_RVY(ext[rvy]);
+        if isTaggedWrite(ac) then {
+          if pte_rvy[Y] == 0b0 then cheri_page_fault = Some(CheriPage_St)
+        } else if isTaggedRead(ac) then {
+          if pte_rvy[Y] == 0b0 then tagged_load_behaviour = TaggedLoadClear
         }
-        // CD checks carried out in "update_pte"
-      } else if isTaggedRead(ac) then {
-        if (ext[CRW] == 0b0) then {
-          tagged_load_behaviour = TaggedLoadClear
-        } else if mstatus[CRGE] == 0b1 then {
-          if ext[CRG] != mstatus[UCRG] & (pte[U] == 0b1) then {
-            if sys_cheri_pte_crg_exception_check_tag() then {
-              tagged_load_behaviour = TaggedLoadTrap;
-            } else {
-              cheri_page_fault = Some(CheriPage_Ld);
+      } else {
+        let pte_rvy = Mk_PTE_RVY_SVYRG(ext[rvy]);
+        if isTaggedWrite(ac) then {
+          if pte_rvy[YW] == 0b0 then cheri_page_fault = Some(CheriPage_St)
+          // YD checks carried out in "update_pte"
+        } else if isTaggedRead(ac) then {
+          match (pte_rvy[YR], pte_rvy[YRG]) {
+            (0b0, 0b0) => tagged_load_behaviour = TaggedLoadClear,
+            (0b0, 0b1) => (),
+            (0b1, YRG) => {
+              let xYRG = if pte[U] == 0b1 then mstatus[UYRG] else mstatus[SYRG];
+              if YRG != xYRG then {
+                if sys_cheri_pte_crg_exception_check_tag() then {
+                  tagged_load_behaviour = TaggedLoadTrap;
+                } else {
+                  cheri_page_fault = Some(CheriPage_Ld);
+                }
+              }
             }
           }
         }
@@ -65,10 +76,10 @@ function pte_permission_ok(
 val updated_cheri_pte_bits : forall 'pte_size, 'pte_size in {32, 64} . (bits('pte_size), AccessType(ext_access_type)) -> option(bits('pte_size))
 function updated_cheri_pte_bits(pte, ac) =
   match ext_bits_of_PTE(pte) {
-    Some(ext) if isTaggedWrite(ac) & mstatus[CRGE] == 0b1 & ext[CRW] == 0b1 & ext[CD] == 0b0 => {
+    Some(ext) if isTaggedWrite(ac) & mstatus[YRGE] == 0b1 & Mk_PTE_RVY_SVYRG(ext[rvy])[YD] == 0b0 => {
       // CHERI PTEs & PTE ext bits only exist with 64-bit PTEs.
       assert('pte_size == 64);
-      Some([pte with 63 .. 54 = [ext with CD = 0b1].bits])
+      Some([pte with 63 .. 54 = [ext with rvy = [Mk_PTE_RVY_SVYRG(ext[rvy]) with YD = 0b1].bits].bits])
     },
     _ => None(),
   }
