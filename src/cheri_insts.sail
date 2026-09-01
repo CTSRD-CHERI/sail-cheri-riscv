@@ -1062,7 +1062,7 @@ mapping clause encdec = SRLIY(rd, rs1)                                          
 mapping clause encdec = YMV(rd, rs1)                                             if cheri_registers_enabled()
   <-> 0b0000011 @ 0b00000 @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b1111011 if cheri_registers_enabled()
 mapping clause encdec = YSENTRY(rd, rs1)                                         if cheri_registers_enabled()
-  <-> 0b1111011 @ 0b00000 @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b1111011 if cheri_registers_enabled()
+  <-> 0b0011011 @ 0b00000 @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b1111011 if cheri_registers_enabled()
 
 mapping clause encdec = YAMASK(rd, rs1)                                          if cheri_registers_enabled()
   <-> 0b1111000 @ 0b00000 @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b1111011 if cheri_registers_enabled()
