@@ -153,7 +153,7 @@ mapping clause assembly = C_ADDI16SP_capmode(nzimm) if nzimm != 0b0000000000
  * c.addi16sp imm
  *
  * Expansion:
- * addy sp, sp, imm
+ * yadd sp, sp, imm
  *
  * Add the non-zero sign-extended 6-bit immediate to the value in the
  * stack pointer (sp=x2), where the immediate is scaled to represent
@@ -161,7 +161,7 @@ mapping clause assembly = C_ADDI16SP_capmode(nzimm) if nzimm != 0b0000000000
  * resulting capability is unrepresentable or sp is sealed.
  */
 function clause execute(C_ADDI16SP_capmode(nzimm)) =
-  execute(ADDIY(sp, sp, sign_extend(nzimm)))
+  execute(YADDI(sp, sp, sign_extend(nzimm)))
 
 union clause ast = C_ADDI4SPN_capmode : (cregidx, bits(10))
 
@@ -181,7 +181,7 @@ mapping clause assembly = C_ADDI4SPN_capmode(rdc, nzuimm)                     if
  * c.addi4spn rd', uimm
  *
  * Expansion:
- * addy rd', sp, uimm
+ * yadd rd', sp, uimm
  *
  * Add a zero-extended non-zero immediate, scaled by 4, to the stack
  * pointer, sp, and writes the result to rd'. This instruction is used
@@ -190,7 +190,7 @@ mapping clause assembly = C_ADDI4SPN_capmode(rdc, nzuimm)                     if
  */
 function clause execute(C_ADDI4SPN_capmode(rdc, nzuimm)) = {
   let rd = creg2reg_idx(rdc) in
-  execute(ADDIY(rd, sp, zero_extend(nzuimm)))
+  execute(YADDI(rd, sp, zero_extend(nzuimm)))
 }
 
 /* Control flow */

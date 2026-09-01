@@ -29,11 +29,11 @@ mapping clause assembly = ZBA_Y_RTYPEUW(rs2, rs1, rd, op)
   <-> zba_y_rtypeuw_mnemonic(op) ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
 
 /*!
- * insnref: sh1234addyuw_32bit
+ * insnref: sh1234yadduw_32bit
  * Shift by _n_ and add unsigned word for address generation (YSH1ADD.UW,
  * YSH2ADD.UW, YSH3ADD.UW, YSH4ADD.UW)
  *
- * sh[1|2|3|4]addy.uw rd, rs1, rs2
+ * sh[1|2|3|4]yadd.uw rd, rs1, rs2
  *
  * Increment the address field of rs2 by the unsigned word in rs1 shifted
  * left by _n_ bit positions and write the result to rd. The tag bit of

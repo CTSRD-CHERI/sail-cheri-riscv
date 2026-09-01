@@ -101,15 +101,15 @@ function test_cheri_nofastrep () -> unit = {
     X(addrR) = addr;
     assert(execute(YADDRW(capR, capR, addrR)) == RETIRE_SUCCESS);
     assert(Y(capR).tag);
-    // Perform the ADDIY that would detag the capability if the fast
+    // Perform the YADDI that would detag the capability if the fast
     // representability check is being used.
-    assert(execute(ADDIY(outR, capR, increment)) == RETIRE_SUCCESS);
+    assert(execute(YADDI(outR, capR, increment)) == RETIRE_SUCCESS);
     assert(Y(outR).tag);
     // Check that incrementing by one more does in fact detag the
     // cap, i.e. that if the fast representability check's assumption
     // of a carry were accurate, then the capability should be
     // detagged.
-    assert(execute(ADDIY(outR, capR, increment+1)) == RETIRE_SUCCESS);
+    assert(execute(YADDI(outR, capR, increment+1)) == RETIRE_SUCCESS);
     assert(not(Y(outR).tag));
 }
 

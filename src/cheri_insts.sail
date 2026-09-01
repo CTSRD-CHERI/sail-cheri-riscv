@@ -353,23 +353,23 @@ function clause execute(YMODESW(mode)) = {
   RETIRE_SUCCESS
 }
 
-union clause ast = ADDY : (regidx, regidx, regidx)
+union clause ast = YADD : (regidx, regidx, regidx)
 /*!
- * insnref: addy_32bit
+ * insnref: yadd_32bit
  * Capability pointer increment
  *
- * addy rd, rs1, rs2
- * addiy rd, rs1, imm
+ * yadd rd, rs1, rs2
+ * yaddi rd, rs1, imm
  *
  * Increment the address field of the capability rs1  and write the
  * result to rd . The tag bit of the output capability is 0 if rs1  did
  * not have its tag set to 1, the incremented address is outside rs1's
  * Representable Range or rs1  is sealed.
  *
- * For ADDY, the address is incremented by the value in rs2 .
- * For ADDIY, the address is incremented by the immediate value imm.
+ * For YADD, the address is incremented by the value in rs2 .
+ * For YADDI, the address is incremented by the immediate value imm.
  */
-function clause execute (ADDY(rd, rs1, rs2)) = {
+function clause execute (YADD(rd, rs1, rs2)) = {
   let rs1_cap = Y(rs1);
   let rs2_val = X(rs2);
 
@@ -379,23 +379,23 @@ function clause execute (ADDY(rd, rs1, rs2)) = {
   RETIRE_SUCCESS
 }
 
-union clause ast = ADDIY : (regidx, regidx, bits(12))
+union clause ast = YADDI : (regidx, regidx, bits(12))
 /*!
- * insnref: addy_32bit
+ * insnref: yadd_32bit
  * Capability pointer increment
  *
- * addy rd, rs1, rs2
- * addiy rd, rs1, imm
+ * yadd rd, rs1, rs2
+ * yaddi rd, rs1, imm
  *
  * Increment the address field of the capability rs1  and write the
  * result to rd . The tag bit of the output capability is 0 if rs1  did
  * not have its tag set to 1, the incremented address is outside rs1's
  * Representable Range or rs1  is sealed.
  *
- * For ADDY, the address is incremented by the value in rs2 .
- * For ADDIY, the address is incremented by the immediate value imm.
+ * For YADD, the address is incremented by the value in rs2 .
+ * For YADDI, the address is incremented by the immediate value imm.
  */
-function clause execute (ADDIY(rd, rs1, imm)) = {
+function clause execute (YADDI(rd, rs1, imm)) = {
   let rs1_cap = Y(rs1);
   let immBits : xlenbits = sign_extend(imm);
 
@@ -1098,7 +1098,7 @@ mapping clause encdec = YADDRW(rd, rs1, rs2)                                    
   <-> 0b0000110 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b001 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
 mapping clause encdec = PACKY(rd, rs1, rs2)                                              if cheri_registers_enabled()
   <-> 0b0000100 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b011 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
-mapping clause encdec = ADDY(rd, rs1, rs2)                                               if cheri_registers_enabled() & (rs2 != zreg)
+mapping clause encdec = YADD(rd, rs1, rs2)                                               if cheri_registers_enabled() & (rs2 != zreg)
   <-> 0b0000110 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b000 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled() & (rs2 != zreg)
 mapping clause encdec = YBNDSRW(rd, rs1, rs2)                                            if cheri_registers_enabled()
   <-> 0b0000111 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b001 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
@@ -1114,7 +1114,7 @@ mapping clause encdec = SYEQ(rd, rs1, rs2)                                      
 mapping clause encdec = YLT(rd, rs1, rs2)                                                if cheri_registers_enabled()
   <-> 0b0000110 @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b110 @ encdec_reg(rd) @ 0b0110011 if cheri_registers_enabled()
 
-mapping clause encdec = ADDIY(rd, rs1, imm12)                                 if cheri_registers_enabled()
+mapping clause encdec = YADDI(rd, rs1, imm12)                                 if cheri_registers_enabled()
   <-> imm12 : bits(12) @ encdec_reg(rs1) @ 0b010 @ encdec_reg(rd) @ 0b0011011 if cheri_registers_enabled()
 mapping clause encdec = YBNDSWI(rd, rs1, uimm10)                                      if cheri_registers_enabled() & rd == rs1
   <-> 0b00 @ uimm10 : bits(10) @ encdec_reg(rs1) @ 0b011 @ encdec_reg(rd) @ 0b0011011 if cheri_registers_enabled() & rd == rs1
@@ -1123,7 +1123,7 @@ mapping clause assembly = YPERMC(rd, rs1, rs2)   <-> "ypermc"   ^ spc() ^ reg_na
 mapping clause assembly = YMODEW(rd, rs1, rs2)   <-> "ymodew"   ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
 mapping clause assembly = YADDRW(rd, rs1, rs2)   <-> "yaddrw"   ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
 mapping clause assembly = PACKY(rd, rs1, rs2)    <-> "packy"    ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
-mapping clause assembly = ADDY(rd, rs1, rs2)     <-> "addy"     ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
+mapping clause assembly = YADD(rd, rs1, rs2)     <-> "yadd"     ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
 mapping clause assembly = YBNDSRW(rd, rs1, rs2)  <-> "ybndsrw"  ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
 mapping clause assembly = YBNDSW(rd, rs1, rs2)   <-> "ybndsw"   ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
 mapping clause assembly = YBLD(rd, rs1, rs2)     <-> "ybld"     ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
@@ -1132,7 +1132,7 @@ mapping clause assembly = YSUNSEAL(rd, rs1, rs2) <-> "ysunseal" ^ spc() ^ reg_na
 mapping clause assembly = SYEQ(rd, rs1, rs2)    <-> "syeq"    ^ spc() ^ reg_name(rd)     ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
 mapping clause assembly = YLT(rd, rs1, rs2)     <-> "ylt"     ^ spc() ^ reg_name(rd)     ^ sep() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2)
 
-mapping clause assembly = ADDIY(rd, rs1, imm12) <-> "addiy"   ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ hex_bits_12(imm12)
+mapping clause assembly = YADDI(rd, rs1, imm12) <-> "yaddi"   ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ hex_bits_12(imm12)
 
 mapping clause assembly = YBNDSWI(rd, rs1, uimm10) <-> "ybndswi" ^ spc() ^ reg_name(rd) ^ sep() ^ reg_name(rs1) ^ sep() ^ hex_bits_12(encdec_ybndsw_imm(uimm10))
 
