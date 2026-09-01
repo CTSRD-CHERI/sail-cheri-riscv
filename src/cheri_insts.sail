@@ -1195,11 +1195,11 @@ mapping clause encdec_capmode = JAL_capmode(imm_19 @ imm_7_0 @ imm_8 @ imm_18_13
 mapping clause assembly = JAL_capmode(imm, rd)
   <-> "jal" ^ spc() ^ reg_name(rd) ^ sep() ^ hex_bits_21(imm)
 
-mapping clause encdec_capmode = BEQ_reserved_capmode(imm7_6 @ imm5_0 @ imm7_5_0 @ imm5_4_1 @ 0b0, rs2, rs1)                                 if encdec_reg(rs1) >=_u encdec_reg(rs2)
-  <-> imm7_6 : bits(1) @ imm7_5_0 : bits(6) @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b000 @ imm5_4_1 : bits(4) @ imm5_0 : bits(1) @ 0b1100011 if encdec_reg(rs1) >=_u encdec_reg(rs2)
+mapping clause encdec_capmode = BEQ_reserved_capmode(imm7_6 @ imm5_0 @ imm7_5_0 @ imm5_4_1 @ 0b0, rs2, rs1)                                 if encdec_reg(rs1) <=_u encdec_reg(rs2)
+  <-> imm7_6 : bits(1) @ imm7_5_0 : bits(6) @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b000 @ imm5_4_1 : bits(4) @ imm5_0 : bits(1) @ 0b1100011 if encdec_reg(rs1) <=_u encdec_reg(rs2)
 mapping clause assembly = BEQ_reserved_capmode (imm, rs1, rs2)
   <-> "reserved (beq" ^ spc() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2) ^ sep() ^ hex_bits_signed_13(imm) ^ ")"
-mapping clause encdec_capmode = BNE_reserved_capmode(imm7_6 @ imm5_0 @ imm7_5_0 @ imm5_4_1 @ 0b0, rs2, rs1)                                 if encdec_reg(rs1) >=_u encdec_reg(rs2)
-  <-> imm7_6 : bits(1) @ imm7_5_0 : bits(6) @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b001 @ imm5_4_1 : bits(4) @ imm5_0 : bits(1) @ 0b1100011 if encdec_reg(rs1) >=_u encdec_reg(rs2)
+mapping clause encdec_capmode = BNE_reserved_capmode(imm7_6 @ imm5_0 @ imm7_5_0 @ imm5_4_1 @ 0b0, rs2, rs1)                                 if encdec_reg(rs1) <=_u encdec_reg(rs2)
+  <-> imm7_6 : bits(1) @ imm7_5_0 : bits(6) @ encdec_reg(rs2) @ encdec_reg(rs1) @ 0b001 @ imm5_4_1 : bits(4) @ imm5_0 : bits(1) @ 0b1100011 if encdec_reg(rs1) <=_u encdec_reg(rs2)
 mapping clause assembly = BNE_reserved_capmode (imm, rs1, rs2)
   <-> "reserved (bne" ^ spc() ^ reg_name(rs1) ^ sep() ^ reg_name(rs2) ^ sep() ^ hex_bits_signed_13(imm) ^ ")"
