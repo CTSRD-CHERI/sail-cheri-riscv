@@ -318,6 +318,9 @@ preserve_fns=--c-preserve init_model \
              --c-preserve tick_platform \
              --c-preserve test_main
 
+properties.smt2: $(SAIL_SRCS)
+	$(SAIL) $(SAIL_FLAGS) -smt $(SAIL_SRCS)
+
 generated_definitions/c/riscv_rvfi_model_%.c: $(SAIL_RVFI_SRCS) $(SAIL_RISCV_MODEL_DIR)/main.sail Makefile
 	mkdir -p generated_definitions/c
 	$(SAIL) $(preserve_fns) $(rvfi_preserve_fns) $(SAIL_FLAGS) -O -Oconstant_fold -memo_z3 -c -c_include riscv_prelude.h -c_include riscv_platform.h -c_no_main $(SAIL_RVFI_SRCS) $(SAIL_RISCV_MODEL_DIR)/main.sail -o $(basename $@)

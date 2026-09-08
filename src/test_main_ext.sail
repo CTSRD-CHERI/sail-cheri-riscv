@@ -724,3 +724,17 @@ function test_main_ext() -> unit = {
     //test_cheri_enables(); Disable while cheri enables hardwired high
     print("CHERI tests passed\n");
 }
+
+$property
+function always_true() -> bool = true
+
+$property
+function always_false() -> bool = false
+
+$property
+function base_leq_top(tag : bool, cap_bits : CapBits) -> bool = {
+  match getCapBoundsBits(bitsToCap(tag, cap_bits)) {
+    None()          => true,
+    Some(base, top) => 0b0 @ base <=_u top
+  }
+}
