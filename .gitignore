@@ -2,4 +2,5 @@ generated_definitions
 sail_smt_cache
 z3_problems
 c_emulator
-ocaml_emulator
+ocaml_emulator/*
+!ocaml_emulator/*.ml

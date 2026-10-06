@@ -244,6 +244,31 @@ RISCV_EXTRAS_LEM_FILES = riscv_extras.lem riscv_extras_fdext.lem
 endif
 RISCV_EXTRAS_LEM = $(addprefix $(SAIL_RISCV_DIR)/handwritten_support/,$(RISCV_EXTRAS_LEM_FILES))
 
+# Since Sail 0.20.2 the OCaml backend will produce a Dune project, which:
+#
+#   (a) changes the directory structure, so we need to use the right path for
+#       dependencies
+#
+#   (b) doesn't copy all the Sail libraries into the directory, instead
+#       referencing them as proper dependencies, so we actually need to use
+#       Dune to build it and can't just fall back on ocamlbuild
+SAIL_OSIM_DUNE := $(shell ! $(SAIL) --require-version 0.20.2 >/dev/null 2>&1; echo $$?)
+ifeq ($(SAIL_OSIM_DUNE),1)
+RISCV_OSIM_FILE = src/riscv.ml
+else
+RISCV_OSIM_FILE = riscv.ml
+endif
+
+# Since Sail 0.20.3 various functions, including get_slice_int, used by
+# sail-riscv's platform.ml, are curried, so provide a compatibility wrapper.
+# Similarly, the generated OCaml will assume the platform's functions are
+# curried, but they are not, so provide a compatibility wrapper for them the
+# other way.
+SAIL_OSIM_CURRIED := $(shell ! $(SAIL) --require-version 0.20.3 >/dev/null 2>&1; echo $$?)
+ifeq ($(SAIL_OSIM_CURRIED),1)
+PLATFORM_OCAML_SRCS += ocaml_emulator/sail_lib_uncurry.ml ocaml_emulator/platform_curry.ml
+endif
+
 
 ocaml_emulator/cheri_riscv_ocaml_sim_RV32 c_emulator/cheri_riscv_sim_RV32 c_emulator/cheri_riscv_rvfi_RV32: override ARCH := RV32
 ocaml_emulator/cheri_riscv_ocaml_sim_RV64 c_emulator/cheri_riscv_sim_RV64 c_emulator/cheri_riscv_rvfi_RV64: override ARCH := RV64
@@ -265,20 +290,51 @@ interpret: $(SAIL_SRCS) $(SAIL_RISCV_MODEL_DIR)/main.sail
 cgen: $(SAIL_SRCS) $(SAIL_RISCV_MODEL_DIR)/main.sail
 	$(SAIL) -cgen $(SAIL_FLAGS) $(SAIL_SRCS) $(SAIL_RISCV_MODEL_DIR)/main.sail
 
-generated_definitions/ocaml/%/riscv.ml: $(SAIL_SRCS) Makefile
+generated_definitions/ocaml/%/$(RISCV_OSIM_FILE): $(SAIL_SRCS) Makefile
 	mkdir -p generated_definitions/ocaml/$*
 	$(SAIL) $(SAIL_FLAGS) -ocaml -ocaml-nobuild -ocaml_build_dir generated_definitions/ocaml/$* -o riscv $(SAIL_SRCS)
 
-ocaml_emulator/_sbuild/%/riscv_ocaml_sim.native: generated_definitions/ocaml/%/riscv.ml $(PLATFORM_OCAML_SRCS) Makefile
+ocaml_emulator/_sbuild/%/riscv_ocaml_sim.native: generated_definitions/ocaml/%/$(RISCV_OSIM_FILE) $(PLATFORM_OCAML_SRCS) Makefile
 	mkdir -p ocaml_emulator/_sbuild/$*
+ifeq ($(SAIL_OSIM_DUNE),1)
+	cp -a generated_definitions/ocaml/$*/* ocaml_emulator/_sbuild/$*
+	cp $(PLATFORM_OCAML_SRCS) ocaml_emulator/_sbuild/$*/src/
+	mv ocaml_emulator/_sbuild/$*/src/riscv_ocaml_sim.ml ocaml_emulator/_sbuild/$*/src/main.ml
+	echo '(env (dev (flags :standard -warn-error -a)))' >> ocaml_emulator/_sbuild/$*/src/dune
+	echo 'include Libsail.Elf_loader' > ocaml_emulator/_sbuild/$*/src/elf_loader.ml
+	echo 'include Libsail.Sail_lib' > ocaml_emulator/_sbuild/$*/src/sail_lib.ml
+ifeq ($(SAIL_OSIM_CURRIED),1)
+	echo 'include Sail_lib_uncurry' >> ocaml_emulator/_sbuild/$*/src/sail_lib.ml
+	mv ocaml_emulator/_sbuild/$*/src/platform.ml ocaml_emulator/_sbuild/$*/src/platform_uncurried.ml
+	mv ocaml_emulator/_sbuild/$*/src/platform_curry.ml ocaml_emulator/_sbuild/$*/src/platform.ml
+endif
+	cd ocaml_emulator/_sbuild/$* && dune build && cp -L _build/install/default/bin/riscv riscv_ocaml_sim.native
+else
 	cp $(PLATFORM_OCAML_SRCS) generated_definitions/ocaml/$*/*.ml ocaml_emulator/_sbuild/$*
 	cd ocaml_emulator/_sbuild/$* && ocamlbuild -use-ocamlfind riscv_ocaml_sim.native
+endif
 
-ocaml_emulator/_sbuild/$(ARCH)/coverage.native: generated_definitions/ocaml/$(ARCH)/riscv.ml $(SAIL_RISCV_DIR)/ocaml_emulator/_tags.bisect $(PLATFORM_OCAML_SRCS) Makefile
+ocaml_emulator/_sbuild/$(ARCH)/coverage.native: generated_definitions/ocaml/$(ARCH)/$(RISCV_OSIM_FILE) $(SAIL_RISCV_DIR)/ocaml_emulator/_tags.bisect $(PLATFORM_OCAML_SRCS) Makefile
 	mkdir -p ocaml_emulator/_sbuild/$(ARCH)
+ifeq ($(SAIL_OSIM_DUNE),1)
+	cp -a generated_definitions/ocaml/$(ARCH)/* ocaml_emulator/_sbuild/$(ARCH)
+	cp $(PLATFORM_OCAML_SRCS) ocaml_emulator/_sbuild/$(ARCH)/src/
+	cp $(SAIL_RISCV_DIR)/ocaml_emulator/_tags.bisect ocaml_emulator/_sbuild/$(ARCH)/src/_tags
+	mv ocaml_emulator/_sbuild/$(ARCH)/src/riscv_ocaml_sim.ml ocaml_emulator/_sbuild/$(ARCH)/src/main.ml
+	echo '(env (dev (flags :standard -warn-error -a)))' >> ocaml_emulator/_sbuild/$(ARCH)/src/dune
+	echo 'include Libsail.Elf_loader' > ocaml_emulator/_sbuild/$(ARCH)/src/elf_loader.ml
+	echo 'include Libsail.Sail_lib' > ocaml_emulator/_sbuild/$(ARCH)/src/sail_lib.ml
+ifeq ($(SAIL_OSIM_CURRIED),1)
+	echo 'include Sail_lib_uncurry' >> ocaml_emulator/_sbuild/$(ARCH)/src/sail_lib.ml
+	mv ocaml_emulator/_sbuild/$(ARCH)/src/platform.ml ocaml_emulator/_sbuild/$(ARCH)/src/platform_uncurried.ml
+	mv ocaml_emulator/_sbuild/$(ARCH)/src/platform_curry.ml ocaml_emulator/_sbuild/$(ARCH)/src/platform.ml
+endif
+	cd ocaml_emulator/_sbuild/$(ARCH) && dune build && cp -L _build/install/default/bin/riscv coverage.native
+else
 	cp $(PLATFORM_OCAML_SRCS) generated_definitions/ocaml/$(ARCH)/*.ml ocaml_emulator/_sbuild/$(ARCH)
 	cp $(SAIL_RISCV_DIR)/ocaml_emulator/_tags.bisect ocaml_emulator/_sbuild/$(ARCH)/_tags
 	cd ocaml_emulator/_sbuild/$(ARCH) && ocamlbuild -use-ocamlfind riscv_ocaml_sim.native && cp -L riscv_ocaml_sim.native coverage.native
+endif
 
 ocaml_emulator/cheri_riscv_ocaml_sim_%: ocaml_emulator/_sbuild/%/riscv_ocaml_sim.native
 	rm -f $@ && cp -L $^ $@ && rm -f $^
