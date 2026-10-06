@@ -103,8 +103,8 @@ function rC r = {
 }
 
 /* writes a register with a capability value */
-val wC : forall 'n, 0 <= 'n < 32. (regno('n), regtype) -> unit effect {wreg, escape}
-function wC (r, v) = {
+val wC : forall 'n, 0 <= 'n < 32. (bool, regno('n), regtype) -> unit effect {wreg, escape}
+function wC (b, r, v) = {
   match r {
     0  => (),
     1  => x1 = v,
@@ -141,7 +141,8 @@ function wC (r, v) = {
     _  => internal_error(__FILE__, __LINE__, "Invalid capability register")
   };
   if (r != 0) then {
-     rvfi_wX(r, v.address);
+     if b then
+       rvfi_wX(r, v.address);
      if get_config_print_reg() then
        print_reg("x" ^ dec_str(r) ^ " <- " ^ RegStr(v));
   }
@@ -149,9 +150,12 @@ function wC (r, v) = {
 
 function rC_bits(r: bits(5)) -> regtype = rC(unsigned(r))
 
-function wC_bits(r: bits(5), v: regtype) -> unit = wC(unsigned(r), v)
+function wC_bits(r: bits(5), v: regtype) -> unit = wC (true, unsigned(r), v)
 
-overload C = {rC_bits, wC_bits, rC, wC}
+val wC_rvfi : forall 'n, 0 <= 'n < 32. (regno('n), regtype) -> unit effect {wreg, escape}
+function wC_rvfi (r, v) = wC (true, r, v)
+
+overload C = {rC_bits, wC_bits, rC, wC_rvfi}
 
 val ext_init_regs : unit -> unit effect {wreg}
 function ext_init_regs () = {
