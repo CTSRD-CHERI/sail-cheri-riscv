@@ -71,7 +71,7 @@ let  cap_perms_width = sizeof(cap_perms_width)
 type CapAddrBits  = bits(cap_addr_width)
 type CapAddrInt   = range(0, (2 ^ cap_addr_width) - 1)
 type CapLenBits   = bits(cap_len_width)
-type CapLen       = range(0, (2 ^ cap_len_width))
+type CapLen       = range(0, (2 ^ cap_len_width) - 1)
 type CapPermsBits = bits(cap_perms_width)
 type CapFlagsBits = bits(cap_flags_width)
 
@@ -264,15 +264,34 @@ function capToMemBits(cap) : Capability -> CapBits =
 function memBitsToCapability(tag, b) : (bool, CapBits) -> Capability =
   capBitsToCapability(tag, b ^ null_cap_bits)
 
-
-
-function getCapBoundsBits(c) : Capability -> (CapAddrBits, CapLenBits) =
+function getCapBoundsBitsUncorrected(c) : Capability -> (CapLenBits, CapLenBits) =
   let E = min(cap_max_E, unsigned(c.E)) in
   let a : CapAddrBits = c.address in
+  let a_ext : CapLenBits = EXTZ(a) in
+  let a_top = truncateLSB(a_ext, cap_len_width - E - cap_mantissa_width) in
+  let base : CapLenBits = a_top @ c.B @ zeros(E) in
+  let top  : CapLenBits = a_top @ c.T @ zeros(E) in
+    (base, top)
+
+function getCapLegalised(c) : Capability -> Capability =
+  let (base, top) = getCapBoundsBitsUncorrected(c) in
+  /* Check that base is within the address space */
+  if unsigned(c.E) <= cap_max_E
+   & (base <_u (to_bits(cap_len_width, 1) << cap_addr_width)) then
+    c
+  else
+    /* Legalise the capability by zeroing the ie bit, implicitly setting E to 0. */
+    encCapabilityToCapability(false, {capToEncCap(c) with internal_E = bitzero})
+
+function getCapBoundsBits(c) : Capability -> (CapAddrBits, CapLenBits) =
+  let c_legal = getCapLegalised(c) in
+  let E = unsigned(c_legal.E) in
+  let a : CapAddrBits = c_legal.address in
+  let (base, top) = getCapBoundsBitsUncorrected(c_legal) in
   /* Extract bits we need to make the top correction and calculate representable limit */
   let a3 = truncate(a >> (E + cap_mantissa_width - 3), 3) in
-  let B3 = truncateLSB(c.B, 3) in
-  let T3 = truncateLSB(c.T, 3) in
+  let B3 = truncateLSB(c_legal.B, 3) in
+  let T3 = truncateLSB(c_legal.T, 3) in
   let R3 = B3 - 0b001 in /* wraps */
   /* Do address, base and top lie in the R aligned region above the one containing R? */
   let aHi = if a3 <_u R3 then 1 else 0 in
@@ -280,25 +299,13 @@ function getCapBoundsBits(c) : Capability -> (CapAddrBits, CapLenBits) =
   let tHi = if T3 <_u R3 then 1 else 0 in
   /* Compute region corrections for top and base relative to a */
   let correction_base = bHi - aHi in
-  let correction_top  = tHi - aHi in
-  let a_top = (a >> (E + cap_mantissa_width)) in {
-    base : CapLenBits = truncate((a_top + correction_base) @ c.B @ zeros(E), cap_len_width);
-    top  : CapLenBits = truncate((a_top + correction_top)  @ c.T @ zeros(E), cap_len_width);
-    /* If the base and top are more than an address space away from each other,
-       invert the MSB of top.  This corrects for errors that happen when the
-       representable space wraps the address space. */
-    let base2 : bits(2) = 0b0 @ [base[cap_addr_width - 1]];
-    let top2  : bits(2) = top[cap_addr_width .. cap_addr_width - 1];
-    if (E < (cap_max_E - 1)) & (unsigned(top2 - base2) > 1) then {
-      top[cap_addr_width] = ~(top[cap_addr_width]);
-    };
-    /* TODO The following top MSB correction was thought to be equivalent
-       to the one above, but differs at least in some cases where E >= cap_max_E - 1
-    if (base[cap_addr_width] == bitone) then {
-       top[cap_addr_width] = if (aHi == 1) & (tHi == 1) then bitone else bitzero;
-    };
-    */
-    (base[(cap_addr_width - 1)..0], top)
+  let correction_top  = tHi - aHi in {
+    base_corrected : CapLenBits = base + (to_bits(cap_len_width, correction_base) << (cap_mantissa_width + E));
+    top_corrected : CapLenBits = top + (to_bits(cap_len_width, correction_top) << (cap_mantissa_width + E));
+    /* Interpret the top relative to the address space of the base.
+       This corrects for errors that happen when the representable space wraps the address space. */
+    top_corrected[cap_len_width - 1 .. cap_addr_width] = top_corrected[cap_len_width - 1 .. cap_addr_width] - base_corrected[cap_len_width - 1 .. cap_addr_width];
+    (truncate(base_corrected, cap_addr_width), top_corrected)
   }
 
 function getCapBounds(cap) : Capability -> (CapAddrInt, CapLen) =
@@ -308,7 +315,7 @@ function getCapBounds(cap) : Capability -> (CapAddrInt, CapLen) =
 /* An 'ideal' version of setCapBounds as described in paper. */
 function setCapBounds(cap, base, top) : (Capability, CapAddrBits, CapLenBits) -> (bool, Capability) = {
   /* {cap with base=base; length=(bits(64)) length; offset=0} */
-  let ext_base = 0b0 @ base;
+  let ext_base : CapLenBits = EXTZ(base);
   let length = top - ext_base;
   /* Find an exponent that will put the most significant bit of length
    * second from the top as assumed during decoding. We ignore the bottom
@@ -445,13 +452,8 @@ function getCapOffset(c) : Capability -> CapAddrInt =
 
 function getCapLength(c) : Capability -> CapLen =
     let ('base, 'top) = getCapBounds(c) in {
-        /* For valid capabilties we expect top >= base and hence
-         * length >= 0 but representation does allow top < base in some
-         * cases so might encounter on untagged capabilities. Here we just
-         * pretend it is a 65-bit quantitiy and wrap.
-         */
-        assert (not(c.tag) | top >= base);
-        (top - base) % pow2(cap_len_width)
+        assert(top >= base);
+        top - base
     }
 
 val inCapBounds  : (Capability, CapAddrBits, CapLen) -> bool
@@ -496,14 +498,15 @@ overload operator << = {sail_shiftleft}
 overload operator >>_s = {sail_arith_shiftright}
 
 function fastRepCheck(c, i) : (Capability, CapAddrBits) -> bool=
-    let E = unsigned(c.E) in
+    let c_legal = getCapLegalised(c) in
+    let E = unsigned(c_legal.E) in
     if (E >= cap_max_E - 2) then
         true /* in this case representable region is whole address space */
     else
         let i_top    = signed(i >>_s (E + cap_mantissa_width)) in
         let i_mid    = truncate(i >> E, cap_mantissa_width)in
-        let a_mid    = truncate(c.address >> E, cap_mantissa_width) in
-        let B3 = truncateLSB(c.B, 3) in
+        let a_mid    = truncate(c_legal.address >> E, cap_mantissa_width) in
+        let B3 = truncateLSB(c_legal.B, 3) in
         let R3 = B3 - 0b001 in
         let R  = R3 @ zeros(cap_mantissa_width - 3) in
         let diff  = R - a_mid in
@@ -561,7 +564,7 @@ function capToString (cap) = {
   concat_str(" length:", len_str)))))))))))))
 }
 function getRepresentableAlignmentMask(len) : xlenbits -> xlenbits = {
-  let (exact, c) = setCapBounds(default_cap, to_bits(sizeof(xlen), 0), 0b0 @ len);
+  let (exact, c) = setCapBounds(default_cap, to_bits(sizeof(xlen), 0), EXTZ(len));
   let e = min(unsigned(c.E), cap_max_E);
   let e' = if c.internal_E then e + internal_E_take_bits else 0;
   ones(sizeof(xlen)-e') @ zeros(e')
