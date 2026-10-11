@@ -88,12 +88,11 @@ function clause execute(JALR_capmode(imm, rs1, rd)) = {
     Y(rd) = sealCap(linkCap);
     set_next_pc(newPC);
 
-    // Construct the new capability pointing to the address + offset.
-    let (representable, newPCC) = setCapAddr(rs1_cap, newPC);
-    let newPCC = clearTagIf(newPCC, not(representable));
     // Unseal the target capability if permitted
-    let newPCC = if off == zeros() & rs1_cap.address[0] == bitzero then unsealCap(newPCC) else newPCC;
-    set_next_pcc(newPCC);
+    let newPCC = if off == zeros() & rs1_cap.address[0] == bitzero then unsealCap(rs1_cap) else rs1_cap;
+
+    // Construct the new capability pointing to the address + offset.
+    set_next_pcc(setCapAddrChecked(newPCC, newPC, false));
 
     RETIRE_SUCCESS
   }
