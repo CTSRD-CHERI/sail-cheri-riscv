@@ -36,9 +36,6 @@ val is_taggable : (physaddr, mem_access_width) -> bool
 function is_cap_sized_aligned_access(addr : physaddrbits, width : mem_access_width) -> bool =
   width == 2 ^ log2_cap_size & addr[log2_cap_size - 1 .. 0] == zeros(log2_cap_size)
 
-/* FIXME: we should have a maximum cap_size constraint for 'n.
- * This would check that the assumption below of a max span of two regions is valid.
- */
 function __WriteRAM_Meta(addr : physaddrbits, width : mem_access_width, tag : mem_meta) -> unit = {
   assert(not(tag) | is_cap_sized_aligned_access(addr, width),
          "can only set tag for capability sized-and-aligned writes");
@@ -46,19 +43,23 @@ function __WriteRAM_Meta(addr : physaddrbits, width : mem_access_width, tag : me
   // Clear tag if writing to untaggable memory.
   let tag = tag & is_taggable(physaddr(addr), width);
 
-  let tag_addr = addr_to_tag_addr(addr);
-  if get_config_print_mem() then
-    print_mem("tag[" ^ BitStr(tag_addr_to_addr(tag_addr)) ^ "] <- " ^ (if tag then "1" else "0"));
-  MEMw_tag(zero_extend(tag_addr), tag);
-  /* If the write crosses a cap_size alignment boundary then we need
-   * to write the tag for the subsequent region.  Writes greater than
-   * cap_size that might span more than two regions are not supported.
-   */
-  let tag_addr2 = addr_to_tag_addr(addr + width - 1);
-  if tag_addr != tag_addr2 then {
+  // Unaligned stores can cross capability boundaries, clobbering two different
+  // tags, and CBO.ZERO is implemented as a single large write that clobbers
+  // multiple, so handle arbitrary ranges. The assertion above will guarantee
+  // that the only time the loop body is executed more than once is when the
+  // tag is zero, i.e. it's not possible for this loop to plaster a set tag
+  // across memory and forge capabilities.
+  //
+  // NB: This may wrap the address space, so we must subtract the tagaddrbits
+  // values before converting to any other representation (whether a different
+  // width bitvector or an integer type like unsigned).
+  let tag_range_first = addr_to_tag_addr(addr);
+  let tag_range_last = addr_to_tag_addr(addr + width - 1);
+  foreach (i from 0 to unsigned(tag_range_last - tag_range_first)) {
+    let tag_addr = tag_range_first + i;
     if get_config_print_mem() then
-      print_mem("tag[" ^ BitStr(tag_addr_to_addr(tag_addr2)) ^ "] <- " ^ (if tag then "1" else "0"));
-    MEMw_tag(zero_extend(tag_addr2), tag);
+      print_mem("tag[" ^ BitStr(tag_addr_to_addr(tag_addr)) ^ "] <- " ^ (if tag then "1" else "0"));
+    MEMw_tag(zero_extend(tag_addr), tag);
   }
 }
 
