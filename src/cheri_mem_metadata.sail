@@ -23,10 +23,26 @@ function tag_addr_to_addr(tag_addr : tagaddrbits) -> physaddrbits = tag_addr @ z
 // more invasive change.
 val is_taggable : (physaddr, mem_access_width) -> bool
 
+/*
+ * FIXME: These interfaces are a poor fit for how CHERI tags work, due to
+ * having a single tag argument / return value for any arbitrary range. Trust
+ * the caller to do the right thing and not expect the impossible, but also
+ * add in some safety checks to avoid things going off the rails in a way that
+ * violates CHERI's unforgeability.
+ *
+ * NB: Neither cap_size nor is_aligned_addr are available to use here, so we
+ * have to do things the ugly way.
+ */
+function is_cap_sized_aligned_access(addr : physaddrbits, width : mem_access_width) -> bool =
+  width == 2 ^ log2_cap_size & addr[log2_cap_size - 1 .. 0] == zeros(log2_cap_size)
+
 /* FIXME: we should have a maximum cap_size constraint for 'n.
  * This would check that the assumption below of a max span of two regions is valid.
  */
 function __WriteRAM_Meta(addr : physaddrbits, width : mem_access_width, tag : mem_meta) -> unit = {
+  assert(not(tag) | is_cap_sized_aligned_access(addr, width),
+         "can only set tag for capability sized-and-aligned writes");
+
   // Clear tag if writing to untaggable memory.
   let tag = tag & is_taggable(physaddr(addr), width);
 
@@ -46,7 +62,6 @@ function __WriteRAM_Meta(addr : physaddrbits, width : mem_access_width, tag : me
   }
 }
 
-/* FIXME: we should have a maximum cap_size constraint for 'n. */
 function __ReadRAM_Meta(addr : physaddrbits, width : mem_access_width) -> mem_meta = {
   let tag_addr = addr_to_tag_addr(addr);
   let tag = MEMr_tag(zero_extend(tag_addr));
@@ -56,5 +71,9 @@ function __ReadRAM_Meta(addr : physaddrbits, width : mem_access_width) -> mem_me
   // Read false if reading from untaggable memory. We could potentially
   // get away without this since we never allow writing tags to untaggable
   // memory, and tags are reset to 0 and the taggable PMA is fixed.
-  tag & is_taggable(physaddr(addr), width)
+  //
+  // Similarly, throw away the tag if not a capability sized-and-aligned read;
+  // nothing should be using the tag if so, but best to make it impossible to
+  // get wrong.
+  tag & is_taggable(physaddr(addr), width) & is_cap_sized_aligned_access(addr, width)
 }
